@@ -88,6 +88,25 @@ La aplicación móvil y la plataforma web consumen una API que se apoya en servi
 - [ ] Confirmación de entrega
 - [ ] Plataforma web de supervisión
 
+## Metodología y Planificación
+
+El proyecto sigue una metodología ágil iterativa basada en **Scrum**, distribuida en **6 Sprints** de desarrollo, apoyada en las siguientes herramientas colaborativas:
+
+- **Figma:** Prototipado y diseño UI/UX (móvil y web).
+- **Trello:** Tablero Kanban y gestión del Backlog de producto.
+- **Slack:** Canal de comunicación del equipo y acuerdos de trabajo.
+
+| Sprint | Enfoque Principal | Entregable Clave |
+|:---:|---|---|
+| **Sprint 1** | UI/UX en Figma, modelado de datos y autenticación | Prototipo visual completo, esquema de BD y login con roles funcional |
+| **Sprint 2** | Registro de maquinaria y QR (Mobile) | Escaneo/registro por serial y las tres fases de alistamiento |
+| **Sprint 3** | Evidencias y despacho (Mobile) | Captura de fotos/video por fase y recepción del transportador |
+| **Sprint 4** | Transporte y tracking GPS (Mobile) | Seguimiento en ruta, incidencias y confirmación de entrega |
+| **Sprint 5** | Plataforma Web de Supervisión (Dashboard) | Panel en React + TS, mapa en vivo y galería de evidencias |
+| **Sprint 6** | Integración, despliegue, pruebas y sustentación | Sistema desplegado, APK generado y sustentación ante el docente |
+
+> Para consultar el desglose detallado de tareas, historias de usuario y criterios de aceptación, revisa: [`docs/sprints.md`](docs/sprints.md)
+
 ## Estructura del repositorio
 
 ```
@@ -95,7 +114,7 @@ MaquiTrace/
 ├── branding/  # logo e identidad visual (fuente única)
 ├── mobile/    # app móvil (Flutter)
 ├── web/       # plataforma web
-└── docs/      # propuesta y recursos
+└── docs/      # propuesta, sprints y recursos
 ```
 
 ## Estado
