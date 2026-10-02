@@ -1,6 +1,6 @@
 {
-    "name": "maquitrace",
-    "short_name": "maquitrace",
+    "name": "MaquiTrace",
+    "short_name": "MaquiTrace",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
