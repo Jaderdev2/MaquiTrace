@@ -69,15 +69,15 @@ El Sprint 1 asume una API propia con base de datos PostgreSQL, autenticación po
 - [ ] Configurar tablero en **Trello**: `Product Backlog`, `Sprint Backlog`, `En Proceso`, `Revisión/QA`, `Completado`.
 
 #### 3. Base de Datos y Backend Base
-- [ ] Diseñar diagrama Entidad-Relación: `usuarios`, `roles`, `maquinarias`, `fases_alistamiento`, `evidencias`, `viajes_transporte`, `registros_gps`, `incidencias`.
-- [ ] Definir tecnología de backend (API propia o Supabase, según respuesta del docente).
-- [ ] Implementar autenticación (login, cierre de sesión y control de acceso por rol).
-- [ ] Endpoint o función administrativa para crear cuentas de operarios y transportadores con su rol asignado.
+- [x] Diseñar diagrama Entidad-Relación: `usuarios`, `roles`, `maquinarias`, `fases_alistamiento`, `evidencias`, `viajes_transporte`, `registros_gps`, `incidencias`.
+- [x] Definir tecnología de backend (NestJS + Prisma + Neon PostgreSQL + Oracle Cloud Storage).
+- [x] Implementar autenticación (login, cierre de sesión y control de acceso por rol).
+- [x] Endpoint o función administrativa para crear cuentas de operarios y transportadores con su rol asignado.
 
 #### 4. App Móvil (Flutter Base)
-- [ ] Configurar estructura modular por features en Flutter.
-- [ ] Implementar pantalla de Login con validaciones de formulario.
-- [ ] Gestión del estado de sesión y redirección condicional según el rol autenticado.
+- [x] Configurar estructura modular por features en Flutter.
+- [x] Implementar pantalla de Login con validaciones de formulario.
+- [x] Gestión del estado de sesión y redirección condicional según el rol autenticado.
 
 > **Entregable Sprint 1:** Prototipo visual de las pantallas clave, base de datos definida y flujo de autenticación funcional en la app móvil.
 

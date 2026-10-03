@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/wave_clipper.dart';
 import '../../home/screens/home_screen.dart';
+import '../../transport/screens/transport_home_screen.dart';
+import '../providers/auth_provider.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,6 +17,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -26,15 +30,90 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+  Future<void> _handleLogin() async {
+    // Validar formato del formulario
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Ocultar teclado
+    FocusScope.of(context).unfocus();
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.login(
+      _emailController.text,
+      _passwordController.text,
     );
+
+    if (!mounted) return;
+
+    if (success) {
+      final user = authProvider.currentUser;
+
+      if (user != null && user.isTransportador) {
+        // Redirección para Transportador
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const TransportHomeScreen()),
+        );
+      } else if (user != null && user.isAdmin) {
+        // Notificación para Administrador
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Cuenta de Administrador'),
+            content: const Text(
+              'Has iniciado sesión con el rol de Administrador. La gestión global y supervisión está disponible en la Plataforma Web.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  );
+                },
+                child: const Text('Continuar a la App Móvil'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Redirección para Operario (predeterminado)
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } else {
+      // Mostrar mensaje de error si las credenciales fallan
+      final error = authProvider.errorMessage ?? 'Error al iniciar sesión';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  error,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.statusRed,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final authProvider = context.watch<AuthProvider>();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -61,162 +140,194 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-            // Contenido del formulario
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Título Bienvenido a MaquiTrace
-                  RichText(
-                    text: const TextSpan(
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        height: 1.15,
-                        letterSpacing: -0.5,
-                      ),
-                      children: [
-                        TextSpan(text: 'Bienvenido a\n'),
-                        TextSpan(text: 'Maqui'),
-                        TextSpan(
-                          text: 'Trace',
-                          style: TextStyle(color: AppColors.accentBlue),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Subtítulo
-                  const Text(
-                    'Inicia sesión para acceder a la plataforma y gestionar la trazabilidad de tu maquinaria.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Campo Correo electrónico
-                  _buildInputField(
-                    controller: _emailController,
-                    hintText: 'Correo electrónico',
-                    icon: Icons.mail_outline_rounded,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Campo Contraseña
-                  _buildInputField(
-                    controller: _passwordController,
-                    hintText: 'Contraseña',
-                    icon: Icons.lock_outline_rounded,
-                    obscureText: _obscurePassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: AppColors.inputIcon,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Fila Recordar sesión y ¿Olvidaste tu contraseña?
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Contenido del formulario
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: Checkbox(
-                              value: _rememberMe,
-                              onChanged: (val) {
-                                setState(() {
-                                  _rememberMe = val ?? false;
-                                });
-                              },
-                              activeColor: AppColors.accentBlue,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
+                      // Título Bienvenido a MaquiTrace
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            height: 1.15,
+                            letterSpacing: -0.5,
                           ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Recordar sesión',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w500,
+                          children: [
+                            TextSpan(text: 'Bienvenido a\n'),
+                            TextSpan(text: 'Maqui'),
+                            TextSpan(
+                              text: 'Trace',
+                              style: TextStyle(color: AppColors.accentBlue),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Subtítulo
+                      const Text(
+                        'Inicia sesión para acceder a la plataforma y gestionar la trazabilidad de tu maquinaria.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Campo Correo electrónico con validación
+                      _buildInputField(
+                        controller: _emailController,
+                        hintText: 'Correo electrónico',
+                        icon: Icons.mail_outline_rounded,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Ingresa tu correo electrónico';
+                          }
+                          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                          if (!emailRegex.hasMatch(value.trim())) {
+                            return 'Ingresa un formato de correo válido';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Campo Contraseña con validación
+                      _buildInputField(
+                        controller: _passwordController,
+                        hintText: 'Contraseña',
+                        icon: Icons.lock_outline_rounded,
+                        obscureText: _obscurePassword,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Ingresa tu contraseña';
+                          }
+                          if (value.length < 6) {
+                            return 'La contraseña debe tener al menos 6 caracteres';
+                          }
+                          return null;
+                        },
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            color: AppColors.inputIcon,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Fila Recordar sesión y ¿Olvidaste tu contraseña?
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _rememberMe = val ?? false;
+                                    });
+                                  },
+                                  activeColor: AppColors.accentBlue,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Recordar sesión',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ForgotPasswordScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              '¿Olvidaste tu contraseña?',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.accentBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const ForgotPasswordScreen(),
+                      const SizedBox(height: 26),
+
+                      // Botón Iniciar sesión con estado de carga
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: authProvider.isLoading ? null : _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accentBlue,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                          );
-                        },
-                        child: const Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.accentBlue,
-                            fontWeight: FontWeight.w600,
                           ),
+                          child: authProvider.isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Iniciar sesión',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
+                      const SizedBox(height: 32),
                     ],
                   ),
-                  const SizedBox(height: 26),
-
-                  // Botón Iniciar sesión
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentBlue,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Text(
-                        'Iniciar sesión',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildInputField({
@@ -226,6 +337,7 @@ class _LoginScreenState extends State<LoginScreen> {
     bool obscureText = false,
     Widget? suffixIcon,
     TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -233,10 +345,11 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.inputBorder, width: 1.2),
       ),
-      child: TextField(
+      child: TextFormField(
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
+        validator: validator,
         style: const TextStyle(
           fontSize: 15,
           color: AppColors.textPrimary,
@@ -251,6 +364,11 @@ class _LoginScreenState extends State<LoginScreen> {
           prefixIcon: Icon(icon, color: AppColors.inputIcon, size: 20),
           suffixIcon: suffixIcon,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          errorStyle: const TextStyle(
+            color: AppColors.statusRed,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

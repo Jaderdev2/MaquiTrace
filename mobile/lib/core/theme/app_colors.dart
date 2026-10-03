@@ -17,11 +17,16 @@ class AppColors {
   static const Color inProgressTint = Color(0xFFEFF6FF);
 
   static const Color statusCompleted = Color(0xFF10B981);
+  static const Color statusGreen = Color(0xFF10B981);
   static const Color completedTint = Color(0xFFECFDF5);
+
+  static const Color statusRed = Color(0xFFEF4444);
+  static const Color redTint = Color(0xFFFEF2F2);
 
   // Superficies y bordes
   static const Color background = Color(0xFFFFFFFF);
   static const Color surfaceGrey = Color(0xFFF8FAFC);
+  static const Color surfaceVariant = Color(0xFFF1F5F9);
   static const Color cardBackground = Color(0xFFFFFFFF);
   static const Color cardBorder = Color(0xFFF1F5F9);
   static const Color inputBorder = Color(0xFFE2E8F0);

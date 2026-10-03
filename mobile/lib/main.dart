@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'core/theme/app_colors.dart';
+import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 
 void main() {
-  runApp(const MaquiTraceApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const MaquiTraceApp(),
+    ),
+  );
 }
 
 class MaquiTraceApp extends StatelessWidget {
