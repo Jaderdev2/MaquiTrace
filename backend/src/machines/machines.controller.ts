@@ -1,8 +1,11 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateMachineDto, MachinesService } from './machines.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MachineStatus } from '@prisma/client';
 
+@ApiTags('Machines')
+@ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 @Controller('machines')
 export class MachinesController {
