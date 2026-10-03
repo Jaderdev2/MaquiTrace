@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 export interface CreateUserDto {
   email: string;
   name: string;
-  passwordHash: string;
+  password?: string;
+  passwordHash?: string;
   roleId: string;
   phone?: string;
 }
@@ -31,11 +33,13 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
+    const passwordHash = dto.passwordHash || (dto.password ? await bcrypt.hash(dto.password, 10) : await bcrypt.hash('MaquiTrace2026!', 10));
+
     return this.prisma.user.create({
       data: {
         email: dto.email,
         name: dto.name,
-        passwordHash: dto.passwordHash,
+        passwordHash,
         roleId: dto.roleId,
         phone: dto.phone,
       },
