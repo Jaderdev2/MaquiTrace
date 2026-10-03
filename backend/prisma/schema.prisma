@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// ENUMS DE DOMINIO MAQUITRACE (Fuente: arquitectura-backend.docx)
+// -------------------------------------------------------------
+
+enum MachineStatus {
+  pendiente
+  en_proceso
+  completada
+  en_transito
+  entregada
+}
+
+enum PhaseName {
+  ensamblaje
+  pintura
+  lavado
+}
+
+enum PhaseStatus {
+  pendiente
+  en_proceso
+  completada
+}
+
+enum EvidenceType {
+  foto
+  video
+}
+
+enum TripStatus {
+  pendiente
+  en_transito
+  entregado
+}
+
+// -------------------------------------------------------------
+// MODELOS DE BASE DE DATOS (8 TABLAS IDENTIFICADAS)
+// -------------------------------------------------------------
+
+model User {
+  id                String             @id @default(uuid())
+  name              String
+  email             String             @unique
+  passwordHash      String
+  phone             String?
+  roleId            String
+  role              Role               @relation(fields: [roleId], references: [id])
+  preparationPhases PreparationPhase[] @relation("PhaseOperator")
+  evidenceUploads   Evidence[]         @relation("EvidenceUploader")
+  transportTrips    TransportTrip[]    @relation("TripTransporter")
+  createdAt         DateTime           @default(now())
+
+  @@map("usuarios")
+}
+
+model Role {
+  id    String @id @default(uuid())
+  name  String @unique // operario | transportador | administrador
+  users User[]
+
+  @@map("roles")
+}
+
+model Machine {
+  id        String             @id @default(uuid())
+  category  String
+  serial    String             @unique
+  model     String
+  status    MachineStatus
+  phases    PreparationPhase[]
+  evidence  Evidence[]
+  trips     TransportTrip[]
+  createdAt DateTime           @default(now())
+
+  @@map("maquinarias")
+}
+
+model PreparationPhase {
+  id           String      @id @default(uuid())
+  machineId    String
+  machine      Machine     @relation(fields: [machineId], references: [id])
+  name         PhaseName
+  status       PhaseStatus
+  observations String?
+  operatorId   String
+  operator     User        @relation("PhaseOperator", fields: [operatorId], references: [id])
+  evidence     Evidence[]
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  @@map("fases_alistamiento")
+}
+
+model Evidence {
+  id         String            @id @default(uuid())
+  machineId  String
+  machine    Machine           @relation(fields: [machineId], references: [id])
+  phaseId    String?
+  phase      PreparationPhase? @relation(fields: [phaseId], references: [id])
+  type       EvidenceType
+  url        String
+  uploadedBy String
+  uploader   User              @relation("EvidenceUploader", fields: [uploadedBy], references: [id])
+  createdAt  DateTime          @default(now())
+
+  @@map("evidencias")
+}
+
+model TransportTrip {
+  id            String      @id @default(uuid())
+  machineId     String
+  machine       Machine     @relation(fields: [machineId], references: [id])
+  transporterId String
+  transporter   User        @relation("TripTransporter", fields: [transporterId], references: [id])
+  vehicle       String
+  destination   String
+  status        TripStatus
+  departureAt   DateTime?
+  arrivalAt     DateTime?
+  gpsRecords    GpsRecord[]
+  incidents     Incident[]
+
+  @@map("viajes_transporte")
+}
+
+model GpsRecord {
+  id         String        @id @default(uuid())
+  tripId     String
+  trip       TransportTrip @relation(fields: [tripId], references: [id])
+  latitude   Float
+  longitude  Float
+  recordedAt DateTime      @default(now())
+
+  @@map("registros_gps")
+}
+
+model Incident {
+  id          String        @id @default(uuid())
+  tripId      String
+  trip        TransportTrip @relation(fields: [tripId], references: [id])
+  description String
+  photoUrl    String?
+  reportedAt  DateTime      @default(now())
+
+  @@map("incidencias")
+}
