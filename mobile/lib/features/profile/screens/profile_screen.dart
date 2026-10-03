@@ -334,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       child: const Center(
                         child: Text(
-                          'JR',
+                          'YI',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
@@ -349,7 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           Text(
-                            'Jhon Fredy Restrepo',
+                            'Yuji Itadori',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
