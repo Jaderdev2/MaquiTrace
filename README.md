@@ -22,16 +22,36 @@ Propuesta completa: [`docs/propuesta.pdf`](docs/propuesta.pdf)
 ## Tecnologías
 
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg" alt="Flutter" width="50">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg" alt="Flutter" width="45">
   &nbsp;&nbsp;
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="React" width="50">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="React" width="45">
   &nbsp;&nbsp;
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" alt="TypeScript" width="50">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" alt="TypeScript" width="45">
   &nbsp;&nbsp;
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vite/vite-original.svg" alt="Vite" width="50">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vite/vite-original.svg" alt="Vite" width="45">
   &nbsp;&nbsp;
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" alt="PostgreSQL" width="50">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" alt="Node.js" width="45">
+  &nbsp;&nbsp;
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nestjs/nestjs-original.svg" alt="NestJS" width="45">
+  &nbsp;&nbsp;
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prisma/prisma-original.svg" alt="Prisma" width="45">
+  &nbsp;&nbsp;
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" alt="PostgreSQL" width="45">
+  &nbsp;&nbsp;
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/socketio/socketio-original.svg" alt="Socket.IO" width="45">
+  &nbsp;&nbsp;
+  <img src="https://api.iconify.design/selfhst:oracle.svg" alt="Oracle Cloud" width="45">
 </p>
+
+| Componente | Tecnología | Descripción |
+|---|---|---|
+| **App Móvil** | Flutter (Dart) | Aplicación para operarios y transportadores |
+| **Plataforma Web** | React 19 + TypeScript (Vite) | Panel de supervisión, mapa en vivo y gestión |
+| **Backend API** | NestJS (Node.js + TypeScript) | Arquitectura modular, autenticación JWT con Passport y guards por rol |
+| **Tiempo Real** | Socket.IO | Gateway de telemetría GPS y eventos en vivo |
+| **Base de Datos** | PostgreSQL (Neon) + Prisma ORM | Modelado de 8 tablas de dominio y migraciones |
+| **Almacenamiento** | Oracle Object Storage (OCI) | Evidencias fotográficas y videos mediante API compatible S3 |
+
 
 
 ## Roles
@@ -111,15 +131,14 @@ El proyecto sigue una metodología ágil iterativa basada en **Scrum**, distribu
 
 ```
 MaquiTrace/
+├── backend/   # API REST y WebSockets (NestJS + Prisma)
 ├── branding/  # logo e identidad visual (fuente única)
 ├── mobile/    # app móvil (Flutter)
-├── web/       # plataforma web
-└── docs/      # propuesta, sprints y recursos
+├── web/       # plataforma web de supervisión (React + Vite)
+└── docs/      # arquitectura, propuesta, sprints y recursos
 ```
 
-## Estado
 
-En fase de diseño. La propuesta está entregada y aún no se define la tecnología de la plataforma web ni del backend.
 
 ## Equipo
 
