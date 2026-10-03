@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'core/theme/app_colors.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'features/home/screens/home_screen.dart';
+import 'features/transport/screens/transport_home_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +36,38 @@ class MaquiTraceApp extends StatelessWidget {
           secondary: AppColors.accentBlue,
         ),
       ),
-      home: const LoginScreen(),
+      home: const AuthGate(),
     );
+  }
+}
+
+/// Compuerta de autenticación que evalúa la sesión recordada
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    // Mientras carga SharedPreferences al arrancar
+    if (auth.isInitializing) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.accentBlue),
+        ),
+      );
+    }
+
+    // Si tiene sesión guardada y recordada
+    if (auth.isAuthenticated) {
+      if (auth.currentUser?.isTransportador == true) {
+        return const TransportHomeScreen();
+      }
+      return const HomeScreen();
+    }
+
+    // Si no está autenticado, va al Login
+    return const LoginScreen();
   }
 }

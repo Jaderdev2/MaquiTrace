@@ -10,11 +10,13 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _currentUser;
   String? _token;
   bool _isLoading = false;
+  bool _isInitializing = true;
   String? _errorMessage;
 
   UserModel? get currentUser => _currentUser;
   String? get token => _token;
   bool get isLoading => _isLoading;
+  bool get isInitializing => _isInitializing;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _token != null && _currentUser != null;
 
@@ -30,14 +32,16 @@ class AuthProvider extends ChangeNotifier {
 
       if (_token != null && userDataStr != null) {
         _currentUser = UserModel.fromJson(jsonDecode(userDataStr));
-        notifyListeners();
       }
     } catch (_) {
       // Ignorar error al cargar sesión inicial
+    } finally {
+      _isInitializing = false;
+      notifyListeners();
     }
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String email, String password, {bool rememberMe = true}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -47,9 +51,11 @@ class AuthProvider extends ChangeNotifier {
       _token = response.accessToken;
       _currentUser = response.user;
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', _token!);
-      await prefs.setString('auth_user', jsonEncode(_currentUser!.toJson()));
+      if (rememberMe) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', _token!);
+        await prefs.setString('auth_user', jsonEncode(_currentUser!.toJson()));
+      }
 
       _isLoading = false;
       notifyListeners();

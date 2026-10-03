@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../core/constants/api_constants.dart';
@@ -13,36 +14,59 @@ class AuthException implements Exception {
 
 class AuthService {
   Future<AuthResponse> login(String email, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse(ApiConstants.loginUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email.trim(),
-          'password': password,
-        }),
-      );
+    final candidateUrls = ApiConstants.candidateBaseUrls;
+    http.Response? lastResponse;
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return AuthResponse.fromJson(data);
-      } else {
-        try {
-          final errorData = jsonDecode(response.body);
-          final message = errorData['message'];
-          if (message is List) {
-            throw AuthException(message.join(', '));
-          } else if (message is String) {
-            throw AuthException(message);
-          }
-        } catch (e) {
-          if (e is AuthException) rethrow;
-        }
-        throw AuthException('Credenciales inválidas o error en el servidor (${response.statusCode})');
+    // Probar las URLs candidatas (USB con adb reverse, Emulador o Wi-Fi)
+    for (final base in candidateUrls) {
+      try {
+        final url = Uri.parse('$base/auth/login');
+        final response = await http
+            .post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'email': email.trim(),
+                'password': password,
+              }),
+            )
+            .timeout(const Duration(seconds: 3));
+
+        // Si el servidor respondió (cualquier código HTTP), encontramos el backend activo
+        ApiConstants.setActiveBaseUrl(base);
+        lastResponse = response;
+        break;
+      } on TimeoutException {
+        // Continuar al siguiente candidato
+        continue;
+      } catch (_) {
+        // Continuar al siguiente candidato
+        continue;
       }
-    } catch (e) {
-      if (e is AuthException) rethrow;
-      throw AuthException('No se pudo conectar con el servidor. Verifica que el backend esté activo.');
+    }
+
+    if (lastResponse == null) {
+      throw AuthException(
+        'No se pudo conectar con el servidor backend.\nVerifica que esté corriendo en tu computador.',
+      );
+    }
+
+    if (lastResponse.statusCode == 200 || lastResponse.statusCode == 201) {
+      final data = jsonDecode(lastResponse.body) as Map<String, dynamic>;
+      return AuthResponse.fromJson(data);
+    } else {
+      try {
+        final errorData = jsonDecode(lastResponse.body);
+        final message = errorData['message'];
+        if (message is List) {
+          throw AuthException(message.join(', '));
+        } else if (message is String) {
+          throw AuthException(message);
+        }
+      } catch (e) {
+        if (e is AuthException) rethrow;
+      }
+      throw AuthException('Credenciales inválidas o error en el servidor (${lastResponse.statusCode})');
     }
   }
 }

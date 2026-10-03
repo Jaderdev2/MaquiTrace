@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../history/screens/history_screen.dart';
 
@@ -261,6 +263,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Tarjeta Credencial Industrial en Azul Marino MaquiTrace
   Widget _buildIndustrialCredentialCard() {
+    final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.currentUser;
+    final userName = user != null && user.name.isNotEmpty ? user.name : 'Yuji Itadori';
+    final userRole = user != null ? 'Rol: ${user.role.toUpperCase()}' : 'Operario de Alistamiento';
+    final initials = userName.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).take(2).join().toUpperCase();
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -332,10 +340,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: 2,
                         ),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'YI',
-                          style: TextStyle(
+                          initials.isNotEmpty ? initials : 'OP',
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
@@ -347,20 +355,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
-                            'Yuji Itadori',
-                            style: TextStyle(
+                            userName,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                               letterSpacing: -0.3,
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
-                            'Operario de Alistamiento',
-                            style: TextStyle(
+                            userRole,
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Color(0xFF94A3B8),
                               fontWeight: FontWeight.w500,
@@ -1011,12 +1019,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
+                        final authProvider = context.read<AuthProvider>();
+                        final navigator = Navigator.of(context);
                         Navigator.of(ctx).pop();
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          (route) => false,
-                        );
+                        await authProvider.logout();
+                        if (mounted) {
+                          navigator.pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                            (route) => false,
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFDC2626),
