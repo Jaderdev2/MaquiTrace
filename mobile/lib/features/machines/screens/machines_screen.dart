@@ -31,6 +31,8 @@ class _MachinesScreenState extends State<MachinesScreen> {
     'Motoniveladoras',
   ];
 
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +40,7 @@ class _MachinesScreenState extends State<MachinesScreen> {
   }
 
   Future<void> _loadFromBackend() async {
+    setState(() => _isLoading = true);
     try {
       final backendList = await _machinesService.search();
       if (backendList.isNotEmpty && mounted) {
@@ -46,65 +49,11 @@ class _MachinesScreenState extends State<MachinesScreen> {
         });
       }
     } catch (_) {}
+    if (mounted) setState(() => _isLoading = false);
   }
 
-
-  // Datos reales del patio
-  final List<MachineModel> _machines = const [
-    MachineModel(
-      id: '1',
-      name: 'CAT 320D',
-      serial: 'ABC123',
-      category: 'Excavadoras',
-      overallState: OverallState.inProgress,
-      phases: [PhaseState.completed, PhaseState.inProgress, PhaseState.pending],
-    ),
-    MachineModel(
-      id: '2',
-      name: 'Komatsu WA470',
-      serial: 'KMT458',
-      category: 'Cargadores',
-      overallState: OverallState.pending,
-      phases: [PhaseState.pending, PhaseState.pending, PhaseState.pending],
-    ),
-    MachineModel(
-      id: '3',
-      name: 'CAT 320D',
-      serial: 'DEF789',
-      category: 'Excavadoras',
-      overallState: OverallState.completed,
-      phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed],
-    ),
-    MachineModel(
-      id: '4',
-      name: 'John Deere 310L',
-      serial: 'JD310-992',
-      category: 'Retroexcavadoras',
-      overallState: OverallState.inProgress,
-      phases: [PhaseState.completed, PhaseState.inProgress, PhaseState.pending],
-    ),
-    MachineModel(
-      id: '5',
-      name: 'Kenworth T800',
-      serial: 'KW-8841',
-      category: 'Volquetas',
-      overallState: OverallState.completed,
-      phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed],
-    ),
-    MachineModel(
-      id: '6',
-      name: 'CAT 140M',
-      serial: 'MN-9042',
-      category: 'Motoniveladoras',
-      overallState: OverallState.inProgress,
-      phases: [PhaseState.completed, PhaseState.inProgress, PhaseState.pending],
-      location: 'Sede Buenaventura · Patio 2 (B-08)',
-      operatingHours: '2,680 h',
-      fuelPercent: 82,
-    ),
-  ];
-
-  List<MachineModel> get _allMachines => _apiMachines.isNotEmpty ? _apiMachines : _machines;
+  List<MachineModel> get _allMachines =>
+      _apiMachines.isNotEmpty ? _apiMachines : MachinesService.localCatalog;
 
   List<MachineModel> get _filteredMachines {
     return _allMachines.where((m) {
@@ -308,8 +257,12 @@ class _MachinesScreenState extends State<MachinesScreen> {
 
             // Lista de tarjetas limpias y espaciosas
             Expanded(
-              child: list.isEmpty
-                  ? Center(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.accentBlue),
+                    )
+                  : list.isEmpty
+                      ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

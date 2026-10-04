@@ -11,7 +11,7 @@ class MachinesService {
   /// Catálogo local de contingencia (garantiza funcionamiento sin red o ante fallos de conexión)
   static const List<MachineModel> localCatalog = [
     MachineModel(
-      id: '1',
+      id: 'm-cat320d-abc123',
       name: 'CAT 320D',
       serial: 'ABC123',
       category: 'Excavadoras',
@@ -19,47 +19,20 @@ class MachinesService {
       phases: [PhaseState.completed, PhaseState.inProgress, PhaseState.pending],
     ),
     MachineModel(
-      id: '2',
-      name: 'Komatsu WA470',
-      serial: 'KMT458',
-      category: 'Cargadores',
+      id: 'm-cat950m-def789',
+      name: 'CAT 950M',
+      serial: 'DEF789',
+      category: 'Cargadores frontales',
       overallState: OverallState.pending,
       phases: [PhaseState.pending, PhaseState.pending, PhaseState.pending],
     ),
     MachineModel(
-      id: '3',
-      name: 'CAT 320D',
-      serial: 'DEF789',
-      category: 'Excavadoras',
-      overallState: OverallState.completed,
-      phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed],
-    ),
-    MachineModel(
-      id: '4',
-      name: 'John Deere 310L',
-      serial: 'JD310-992',
+      id: 'm-cat420f2-ghi456',
+      name: 'CAT 420F2',
+      serial: 'GHI456',
       category: 'Retroexcavadoras',
-      overallState: OverallState.inProgress,
-      phases: [PhaseState.completed, PhaseState.inProgress, PhaseState.pending],
-    ),
-    MachineModel(
-      id: '5',
-      name: 'Kenworth T800',
-      serial: 'KW-8841',
-      category: 'Volquetas',
       overallState: OverallState.completed,
       phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed],
-    ),
-    MachineModel(
-      id: '6',
-      name: 'CAT 140M',
-      serial: 'MN-9042',
-      category: 'Motoniveladoras',
-      overallState: OverallState.inProgress,
-      phases: [PhaseState.completed, PhaseState.inProgress, PhaseState.pending],
-      location: 'Sede Buenaventura · Patio 2 (B-08)',
-      operatingHours: '2,680 h',
-      fuelPercent: 82,
     ),
   ];
 

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_bottom_nav.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../history/screens/history_screen.dart';
 import '../../machines/models/machine_model.dart';
 import '../../machines/screens/machine_detail_screen.dart';
 import '../../machines/screens/machines_screen.dart';
+import '../../machines/services/machines_service.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../qr_scanner/screens/qr_scanner_screen.dart';
 import '../../qr_scanner/widgets/manual_search_modal.dart';
@@ -20,6 +23,23 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentNavIndex = 0;
+  final MachinesService _machinesService = MachinesService();
+  List<MachineModel> _dashboardMachines = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardMachines();
+  }
+
+  Future<void> _loadDashboardMachines() async {
+    try {
+      final list = await _machinesService.search();
+      if (list.isNotEmpty && mounted) {
+        setState(() => _dashboardMachines = list);
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +91,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   Widget _buildHomeContent(BuildContext context) {
+    final auth = Provider.of<AuthProvider>(context);
+    final user = auth.currentUser;
+    final displayName = (user?.name.trim().isNotEmpty ?? false) ? user!.name.trim() : 'Operario';
+    final firstName = displayName.split(' ').first;
+    final initials = displayName
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .take(2)
+        .map((w) => w[0].toUpperCase())
+        .join();
+
+    final machines = _dashboardMachines.isNotEmpty
+        ? _dashboardMachines
+        : MachinesService.localCatalog;
+
     return SafeArea(
       bottom: false,
       child: SingleChildScrollView(
@@ -78,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Barra superior: Avatar pulido + "Hola, Jhon" a la izquierda, Notificaciones a la derecha
+            // 1. Barra superior: Avatar con iniciales reales + Saludo dinámico al usuario autenticado
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -89,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   behavior: HitTestBehavior.opaque,
                   child: Row(
                     children: [
-                      // Avatar pulido en Deep Navy con iniciales
                       Container(
                         width: 44,
                         height: 44,
@@ -97,10 +131,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppColors.primaryNavy,
                           shape: BoxShape.circle,
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
-                            'JR',
-                            style: TextStyle(
+                            initials.isNotEmpty ? initials : 'OP',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
@@ -110,25 +144,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Text(
-                        'Hola, Jhon',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.5,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hola, $firstName',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          Text(
+                            user?.role.toUpperCase() ?? 'OPERARIO DE ALISTAMIENTO',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
 
-                // Icono de notificaciones a la derecha
+                // Icono de notificaciones
                 GestureDetector(
                   onTap: () => _showNotificationsModal(context),
                   child: Container(
-                    width: 44,
-                    height: 44,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
@@ -141,27 +189,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        const Icon(
-                          Icons.notifications_outlined,
-                          size: 22,
-                          color: AppColors.textPrimary,
-                        ),
-                        Positioned(
-                          top: 10,
-                          right: 11,
-                          child: Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              color: AppColors.accentBlue,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: const Center(
+                      child: Icon(
+                        Icons.notifications_outlined,
+                        size: 20,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -169,9 +202,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 20),
 
-                // 3. Tarjeta Unificada de Progreso y Alistamientos del Día
-                _buildUnifiedDailyProgressCard(),
-                const SizedBox(height: 24),
+            // 2. Tarjeta de progreso calculada a partir de las máquinas reales
+            _buildUnifiedDailyProgressCard(machines),
+            const SizedBox(height: 24),
 
                 // 5. Acciones rápidas (Diseño limpio en blanco con icono enmarcado y chevron azul)
                 const Text(
@@ -252,139 +285,54 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // 7. Tarjetas de maquinaria limpias con miniatura enfocada en maquinaria
-                _buildCleanMachineCard(
-                  name: 'CAT 320D',
-                  serial: 'ABC123',
-                  statusText: 'En proceso',
-                  statusColor: AppColors.accentBlue,
-                  statusBg: const Color(0xFFEFF6FF),
-                  statusBorder: const Color(0xFFDBEAFE),
-                  imagePath: 'assets/images/categories/Excavadoras.webp',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const MachineDetailScreen(
-                          machine: MachineModel(
-                            id: '1',
-                            name: 'CAT 320D',
-                            serial: 'ABC123',
-                            category: 'Excavadoras',
-                            overallState: OverallState.inProgress,
-                            phases: [PhaseState.completed, PhaseState.inProgress, PhaseState.pending, PhaseState.pending],
-                            location: 'Sede Buenaventura · Patio 2 (B-04)',
-                            operatingHours: '3,420 h',
-                            fuelPercent: 75,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                _buildCleanMachineCard(
-                  name: 'Komatsu WA470',
-                  serial: 'KMT458',
-                  statusText: 'Pendiente',
-                  statusColor: const Color(0xFFD97706),
-                  statusBg: const Color(0xFFFEF3C7),
-                  statusBorder: const Color(0xFFFDE68A),
-                  imagePath: 'assets/images/categories/Cargadores frontales.webp',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const MachineDetailScreen(
-                          machine: MachineModel(
-                            id: '2',
-                            name: 'Komatsu WA470',
-                            serial: 'KMT458',
-                            category: 'Cargadores',
-                            overallState: OverallState.pending,
-                            phases: [PhaseState.pending, PhaseState.pending, PhaseState.pending, PhaseState.pending],
-                            location: 'Sede Buenaventura · Patio 1 (C-12)',
-                            operatingHours: '1,890 h',
-                            fuelPercent: 40,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                _buildCleanMachineCard(
-                  name: 'CAT 320D',
-                  serial: 'DEF789',
-                  statusText: 'Completado',
-                  statusColor: const Color(0xFF059669),
-                  statusBg: const Color(0xFFECFDF5),
-                  statusBorder: const Color(0xFFA7F3D0),
-                  imagePath: 'assets/images/categories/Excavadoras.webp',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const MachineDetailScreen(
-                          machine: MachineModel(
-                            id: '3',
-                            name: 'CAT 320D',
-                            serial: 'DEF789',
-                            category: 'Excavadoras',
-                            overallState: OverallState.completed,
-                            phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed, PhaseState.completed],
-                            location: 'Sede Buenaventura · Zona Despacho',
-                            operatingHours: '4,150 h',
-                            fuelPercent: 95,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
+                // Tarjetas de maquinaria reales
+                ...machines.take(3).map((machine) {
+                  String statusText;
+                  Color statusColor;
+                  Color statusBg;
+                  Color statusBorder;
 
-                // 8. Banner informativo de tareas pendientes
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 13,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x04000000),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(
-                        Icons.description_outlined,
-                        color: AppColors.accentBlue,
-                        size: 20,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Tienes 2 tareas pendientes de registro de evidencia.',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w500,
+                  switch (machine.overallState) {
+                    case OverallState.inProgress:
+                      statusText = 'En proceso';
+                      statusColor = AppColors.accentBlue;
+                      statusBg = const Color(0xFFEFF6FF);
+                      statusBorder = const Color(0xFFDBEAFE);
+                      break;
+                    case OverallState.completed:
+                      statusText = 'Completado';
+                      statusColor = const Color(0xFF059669);
+                      statusBg = const Color(0xFFECFDF5);
+                      statusBorder = const Color(0xFFA7F3D0);
+                      break;
+                    default:
+                      statusText = 'Pendiente';
+                      statusColor = const Color(0xFFD97706);
+                      statusBg = const Color(0xFFFEF3C7);
+                      statusBorder = const Color(0xFFFDE68A);
+                      break;
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _buildCleanMachineCard(
+                      name: machine.name,
+                      serial: machine.serial,
+                      statusText: statusText,
+                      statusColor: statusColor,
+                      statusBg: statusBg,
+                      statusBorder: statusBorder,
+                      imagePath: machine.displayImage,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => MachineDetailScreen(machine: machine),
                           ),
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: AppColors.textMuted,
-                        size: 18,
-                      ),
-                    ],
-                  ),
-                ),
+                        ).then((_) => _loadDashboardMachines());
+                      },
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -392,13 +340,25 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
   // Tarjeta de Alistamientos del Día (Diseño limpio, luminoso e industrial)
-  Widget _buildUnifiedDailyProgressCard() {
-    const int pending = 3;
-    const int inProgress = 2;
-    const int completed = 5;
-    const int total = pending + inProgress + completed; // 10
-    final double progressFraction = completed / total; // 0.5
+  Widget _buildUnifiedDailyProgressCard(List<MachineModel> machines) {
+    final int total = machines.length;
+    final int pending = machines.where((m) => m.overallState == OverallState.pending).length;
+    final int inProgress = machines.where((m) => m.overallState == OverallState.inProgress).length;
+    final int completed = machines.where((m) => m.overallState == OverallState.completed).length;
+    final double progressFraction = total > 0 ? (completed / total) : 0.0;
     final int percent = (progressFraction * 100).toInt();
+
+    final activeMachine = machines.firstWhere(
+      (m) => m.overallState == OverallState.inProgress,
+      orElse: () => machines.isNotEmpty ? machines.first : const MachineModel(
+        id: '',
+        name: '',
+        serial: '',
+        category: '',
+        overallState: OverallState.pending,
+        phases: [],
+      ),
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -427,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
                     Text(
-                      'Alistamientos de hoy',
+                      'Alistamientos del turno',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -437,7 +397,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Sede Buenaventura · Jornada activa',
+                      'Patio central de alistamiento',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -452,10 +412,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
-                      children: const [
+                      children: [
                         Text(
                           '$completed',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                             color: AppColors.textPrimary,
@@ -463,7 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         Text(
                           ' / $total',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textMuted,
@@ -486,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Barra de progreso continua (monocromática, sin colores de semáforo)
+            // Barra de progreso continua
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -495,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: FractionallySizedBox(
-                    widthFactor: progressFraction,
+                    widthFactor: progressFraction.clamp(0.0, 1.0),
                     child: Container(
                       decoration: const BoxDecoration(
                         color: AppColors.accentBlue,
@@ -507,7 +467,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Píldoras de desglose de estado (Neutras, sobrias)
+            // Píldoras de desglose de estado
             Row(
               children: [
                 _buildLightMetricPill(
@@ -530,70 +490,53 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-
-            // Acceso directo al equipo activo del turno
-            InkWell(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MachineDetailScreen(
-                      machine: MachineModel(
-                        id: '1',
-                        name: 'CAT 320D',
-                        serial: 'ABC123',
-                        category: 'Excavadoras',
-                        overallState: OverallState.inProgress,
-                        phases: [
-                          PhaseState.completed,
-                          PhaseState.inProgress,
-                          PhaseState.pending,
-                          PhaseState.pending,
-                        ],
-                        location: 'Sede Buenaventura · Patio 2 (B-04)',
-                        operatingHours: '3,420 h',
-                        fuelPercent: 75,
-                      ),
+            if (activeMachine.serial.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MachineDetailScreen(machine: activeMachine),
                     ),
+                  ).then((_) => _loadDashboardMachines());
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F6FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFDBEAFE)),
                   ),
-                );
-              },
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F6FF),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFDBEAFE)),
-                ),
-                child: Row(
-                  children: const [
-                    Icon(
-                      Icons.play_circle_outline_rounded,
-                      size: 16,
-                      color: AppColors.accentBlue,
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'En atención: CAT 320D · Bahía B-04',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.play_circle_outline_rounded,
+                        size: 16,
+                        color: AppColors.accentBlue,
                       ),
-                    ),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
-                      color: AppColors.accentBlue,
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'En atención: ${activeMachine.name} · Serial ${activeMachine.serial}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: AppColors.accentBlue,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -900,35 +843,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Text(
-                          'Notificaciones',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: const Text(
-                            '2 nuevas',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
+                    const Text(
+                      'Notificaciones operativas',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textMuted),
@@ -939,29 +861,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Lista de notificaciones (estilo industrial unificado, sin tricolor)
-                _buildNotificationTile(
-                  icon: Icons.assignment_outlined,
-                  title: 'Nueva asignación de máquina',
-                  body: 'CAT 320D (ABC123) programada para alistamiento en Sede Buenaventura (Patio 2).',
-                  time: 'Hace 15 min',
-                  isUnread: true,
-                ),
-                const SizedBox(height: 10),
-                _buildNotificationTile(
-                  icon: Icons.check_circle_outline_rounded,
-                  title: 'Checklist validado',
-                  body: 'El supervisor validó el alistamiento de la Komatsu WA470.',
-                  time: 'Hace 1 hora',
-                  isUnread: true,
-                ),
-                const SizedBox(height: 10),
-                _buildNotificationTile(
-                  icon: Icons.access_time_rounded,
-                  title: 'Recordatorio de evidencia',
-                  body: 'Recuerda subir las 4 fotos de inspección antes del cierre.',
-                  time: 'Hace 3 horas',
-                  isUnread: false,
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: const [
+                      Icon(
+                        Icons.verified_outlined,
+                        size: 42,
+                        color: AppColors.accentBlue,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Jornada al día',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'No hay avisos ni alertas técnicas pendientes para tu rol en este momento.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 20),
 
@@ -990,84 +924,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildNotificationTile({
-    required IconData icon,
-    required String title,
-    required String body,
-    required String time,
-    required bool isUnread,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isUnread ? Colors.white : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isUnread ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
-          width: isUnread ? 1.2 : 1.0,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              size: 19,
-              color: AppColors.primaryNavy,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      time,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

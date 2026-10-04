@@ -46,13 +46,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     }
   }
 
-  // Simulación de fotos tomadas por el operario
-  final Map<int, bool> _photoUploaded = {
-    0: true,  // Frontal
-    1: true,  // Lateral
-    2: true,  // Cabina
-    3: false, // Motor (pendiente)
-  };
+
 
 
   @override
@@ -124,25 +118,12 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                       _buildHeroCard(m, statusLabel, statusColor, statusBg, statusBorder),
                       const SizedBox(height: 18),
 
-                      // Ficha técnica esencial (Métricas operativas)
-                      _buildTechnicalSpecsGrid(m),
-                      const SizedBox(height: 20),
-
                       // Progreso y avance de alistamiento
                       _buildPreparationProgressCard(),
                       const SizedBox(height: 16),
 
-                      // Fases Secuenciales de Alistamiento
+                      // Fases Secuenciales de Alistamiento (Lavado -> Ensamblaje -> Pintura)
                       _buildSequentialPhasesSection(m),
-                      const SizedBox(height: 22),
-
-
-                      // Evidencias fotográficas requeridas
-                      _buildEvidenceSection(),
-                      const SizedBox(height: 22),
-
-                      // Novedades y observaciones técnicas
-                      _buildNotesSection(m),
                     ],
                   ),
                 ),
@@ -150,9 +131,6 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
             ],
           ),
         ),
-
-        // 3. Barra de acciones inferior fija
-        bottomNavigationBar: _buildStickyBottomBar(context, m),
       ),
     );
   }
@@ -333,13 +311,14 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                               letterSpacing: -0.5,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Text(
-                            'Modelo ${machine.modelYear} · Serial: ${machine.serial}',
+                            'Serial: ${machine.serial}',
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.3,
                             ),
                           ),
                         ],
@@ -364,41 +343,6 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-
-                // Separador tenue
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                const SizedBox(height: 12),
-
-                // Ubicación física en patio
-                Row(
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF1F5F9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.location_on_outlined,
-                        size: 16,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        machine.location,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -407,117 +351,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     );
   }
 
-  // --- Ficha Técnica Esencial (Métricas Operativas) ---
-  Widget _buildTechnicalSpecsGrid(MachineModel machine) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Ficha técnica y operatividad',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildSpecCard(
-                icon: Icons.timer_outlined,
-                label: 'Horómetro',
-                value: machine.operatingHours,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildSpecCard(
-                icon: Icons.local_gas_station_outlined,
-                label: 'Combustible',
-                value: '${machine.fuelPercent}%',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _buildSpecCard(
-                icon: Icons.calendar_today_outlined,
-                label: 'Año / Modelo',
-                value: machine.modelYear,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildSpecCard(
-                icon: Icons.person_outline_rounded,
-                label: 'Operario asignado',
-                value: machine.assignedOperator,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 
-  Widget _buildSpecCard({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 17, color: AppColors.primaryNavy),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // --- Tarjeta de Progreso General de Alistamiento ---
   Widget _buildPreparationProgressCard() {
@@ -1078,282 +912,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   }
 
 
-  // --- Sección de Evidencias Fotográficas ---
-  Widget _buildEvidenceSection() {
-    final List<Map<String, dynamic>> photos = [
-      {'index': 0, 'label': '1. Frente y cuchara'},
-      {'index': 1, 'label': '2. Oruga izquierda'},
-      {'index': 2, 'label': '3. Cabina interior'},
-      {'index': 3, 'label': '4. Motor / Fluidos'},
-    ];
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Evidencias fotográficas',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Text(
-                '3 / 4 registradas',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Grilla 2x2 de fotos requeridas
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 4,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.35,
-            ),
-            itemBuilder: (context, i) {
-              final isUploaded = _photoUploaded[i] ?? false;
-              final label = photos[i]['label'] as String;
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _photoUploaded[i] = !isUploaded;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isUploaded
-                            ? 'Evidencia eliminada'
-                            : 'Foto capturada para: $label',
-                      ),
-                      duration: const Duration(seconds: 1),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isUploaded ? const Color(0xFFF8FAFC) : const Color(0xFFFAFAFA),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isUploaded ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      if (isUploaded)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(11),
-                          child: SizedBox.expand(
-                            child: Image.asset(
-                              'assets/images/maqui_trace_bg.png',
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      // Overlay o placeholder
-                      if (!isUploaded)
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(
-                                Icons.add_a_photo_outlined,
-                                size: 22,
-                                color: AppColors.textMuted,
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Tomar foto',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      // Barra inferior de texto
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isUploaded
-                                ? const Color(0xCC0F172A)
-                                : const Color(0xFFF1F5F9),
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(11),
-                            ),
-                          ),
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: isUploaded ? Colors.white : AppColors.textSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- Observaciones técnicas del turno ---
-  Widget _buildNotesSection(MachineModel machine) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: const [
-              Icon(Icons.notes_rounded, size: 18, color: AppColors.primaryNavy),
-              SizedBox(width: 8),
-              Text(
-                'Observaciones de campo',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Text(
-              machine.notes ??
-                  'Equipo en óptimas condiciones de estructura y mandos hidráulicos. Se completaron 2 litros de refrigerante 50/50 y se verificó tensión de orugas.',
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- Barra Inferior Fija de Acción ---
-  Widget _buildStickyBottomBar(BuildContext context, MachineModel machine) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Botón secundario: Reportar novedad
-          OutlinedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Formulario de novedad técnica abierto'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Icon(
-              Icons.flag_outlined,
-              size: 20,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Botón primario: Continuar Alistamiento
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Alistamiento de ${machine.name} en curso'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.assignment_turned_in_outlined, size: 20),
-              label: const Text(
-                'Continuar alistamiento',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryNavy,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // --- Modal para Código QR de la Máquina ---
   void _showMachineQrModal(BuildContext context, MachineModel machine) {
