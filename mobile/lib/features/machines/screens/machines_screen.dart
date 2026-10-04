@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../qr_scanner/screens/qr_scanner_screen.dart';
 import '../models/machine_model.dart';
+import '../services/machines_service.dart';
 import 'machine_detail_screen.dart';
 
 class MachinesScreen extends StatefulWidget {
@@ -15,8 +17,10 @@ class MachinesScreen extends StatefulWidget {
 
 class _MachinesScreenState extends State<MachinesScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final MachinesService _machinesService = MachinesService();
   String _selectedCategory = 'Todas';
   String _searchQuery = '';
+  List<MachineModel> _apiMachines = [];
 
   final List<String> _categories = const [
     'Todas',
@@ -26,6 +30,24 @@ class _MachinesScreenState extends State<MachinesScreen> {
     'Volquetas',
     'Motoniveladoras',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromBackend();
+  }
+
+  Future<void> _loadFromBackend() async {
+    try {
+      final backendList = await _machinesService.search();
+      if (backendList.isNotEmpty && mounted) {
+        setState(() {
+          _apiMachines = backendList;
+        });
+      }
+    } catch (_) {}
+  }
+
 
   // Datos reales del patio
   final List<MachineModel> _machines = const [
@@ -82,18 +104,21 @@ class _MachinesScreenState extends State<MachinesScreen> {
     ),
   ];
 
+  List<MachineModel> get _allMachines => _apiMachines.isNotEmpty ? _apiMachines : _machines;
+
   List<MachineModel> get _filteredMachines {
-    return _machines.where((m) {
+    return _allMachines.where((m) {
       final matchesSearch = _searchQuery.isEmpty ||
           m.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           m.serial.toLowerCase().contains(_searchQuery.toLowerCase());
 
       final matchesCategory =
-          _selectedCategory == 'Todas' || m.category == _selectedCategory;
+          _selectedCategory == 'Todas' || m.category.toLowerCase().contains(_selectedCategory.toLowerCase());
 
       return matchesSearch && matchesCategory;
     }).toList();
   }
+
 
   @override
   void dispose() {
@@ -207,9 +232,35 @@ class _MachinesScreenState extends State<MachinesScreen> {
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  // Botón de escáner QR rápido
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryNavy,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const QrScannerScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),
+
             const SizedBox(height: 16),
 
             // Filtro único por categoría (horizontal scroll limpio)

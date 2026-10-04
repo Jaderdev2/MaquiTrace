@@ -11,6 +11,10 @@ class ApiConstants {
   /// Base URL activa detectada dinámicamente
   static String? _activeBaseUrl;
 
+  /// Token JWT activo en memoria
+  static String? authToken;
+
+
   static String get baseUrl {
     if (_activeBaseUrl != null) {
       return _activeBaseUrl!;

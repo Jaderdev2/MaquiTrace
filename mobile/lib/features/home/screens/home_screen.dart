@@ -8,6 +8,8 @@ import '../../machines/models/machine_model.dart';
 import '../../machines/screens/machine_detail_screen.dart';
 import '../../machines/screens/machines_screen.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../qr_scanner/screens/qr_scanner_screen.dart';
+import '../../qr_scanner/widgets/manual_search_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -51,6 +53,8 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (_currentNavIndex) {
       case 1:
         return const MachinesScreen(showScaffold: false);
+      case 2:
+        return const QrScannerScreen();
       case 3:
         return const HistoryScreen(showScaffold: false);
       case 4:
@@ -64,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return _buildHomeContent(context);
     }
   }
+
 
   Widget _buildHomeContent(BuildContext context) {
     return SafeArea(
@@ -190,9 +195,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Escanear QR',
                           subtitle: 'Identifica la máquina con su código QR',
                           onTap: () {
-                            setState(() {
-                              _currentNavIndex = 2;
-                            });
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const QrScannerScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -203,12 +211,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Buscar por serial',
                           subtitle: 'Consulta una máquina por su número de serie',
                           onTap: () {
-                            setState(() {
-                              _currentNavIndex = 1;
-                            });
+                            ManualSearchModal.show(context);
                           },
                         ),
                       ),
+
                     ],
                   ),
                 ),
@@ -848,8 +855,17 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentNavIndex = index;
         });
       },
+      onScanTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const QrScannerScreen(),
+          ),
+        );
+      },
     );
   }
+
 
   void _showNotificationsModal(BuildContext context) {
     showModalBottomSheet(

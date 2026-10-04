@@ -51,4 +51,68 @@ class MachineModel {
     }
     return 'assets/images/categories/Excavadoras.webp';
   }
+
+  factory MachineModel.fromJson(Map<String, dynamic> json) {
+    OverallState state = OverallState.pending;
+    final statusStr = (json['status'] ?? '').toString().toLowerCase();
+    if (statusStr == 'en_proceso') {
+      state = OverallState.inProgress;
+    } else if (statusStr == 'completada') {
+      state = OverallState.completed;
+    } else if (statusStr == 'en_transito') {
+      state = OverallState.inTransit;
+    } else if (statusStr == 'entregada') {
+      state = OverallState.delivered;
+    }
+
+    final phasesRaw = json['phases'] as List<dynamic>? ?? [];
+    final phasesList = <PhaseState>[];
+    String? assignedOp;
+    for (final p in phasesRaw) {
+      if (p is Map<String, dynamic>) {
+        final pStatus = (p['status'] ?? '').toString().toLowerCase();
+        if (pStatus == 'completada') {
+          phasesList.add(PhaseState.completed);
+        } else if (pStatus == 'en_proceso') {
+          phasesList.add(PhaseState.inProgress);
+        } else {
+          phasesList.add(PhaseState.pending);
+        }
+        if (p['operator'] != null && p['operator'] is Map && assignedOp == null) {
+          assignedOp = p['operator']['name'];
+        }
+      }
+    }
+
+    if (phasesList.isEmpty) {
+      phasesList.addAll([PhaseState.pending, PhaseState.pending, PhaseState.pending]);
+    }
+
+    return MachineModel(
+      id: json['id'] ?? '',
+      name: json['model'] ?? json['name'] ?? 'Maquinaria',
+      serial: json['serial'] ?? '',
+      category: json['category'] ?? 'Maquinaria',
+      overallState: state,
+      phases: phasesList,
+      assignedOperator: assignedOp ?? 'Jhon R.',
+      location: json['location'] ?? 'Sede Buenaventura · Patio 2 (B-04)',
+      operatingHours: json['operatingHours'] ?? '3,420 h',
+      fuelPercent: json['fuelPercent'] ?? 75,
+      modelYear: json['modelYear'] ?? '2023',
+      notes: json['notes'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'serial': serial,
+      'category': category,
+      'status': overallState.name,
+      'assignedOperator': assignedOperator,
+    };
+  }
 }
+

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/constants/api_constants.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
@@ -28,6 +29,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString('auth_token');
+      ApiConstants.authToken = _token;
       final userDataStr = prefs.getString('auth_user');
 
       if (_token != null && userDataStr != null) {
@@ -50,12 +52,14 @@ class AuthProvider extends ChangeNotifier {
       final response = await _authService.login(email, password);
       _token = response.accessToken;
       _currentUser = response.user;
+      ApiConstants.authToken = _token;
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', _token!);
       if (rememberMe) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', _token!);
         await prefs.setString('auth_user', jsonEncode(_currentUser!.toJson()));
       }
+
 
       _isLoading = false;
       notifyListeners();
