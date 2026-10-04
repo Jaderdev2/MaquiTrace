@@ -86,6 +86,16 @@ class MachineModel {
 
     if (phasesList.isEmpty) {
       phasesList.addAll([PhaseState.pending, PhaseState.pending, PhaseState.pending]);
+    } else if (state != OverallState.inTransit && state != OverallState.delivered) {
+      final allCompleted = phasesList.every((p) => p == PhaseState.completed);
+      final anyActive = phasesList.any((p) => p == PhaseState.inProgress || p == PhaseState.completed);
+      if (allCompleted) {
+        state = OverallState.completed;
+      } else if (anyActive) {
+        state = OverallState.inProgress;
+      } else {
+        state = OverallState.pending;
+      }
     }
 
     return MachineModel(

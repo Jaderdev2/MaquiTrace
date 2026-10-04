@@ -344,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-  // Tarjeta de Alistamientos del Día (Diseño limpio, luminoso y profesional)
+  // Tarjeta de Alistamientos del Día (Diseño limpio, luminoso con los colores distintivos de cada fase)
   Widget _buildUnifiedDailyProgressCard(List<MachineModel> machines) {
     final int total = machines.length;
     final int pending = machines.where((m) => m.overallState == OverallState.pending).length;
@@ -364,6 +364,44 @@ class _HomeScreenState extends State<HomeScreen> {
         phases: [],
       ),
     );
+
+    // Identificar fase activa y color característico de fase para la máquina en atención
+    int activePhaseIndex = 0;
+    String activePhaseName = 'Lavado';
+    Color phaseColor = const Color(0xFF0284C7); // Cyan Lavado
+    Color phaseBg = const Color(0xFFF0F9FF);
+    Color phaseBorder = const Color(0xFFBAE6FD);
+    IconData phaseIcon = Icons.water_drop_rounded;
+
+    if (activeMachine.phases.isNotEmpty) {
+      final inProgIdx = activeMachine.phases.indexWhere((p) => p == PhaseState.inProgress);
+      if (inProgIdx != -1) {
+        activePhaseIndex = inProgIdx;
+      } else {
+        final pendIdx = activeMachine.phases.indexWhere((p) => p == PhaseState.pending);
+        if (pendIdx != -1) activePhaseIndex = pendIdx;
+      }
+    }
+
+    if (activePhaseIndex == 0) {
+      activePhaseName = 'Lavado';
+      phaseColor = const Color(0xFF0284C7); // Celeste / Cyan
+      phaseBg = const Color(0xFFF0F9FF);
+      phaseBorder = const Color(0xFFBAE6FD);
+      phaseIcon = Icons.water_drop_rounded;
+    } else if (activePhaseIndex == 1) {
+      activePhaseName = 'Ensamblaje';
+      phaseColor = const Color(0xFFD97706); // Ámbar mecánico
+      phaseBg = const Color(0xFFFFFBEB);
+      phaseBorder = const Color(0xFFFDE68A);
+      phaseIcon = Icons.build_rounded;
+    } else {
+      activePhaseName = 'Pintura';
+      phaseColor = const Color(0xFF059669); // Verde esmeralda acabados
+      phaseBg = const Color(0xFFECFDF5);
+      phaseBorder = const Color(0xFFBBF7D0);
+      phaseIcon = Icons.format_paint_rounded;
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -439,10 +477,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 2),
                     Text(
                       '$percent% completado',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.accentBlue,
+                        color: percent == 100
+                            ? const Color(0xFF059669)
+                            : (percent > 0 ? const Color(0xFF0284C7) : AppColors.textSecondary),
                       ),
                     ),
                   ],
@@ -451,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Barra de progreso continua
+            // Barra de progreso continua limpia
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -463,7 +503,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     widthFactor: progressFraction.clamp(0.0, 1.0),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.accentBlue,
+                        color: percent == 100
+                            ? const Color(0xFF059669)
+                            : AppColors.accentBlue,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -473,25 +515,33 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Píldoras de desglose de estado
+            // Píldoras de desglose de estado con colores semánticos armoniosos
             Row(
               children: [
-                _buildLightMetricPill(
+                _buildColoredMetricPill(
                   label: 'Pendientes',
                   count: '$pending',
+                  valueColor: const Color(0xFFD97706),
+                  bgColor: const Color(0xFFFFFBEB),
+                  borderColor: const Color(0xFFFDE68A),
                   onTap: () => setState(() => _currentNavIndex = 1),
                 ),
                 const SizedBox(width: 8),
-                _buildLightMetricPill(
+                _buildColoredMetricPill(
                   label: 'En proceso',
                   count: '$inProgress',
-                  highlighted: true,
+                  valueColor: const Color(0xFF0284C7),
+                  bgColor: const Color(0xFFF0F9FF),
+                  borderColor: const Color(0xFFBAE6FD),
                   onTap: () => setState(() => _currentNavIndex = 1),
                 ),
                 const SizedBox(width: 8),
-                _buildLightMetricPill(
+                _buildColoredMetricPill(
                   label: 'Listas',
                   count: '$completed',
+                  valueColor: const Color(0xFF059669),
+                  bgColor: const Color(0xFFECFDF5),
+                  borderColor: const Color(0xFFBBF7D0),
                   onTap: () => setState(() => _currentNavIndex = 1),
                 ),
               ],
@@ -510,33 +560,55 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0F6FF),
+                    color: phaseBg,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFDBEAFE)),
+                    border: Border.all(color: phaseBorder),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.play_circle_outline_rounded,
-                        size: 18,
-                        color: AppColors.accentBlue,
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: phaseColor.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          phaseIcon,
+                          size: 15,
+                          color: phaseColor,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          'En atención: ${activeMachine.name} · Serial ${activeMachine.serial}',
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'EN ATENCIÓN · FASE ${(activePhaseIndex + 1)}: $activePhaseName'.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: phaseColor,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              '${activeMachine.name} · Serial ${activeMachine.serial}',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right_rounded,
                         size: 18,
-                        color: AppColors.accentBlue,
+                        color: phaseColor,
                       ),
                     ],
                   ),
@@ -549,10 +621,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildLightMetricPill({
+
+  Widget _buildColoredMetricPill({
     required String label,
     required String count,
-    bool highlighted = false,
+    required Color valueColor,
+    required Color bgColor,
+    required Color borderColor,
     required VoidCallback onTap,
   }) {
     return Expanded(
@@ -562,11 +637,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
           decoration: BoxDecoration(
-            color: highlighted ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+            color: bgColor,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: highlighted ? const Color(0xFFDBEAFE) : const Color(0xFFE2E8F0),
-            ),
+            border: Border.all(color: borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -576,7 +649,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: highlighted ? AppColors.accentBlue : AppColors.textPrimary,
+                  color: valueColor,
                 ),
               ),
               const SizedBox(height: 2),
@@ -585,7 +658,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
-                  color: highlighted ? AppColors.accentBlue : AppColors.textSecondary,
+                  color: valueColor.withValues(alpha: 0.85),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

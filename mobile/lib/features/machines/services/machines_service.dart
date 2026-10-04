@@ -31,8 +31,8 @@ class MachinesService {
       name: 'CAT 420F2',
       serial: 'GHI456',
       category: 'Retroexcavadoras',
-      overallState: OverallState.completed,
-      phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed],
+      overallState: OverallState.pending,
+      phases: [PhaseState.pending, PhaseState.pending, PhaseState.pending],
     ),
   ];
 
