@@ -21,10 +21,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _autoSyncOffline = true;
-  bool _highQualityPhotos = false;
   bool _biometricAuth = true;
-  bool _notifications = true;
 
   @override
   Widget build(BuildContext context) {
@@ -165,37 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ]),
             const SizedBox(height: 28),
 
-            // Sección 2: Ajustes de Alistamiento y Sincronización
-            _buildSectionTitle('SINCRONIZACIÓN Y EVIDENCIA EN PATIO'),
-            const SizedBox(height: 10),
-            _buildSettingsContainer([
-              _buildSwitchRow(
-                icon: Icons.cloud_sync_outlined,
-                title: 'Sincronización en segundo plano',
-                subtitle: 'Sube fotos automáticamente al conectar con red estable',
-                value: _autoSyncOffline,
-                onChanged: (val) => setState(() => _autoSyncOffline = val),
-              ),
-              _buildDivider(),
-              _buildSwitchRow(
-                icon: Icons.hd_outlined,
-                title: 'Fotos en alta resolución',
-                subtitle: 'Mayor detalle visual para reportes de ensamblaje y pintura',
-                value: _highQualityPhotos,
-                onChanged: (val) => setState(() => _highQualityPhotos = val),
-              ),
-              _buildDivider(),
-              _buildSwitchRow(
-                icon: Icons.notifications_none_rounded,
-                title: 'Alertas de nueva maquinaria',
-                subtitle: 'Notificar en tiempo real cuando ingrese un equipo al patio',
-                value: _notifications,
-                onChanged: (val) => setState(() => _notifications = val),
-              ),
-            ]),
-            const SizedBox(height: 28),
-
-            // Sección 3: Seguridad y Sistema
+            // Sección 2: Seguridad y Sistema
             _buildSectionTitle('SEGURIDAD Y SOPORTE'),
             const SizedBox(height: 10),
             _buildSettingsContainer([

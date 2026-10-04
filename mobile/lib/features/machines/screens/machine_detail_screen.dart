@@ -53,13 +53,25 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   Widget build(BuildContext context) {
     final m = widget.machine;
 
+    // Determinar el estado general en tiempo real según las fases
+    OverallState effectiveState = m.overallState;
+    if (_phases.isNotEmpty) {
+      if (_phases.every((p) => p.isCompleted)) {
+        effectiveState = OverallState.completed;
+      } else if (_phases.any((p) => p.isInProgress || p.isCompleted)) {
+        effectiveState = OverallState.inProgress;
+      } else {
+        effectiveState = OverallState.pending;
+      }
+    }
+
     // Configuración de estado
     String statusLabel;
     Color statusColor;
     Color statusBg;
     Color statusBorder;
 
-    switch (m.overallState) {
+    switch (effectiveState) {
       case OverallState.inProgress:
         statusLabel = 'En alistamiento';
         statusColor = AppColors.accentBlue;

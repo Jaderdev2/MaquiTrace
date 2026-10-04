@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../qr_scanner/screens/qr_scanner_screen.dart';
 import '../models/machine_model.dart';
 import '../services/machines_service.dart';
 import 'machine_detail_screen.dart';
@@ -17,10 +16,17 @@ class MachinesScreen extends StatefulWidget {
 
 class _MachinesScreenState extends State<MachinesScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _categoryScrollController = ScrollController();
+  late final PageController _pageController;
   final MachinesService _machinesService = MachinesService();
-  String _selectedCategory = 'Todas';
+
+  int _selectedCategoryIndex = 0;
   String _searchQuery = '';
   List<MachineModel> _apiMachines = [];
+
+  // Filtros operativos seleccionados
+  String _selectedStatusFilter = 'Todos'; // 'Todos', 'En alistamiento', 'Pendientes', 'Listas'
+  String _selectedSort = 'Por defecto'; // 'Por defecto', 'Modelo (A-Z)', 'Serial'
 
   final List<String> _categories = const [
     'Todas',
@@ -36,7 +42,16 @@ class _MachinesScreenState extends State<MachinesScreen> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: 0);
     _loadFromBackend();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _categoryScrollController.dispose();
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFromBackend() async {
@@ -55,255 +70,534 @@ class _MachinesScreenState extends State<MachinesScreen> {
   List<MachineModel> get _allMachines =>
       _apiMachines.isNotEmpty ? _apiMachines : MachinesService.localCatalog;
 
-  List<MachineModel> get _filteredMachines {
-    return _allMachines.where((m) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          m.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          m.serial.toLowerCase().contains(_searchQuery.toLowerCase());
-
-      final matchesCategory =
-          _selectedCategory == 'Todas' || m.category.toLowerCase().contains(_selectedCategory.toLowerCase());
-
-      return matchesSearch && matchesCategory;
-    }).toList();
+  bool _matchesCategory(MachineModel m, String category) {
+    if (category == 'Todas') return true;
+    final catLower = category.toLowerCase().replaceAll(RegExp(r'(es|s)$'), '');
+    final mCatLower = m.category.toLowerCase();
+    return mCatLower.contains(catLower) || category.toLowerCase().contains(mCatLower);
   }
 
+  List<MachineModel> _getMachinesForCategory(String category) {
+    var list = _allMachines.where((m) {
+      final query = _searchQuery.toLowerCase();
+      final matchesSearch = query.isEmpty ||
+          m.name.toLowerCase().contains(query) ||
+          m.serial.toLowerCase().contains(query);
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+      final matchesCat = _matchesCategory(m, category);
+
+      bool matchesStatus = true;
+      if (_selectedStatusFilter == 'En alistamiento') {
+        matchesStatus = m.overallState == OverallState.inProgress;
+      } else if (_selectedStatusFilter == 'Pendientes') {
+        matchesStatus = m.overallState == OverallState.pending;
+      } else if (_selectedStatusFilter == 'Listas') {
+        matchesStatus = m.overallState == OverallState.completed;
+      }
+
+      return matchesSearch && matchesCat && matchesStatus;
+    }).toList();
+
+    if (_selectedSort == 'Modelo (A-Z)') {
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    } else if (_selectedSort == 'Serial') {
+      list.sort((a, b) => a.serial.toLowerCase().compareTo(b.serial.toLowerCase()));
+    }
+
+    return list;
+  }
+
+  void _onCategorySelected(int index) {
+    setState(() {
+      _selectedCategoryIndex = index;
+    });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    _scrollToCategory(index);
+  }
+
+  void _scrollToCategory(int index) {
+    if (!_categoryScrollController.hasClients) return;
+    final targetOffset = (index * 95.0) - 40.0;
+    _categoryScrollController.animateTo(
+      targetOffset.clamp(0.0, _categoryScrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  bool get _hasActiveFilters =>
+      _selectedStatusFilter != 'Todos' || _selectedSort != 'Por defecto';
+
+  void _showFilterModal() {
+    String tempStatus = _selectedStatusFilter;
+    String tempSort = _selectedSort;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filtros de maquinaria',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'ESTADO DE ALISTAMIENTO',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildFilterChip(
+                        label: 'Todos',
+                        isSelected: tempStatus == 'Todos',
+                        onTap: () => setModalState(() => tempStatus = 'Todos'),
+                      ),
+                      _buildFilterChip(
+                        label: 'En alistamiento',
+                        isSelected: tempStatus == 'En alistamiento',
+                        onTap: () => setModalState(() => tempStatus = 'En alistamiento'),
+                      ),
+                      _buildFilterChip(
+                        label: 'Pendientes',
+                        isSelected: tempStatus == 'Pendientes',
+                        onTap: () => setModalState(() => tempStatus = 'Pendientes'),
+                      ),
+                      _buildFilterChip(
+                        label: 'Listas para despacho',
+                        isSelected: tempStatus == 'Listas',
+                        onTap: () => setModalState(() => tempStatus = 'Listas'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'ORDENAR POR',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildFilterChip(
+                        label: 'Por defecto',
+                        isSelected: tempSort == 'Por defecto',
+                        onTap: () => setModalState(() => tempSort = 'Por defecto'),
+                      ),
+                      _buildFilterChip(
+                        label: 'Modelo (A-Z)',
+                        isSelected: tempSort == 'Modelo (A-Z)',
+                        onTap: () => setModalState(() => tempSort = 'Modelo (A-Z)'),
+                      ),
+                      _buildFilterChip(
+                        label: 'Serial',
+                        isSelected: tempSort == 'Serial',
+                        onTap: () => setModalState(() => tempSort = 'Serial'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 26),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedStatusFilter = 'Todos';
+                              _selectedSort = 'Por defecto';
+                            });
+                            Navigator.pop(ctx);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Limpiar',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedStatusFilter = tempStatus;
+                              _selectedSort = tempSort;
+                            });
+                            Navigator.pop(ctx);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryNavy,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Aplicar filtros',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accentBlue : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.accentBlue : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final list = _filteredMachines;
-
     final content = SafeArea(
       bottom: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            // Cabecera limpia y respirable
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Máquinas',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
+          // Cabecera limpia y respirable
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Máquinas',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.5,
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Inventario de equipos · Sede Buenaventura',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Inventario de equipos · Sede Buenaventura',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
 
-            // Barra de búsqueda con botón de filtro integrado
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (val) {
-                          setState(() {
-                            _searchQuery = val.trim();
-                          });
-                        },
-                        style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: 'Buscar por modelo o serial...',
-                          hintStyle: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 13,
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.search_rounded,
-                            color: AppColors.inputIcon,
-                            size: 22,
-                          ),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _searchQuery = '';
-                                    });
-                                  },
-                                )
-                              : null,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Botón de filtro minimalista
-                  Container(
-                    width: 48,
+          // Barra de búsqueda con botón de filtro funcional (QR eliminado porque ya está en el nav central)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
                     height: 48,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                     ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.tune_rounded,
-                        color: AppColors.accentBlue,
-                        size: 22,
-                      ),
-                      onPressed: () {
-                        // TODO: abrir bottom sheet de filtros avanzados
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val.trim();
+                        });
                       },
+                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Buscar por modelo o serial...',
+                        hintStyle: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppColors.inputIcon,
+                          size: 22,
+                        ),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 18),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  // Botón de escáner QR rápido
-                  Container(
+                ),
+                const SizedBox(width: 10),
+                // Botón de filtro con indicador de estado activo
+                GestureDetector(
+                  onTap: _showFilterModal,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryNavy,
+                      color: _hasActiveFilters ? AppColors.accentBlue : Colors.white,
                       borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _hasActiveFilters ? AppColors.accentBlue : const Color(0xFFE2E8F0),
+                        width: 1.2,
+                      ),
+                      boxShadow: _hasActiveFilters
+                          ? [
+                              BoxShadow(
+                                color: AppColors.accentBlue.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
+                          : null,
                     ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.qr_code_scanner_rounded,
-                        color: Colors.white,
+                    child: Center(
+                      child: Icon(
+                        Icons.tune_rounded,
+                        color: _hasActiveFilters ? Colors.white : AppColors.accentBlue,
                         size: 22,
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const QrScannerScreen(),
-                          ),
-                        );
-                      },
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-            // Filtro único por categoría (horizontal scroll limpio)
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                scrollDirection: Axis.horizontal,
-                itemCount: _categories.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final cat = _categories[index];
-                  final isSelected = cat == _selectedCategory;
+          // Pestañas de categoría (desplazables y sincronizadas con el PageView)
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              controller: _categoryScrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              scrollDirection: Axis.horizontal,
+              itemCount: _categories.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final cat = _categories[index];
+                final isSelected = index == _selectedCategoryIndex;
 
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedCategory = cat;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.accentBlue : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected ? AppColors.accentBlue : const Color(0xFFE2E8F0),
-                        ),
+                return GestureDetector(
+                  onTap: () => _onCategorySelected(index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.accentBlue : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? AppColors.accentBlue : const Color(0xFFE2E8F0),
                       ),
-                      child: Text(
-                        cat,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? Colors.white : AppColors.textSecondary,
-                        ),
+                    ),
+                    child: Text(
+                      cat,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? Colors.white : AppColors.textSecondary,
                       ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // PageView que permite deslizar libremente entre categorías
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _categories.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _selectedCategoryIndex = index;
+                });
+                _scrollToCategory(index);
+              },
+              itemBuilder: (context, catIndex) {
+                final cat = _categories[catIndex];
+                final list = _getMachinesForCategory(cat);
+
+                if (_isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.accentBlue),
+                  );
+                }
+
+                if (list.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: _loadFromBackend,
+                    color: AppColors.accentBlue,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(height: MediaQuery.of(context).size.height * 0.16),
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search_off_rounded,
+                                size: 44,
+                                color: AppColors.textMuted.withValues(alpha: 0.6),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'No se encontraron máquinas',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _searchQuery.isNotEmpty || _hasActiveFilters
+                                    ? 'Prueba modificando la búsqueda o los filtros.'
+                                    : 'No hay equipos registrados en $cat.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
+                }
 
-            // Lista de tarjetas limpias y espaciosas
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.accentBlue),
-                    )
-                  : list.isEmpty
-                      ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_off_rounded,
-                            size: 40,
-                            color: AppColors.textMuted.withValues(alpha: 0.6),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'No se encontraron máquinas',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Verifica el serial o cambia la categoría.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                      itemCount: list.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final machine = list[index];
-                        return _buildCleanCard(machine);
-                      },
-                    ),
+                return RefreshIndicator(
+                  onRefresh: _loadFromBackend,
+                  color: AppColors.accentBlue,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 2, 20, 100),
+                    itemCount: list.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final machine = list[index];
+                      return _buildCleanCard(machine);
+                    },
+                  ),
+                );
+              },
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
 
     if (!widget.showScaffold) {
       return content;
@@ -317,7 +611,6 @@ class _MachinesScreenState extends State<MachinesScreen> {
   }
 
   Widget _buildCleanCard(MachineModel machine) {
-    // Estado simplificado
     String statusLabel;
     Color statusColor;
     Color statusBg;
@@ -356,7 +649,7 @@ class _MachinesScreenState extends State<MachinesScreen> {
           MaterialPageRoute(
             builder: (_) => MachineDetailScreen(machine: machine),
           ),
-        );
+        ).then((_) => _loadFromBackend());
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -441,7 +734,7 @@ class _MachinesScreenState extends State<MachinesScreen> {
               ),
             ),
 
-            // Flecha chevron limpia hacia la pantalla de detalle
+            // Flecha chevron hacia el detalle
             const Icon(
               Icons.chevron_right_rounded,
               color: Color(0xFFCBD5E1),
