@@ -38,6 +38,8 @@ Propuesta completa: [`docs/propuesta.pdf`](docs/propuesta.pdf)
   &nbsp;&nbsp;
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" alt="PostgreSQL" width="45">
   &nbsp;&nbsp;
+  <img src="https://api.iconify.design/logos:neon-icon.svg" alt="Neon Database" width="45">
+  &nbsp;&nbsp;
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/socketio/socketio-original.svg" alt="Socket.IO" width="45">
   &nbsp;&nbsp;
   <img src="https://api.iconify.design/selfhst:oracle.svg" alt="Oracle Cloud" width="45">
