@@ -19,6 +19,13 @@ export class PreparationPhasesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findByMachine(machineId: string) {
+    const machine = await this.prisma.machine.findUnique({
+      where: { id: machineId },
+    });
+    if (!machine) {
+      throw new NotFoundException(`Máquina con id ${machineId} no encontrada`);
+    }
+
     let phases = await this.prisma.preparationPhase.findMany({
       where: { machineId },
       include: { operator: true, evidence: true },
