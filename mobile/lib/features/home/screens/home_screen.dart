@@ -344,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-  // Tarjeta de Alistamientos del Día (Diseño industrial moderno de alto impacto visual)
+  // Tarjeta de Alistamientos del Día (Diseño limpio, luminoso y profesional)
   Widget _buildUnifiedDailyProgressCard(List<MachineModel> machines) {
     final int total = machines.length;
     final int pending = machines.where((m) => m.overallState == OverallState.pending).length;
@@ -355,198 +355,149 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final activeMachine = machines.firstWhere(
       (m) => m.overallState == OverallState.inProgress,
-      orElse: () => machines.firstWhere(
-        (m) => m.overallState == OverallState.pending,
-        orElse: () => machines.isNotEmpty
-            ? machines.first
-            : const MachineModel(
-                id: '',
-                name: '',
-                serial: '',
-                category: '',
-                overallState: OverallState.pending,
-                phases: [],
-              ),
+      orElse: () => const MachineModel(
+        id: '',
+        name: '',
+        serial: '',
+        category: '',
+        overallState: OverallState.pending,
+        phases: [],
       ),
     );
 
-    final bool hasActive = activeMachine.serial.isNotEmpty;
-
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0F172A),
-            Color(0xFF1E293B),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF334155), width: 1.2),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x2A0F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
+            color: Color(0x06000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Fila 1: Indicador de turno en vivo y porcentaje
+            // Cabecera: Título operativo + Contador tipográfico
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0x2210B981),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0x4410B981)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'TURNO EN VIVO · PATIO BUENAVENTURA',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF34D399),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Control de Alistamiento',
+                  children: const [
+                    Text(
+                      'Alistamientos del turno',
                       style: TextStyle(
-                        fontSize: 19,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.4,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Avance general de flota asignada',
+                    SizedBox(height: 2),
+                    Text(
+                      'Patio central de alistamiento',
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF94A3B8),
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
-                // Cifra de porcentaje heroica
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0x331E293B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0x4438BDF8)),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        '$percent%',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF38BDF8),
-                          letterSpacing: -0.5,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          '$completed',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '$completed de $total listos',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF94A3B8),
+                        Text(
+                          ' / $total',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted,
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$percent% completado',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accentBlue,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
-            // Barra de progreso de alto contraste con gradiente
+            // Barra de progreso continua
             ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(4),
               child: Container(
-                height: 7,
-                color: const Color(0xFF334155),
+                height: 6,
+                color: const Color(0xFFF1F5F9),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: FractionallySizedBox(
                     widthFactor: progressFraction.clamp(0.0, 1.0),
                     child: Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0xFF38BDF8),
-                            Color(0xFF2563EB),
-                          ],
-                        ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentBlue,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            // Desglose de métricas táctiles en tarjetas oscuras estilizadas
+            // Píldoras de desglose de estado
             Row(
               children: [
-                _buildDarkHeroMetricPill(
+                _buildLightMetricPill(
                   label: 'Pendientes',
                   count: '$pending',
-                  valueColor: const Color(0xFFFBBF24),
                   onTap: () => setState(() => _currentNavIndex = 1),
                 ),
                 const SizedBox(width: 8),
-                _buildDarkHeroMetricPill(
+                _buildLightMetricPill(
                   label: 'En proceso',
                   count: '$inProgress',
-                  valueColor: const Color(0xFF38BDF8),
                   highlighted: true,
                   onTap: () => setState(() => _currentNavIndex = 1),
                 ),
                 const SizedBox(width: 8),
-                _buildDarkHeroMetricPill(
+                _buildLightMetricPill(
                   label: 'Listas',
                   count: '$completed',
-                  valueColor: const Color(0xFF34D399),
                   onTap: () => setState(() => _currentNavIndex = 1),
                 ),
               ],
             ),
-
-            // Banner interactivo de la máquina activa en atención
-            if (hasActive) ...[
-              const SizedBox(height: 14),
+            if (activeMachine.serial.isNotEmpty) ...[
+              const SizedBox(height: 12),
               InkWell(
                 onTap: () {
                   Navigator.of(context).push(
@@ -555,74 +506,37 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ).then((_) => _loadDashboardMachines());
                 },
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0x3D0F172A),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: activeMachine.overallState == OverallState.inProgress
-                          ? const Color(0x5538BDF8)
-                          : const Color(0x33475569),
-                    ),
+                    color: const Color(0xFFF0F6FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFDBEAFE)),
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: activeMachine.overallState == OverallState.inProgress
-                              ? const Color(0x3338BDF8)
-                              : const Color(0x22FBBF24),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          activeMachine.overallState == OverallState.inProgress
-                              ? Icons.play_arrow_rounded
-                              : Icons.schedule_rounded,
-                          size: 18,
-                          color: activeMachine.overallState == OverallState.inProgress
-                              ? const Color(0xFF38BDF8)
-                              : const Color(0xFFFBBF24),
-                        ),
+                      const Icon(
+                        Icons.play_circle_outline_rounded,
+                        size: 18,
+                        color: AppColors.accentBlue,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              activeMachine.overallState == OverallState.inProgress
-                                  ? 'EN ATENCIÓN AHORA'
-                                  : 'SIGUIENTE EN FILA',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                color: activeMachine.overallState == OverallState.inProgress
-                                    ? const Color(0xFF38BDF8)
-                                    : const Color(0xFFFBBF24),
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              '${activeMachine.name} · Serial: ${activeMachine.serial}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                        child: Text(
+                          'En atención: ${activeMachine.name} · Serial ${activeMachine.serial}',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const Icon(
                         Icons.chevron_right_rounded,
-                        size: 20,
-                        color: Color(0xFF94A3B8),
+                        size: 18,
+                        color: AppColors.accentBlue,
                       ),
                     ],
                   ),
@@ -635,24 +549,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDarkHeroMetricPill({
+  Widget _buildLightMetricPill({
     required String label,
     required String count,
-    required Color valueColor,
     bool highlighted = false,
     required VoidCallback onTap,
   }) {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
           decoration: BoxDecoration(
-            color: highlighted ? const Color(0x3338BDF8) : const Color(0x221E293B),
-            borderRadius: BorderRadius.circular(12),
+            color: highlighted ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: highlighted ? const Color(0x5538BDF8) : const Color(0x33475569),
+              color: highlighted ? const Color(0xFFDBEAFE) : const Color(0xFFE2E8F0),
             ),
           ),
           child: Column(
@@ -661,18 +574,18 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 count,
                 style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: valueColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: highlighted ? AppColors.accentBlue : AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 11,
+                style: TextStyle(
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF94A3B8),
+                  color: highlighted ? AppColors.accentBlue : AppColors.textSecondary,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
