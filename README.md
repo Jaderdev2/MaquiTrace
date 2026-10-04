@@ -115,7 +115,7 @@ La aplicación móvil y la plataforma web consumen una API que se apoya en servi
 El proyecto sigue una metodología ágil iterativa basada en **Scrum**, distribuida en **6 Sprints** de desarrollo, apoyada en las siguientes herramientas colaborativas:
 
 - **Figma:** Prototipado y diseño UI/UX (móvil y web).
-- **Trello:** Tablero Kanban y gestión del Backlog de producto.
+- **Trello:** Tablero Kanban, gestión del Backlog y seguimiento de tareas en tiempo real.
 - **Slack:** Canal de comunicación del equipo y acuerdos de trabajo.
 
 | Sprint | Enfoque Principal | Entregable Clave |
@@ -127,7 +127,8 @@ El proyecto sigue una metodología ágil iterativa basada en **Scrum**, distribu
 | **Sprint 5** | Plataforma Web de Supervisión (Dashboard) | Panel en React + TS, mapa en vivo y galería de evidencias |
 | **Sprint 6** | Integración, despliegue, pruebas y sustentación | Sistema desplegado, APK generado y sustentación ante el docente |
 
-> Para consultar el desglose detallado de tareas, historias de usuario y criterios de aceptación, revisa: [`docs/sprints.md`](docs/sprints.md)
+> Para consultar el desglose detallado de historias de usuario, tarjetas activas y avance en tiempo real de cada sprint, accede a nuestro tablero oficial:  
+> [**Ver Tablero de Trello (Vista Observador)**](https://trello.com/invite/b/6ab6c1f7154b46402869087e/ATTI70c0e581ba3ca1d8dd6f8cbd053692af22456DEC/maquitrace)
 
 ## Estructura del repositorio
 
@@ -137,7 +138,7 @@ MaquiTrace/
 ├── branding/  # logo e identidad visual (fuente única)
 ├── mobile/    # app móvil (Flutter)
 ├── web/       # plataforma web de supervisión (React + Vite)
-└── docs/      # arquitectura, propuesta, sprints y recursos
+└── docs/      # arquitectura, propuesta técnica y recursos
 ```
 
 
