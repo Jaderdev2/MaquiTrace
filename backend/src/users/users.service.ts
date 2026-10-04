@@ -11,6 +11,15 @@ export interface CreateUserDto {
   phone?: string;
 }
 
+export interface UpdateUserDto {
+  email?: string;
+  name?: string;
+  password?: string;
+  roleId?: string;
+  phone?: string;
+}
+
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -53,4 +62,26 @@ export class UsersService {
       include: { role: true },
     });
   }
+
+  async update(id: string, dto: UpdateUserDto) {
+    await this.findById(id);
+
+    let passwordHash: string | undefined = undefined;
+    if (dto.password) {
+      passwordHash = await bcrypt.hash(dto.password, 10);
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.email !== undefined ? { email: dto.email } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+        ...(dto.roleId !== undefined ? { roleId: dto.roleId } : {}),
+        ...(passwordHash ? { passwordHash } : {}),
+      },
+      include: { role: true },
+    });
+  }
 }
+
