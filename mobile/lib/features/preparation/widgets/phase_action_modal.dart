@@ -3,6 +3,26 @@ import '../../../core/theme/app_colors.dart';
 import '../models/preparation_phase_model.dart';
 import '../services/preparation_service.dart';
 
+/// Paleta del sheet (la misma que usa la pantalla de detalle de máquina).
+class _Ui {
+  static const border = Color(0xFFE2E8F0);
+  static const mutedSurface = Color(0xFFF8FAFC);
+  static const handle = Color(0xFFCBD5E1);
+
+  static const success = Color(0xFF15803D);
+  static const successBg = Color(0xFFE8F5EC);
+  static const warning = Color(0xFFB45309);
+  static const warningBg = Color(0xFFFEF3C7);
+  static const info = Color(0xFF1D4ED8);
+  static const infoBg = Color(0xFFE6EFFE);
+
+  static const error = Color(0xFFB91C1C);
+  static const errorBg = Color(0xFFFEF2F2);
+  static const errorBorder = Color(0xFFFCA5A5);
+
+  static const double radius = 10;
+}
+
 class PhaseActionModal extends StatefulWidget {
   final String machineId;
   final PreparationPhaseModel phase;
@@ -24,6 +44,7 @@ class PhaseActionModal extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => PhaseActionModal(
         machineId: machineId,
@@ -42,6 +63,9 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
   late final TextEditingController _obsController;
 
   bool _isLoading = false;
+
+  /// Acción en curso, para mostrar el spinner solo en el botón pulsado.
+  String? _activeAction;
   String? _errorMessage;
 
   @override
@@ -59,6 +83,7 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
   Future<void> _updateStatus(String newStatus) async {
     setState(() {
       _isLoading = true;
+      _activeAction = newStatus;
       _errorMessage = null;
     });
 
@@ -82,7 +107,7 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
                   ? 'Fase "${widget.phase.displayName}" completada con éxito.'
                   : 'Fase "${widget.phase.displayName}" iniciada en proceso.',
             ),
-            backgroundColor: newStatus == 'completada' ? const Color(0xFF059669) : AppColors.accentBlue,
+            backgroundColor: newStatus == 'completada' ? _Ui.success : AppColors.accentBlue,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -95,6 +120,7 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
+        _activeAction = null;
         _errorMessage = e.toString().replaceAll('Exception:', '').trim();
       });
     }
@@ -103,6 +129,7 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
   Future<void> _saveObservationsOnly() async {
     setState(() {
       _isLoading = true;
+      _activeAction = 'nota';
       _errorMessage = null;
     });
 
@@ -127,9 +154,197 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
+        _activeAction = null;
         _errorMessage = e.toString().replaceAll('Exception:', '').trim();
       });
     }
+  }
+
+  IconData _phaseIcon(PreparationPhaseModel phase) {
+    final n = phase.name.toLowerCase();
+    if (n.contains('lav')) return Icons.water_drop_rounded;
+    if (n.contains('ensam')) return Icons.build_rounded;
+    if (n.contains('pint')) return Icons.format_paint_rounded;
+    return Icons.settings_rounded;
+  }
+
+  // Mismo indicador circular que la línea de tiempo de la pantalla.
+  Widget _buildNode(PreparationPhaseModel phase) {
+    const double size = 44;
+    if (phase.isCompleted) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(color: _Ui.success, shape: BoxShape.circle),
+        child: const Icon(Icons.check_rounded, size: 26, color: Colors.white),
+      );
+    }
+    if (phase.isInProgress) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(color: _Ui.info, shape: BoxShape.circle),
+        child: Icon(_phaseIcon(phase), size: 22, color: Colors.white),
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: _Ui.warning, width: 2),
+      ),
+      child: Icon(_phaseIcon(phase), size: 22, color: _Ui.warning),
+    );
+  }
+
+  Widget _buildStatusChip(PreparationPhaseModel phase) {
+    final Color fg;
+    final Color bg;
+    final String label;
+
+    if (phase.isCompleted) {
+      fg = _Ui.success;
+      bg = _Ui.successBg;
+      label = 'Completada';
+    } else if (phase.isInProgress) {
+      fg = _Ui.info;
+      bg = _Ui.infoBg;
+      label = 'En proceso';
+    } else {
+      fg = _Ui.warning;
+      bg = _Ui.warningBg;
+      label = 'Pendiente';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fg),
+      ),
+    );
+  }
+
+  Widget _spinner(Color color) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(strokeWidth: 2.4, color: color),
+    );
+  }
+
+  Widget _primaryButton({
+    required String action,
+    required String label,
+    required String loadingLabel,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    final busy = _isLoading && _activeAction == action;
+    return SizedBox(
+      height: 52,
+      child: FilledButton(
+        onPressed: _isLoading ? null : onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: color.withValues(alpha: 0.6),
+          disabledForegroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            busy ? _spinner(Colors.white) : Icon(icon, size: 22),
+            const SizedBox(width: 10),
+            Text(busy ? loadingLabel : label),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _secondaryButton({
+    required String action,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    final busy = _isLoading && _activeAction == action;
+    return SizedBox(
+      height: 52,
+      child: OutlinedButton(
+        onPressed: _isLoading ? null : onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primaryNavy,
+          side: const BorderSide(color: _Ui.handle),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (busy) ...[
+              _spinner(AppColors.primaryNavy),
+              const SizedBox(width: 10),
+            ],
+            Text(busy ? 'Guardando...' : label),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActions(PreparationPhaseModel phase) {
+    if (phase.isPending) {
+      return _primaryButton(
+        action: 'en_proceso',
+        label: 'Iniciar fase',
+        loadingLabel: 'Iniciando...',
+        icon: Icons.play_arrow_rounded,
+        color: AppColors.accentBlue,
+        onPressed: () => _updateStatus('en_proceso'),
+      );
+    }
+
+    if (phase.isInProgress) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _primaryButton(
+            action: 'completada',
+            label: 'Finalizar fase',
+            loadingLabel: 'Finalizando...',
+            icon: Icons.check_circle_rounded,
+            color: _Ui.success,
+            onPressed: () => _updateStatus('completada'),
+          ),
+          const SizedBox(height: 10),
+          _secondaryButton(
+            action: 'nota',
+            label: 'Guardar nota',
+            onPressed: _saveObservationsOnly,
+          ),
+        ],
+      );
+    }
+
+    // Ya completada: solo se pueden actualizar las observaciones
+    return _primaryButton(
+      action: 'nota',
+      label: 'Guardar observaciones',
+      loadingLabel: 'Guardando...',
+      icon: Icons.save_rounded,
+      color: AppColors.primaryNavy,
+      onPressed: _saveObservationsOnly,
+    );
   }
 
   @override
@@ -137,303 +352,148 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final phase = widget.phase;
 
-    Color statusColor;
-    Color statusBg;
-    String statusText;
-
-    if (phase.isCompleted) {
-      statusColor = const Color(0xFF059669);
-      statusBg = const Color(0xFFECFDF5);
-      statusText = 'Completada';
-    } else if (phase.isInProgress) {
-      statusColor = AppColors.accentBlue;
-      statusBg = const Color(0xFFEFF6FF);
-      statusText = 'En Proceso';
-    } else {
-      statusColor = const Color(0xFFD97706);
-      statusBg = const Color(0xFFFEF3C7);
-      statusText = 'Pendiente';
-    }
-
     return Container(
-      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x1F000000),
-            blurRadius: 24,
-            offset: Offset(0, -6),
-          ),
-        ],
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Tirador superior
-          Center(
-            child: Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: const Color(0xFFCBD5E1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Encabezado con número de fase y badge de estado integrado debajo del título
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryNavy,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Text(
-                    '#${phase.stepNumber}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+              // Tirador
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _Ui.handle,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      phase.displayName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+              const SizedBox(height: 20),
+
+              // Encabezado: indicador de la fase + nombre + estado
+              Row(
+                children: [
+                  _buildNode(phase),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusBg,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                          ),
-                          child: Text(
-                            statusText,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: statusColor,
-                            ),
+                        Text(
+                          'Fase ${phase.stepNumber}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
                           ),
                         ),
-                        const Text(
-                          'Alistamiento técnico de taller',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
+                        Text(
+                          phase.displayName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Descripción de la fase
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.info_outline_rounded, size: 20, color: AppColors.accentBlue),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    phase.description,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      height: 1.35,
-                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Campo de Observaciones Técnicas
-          const Text(
-            'Observaciones técnicas del operario',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _obsController,
-            textCapitalization: TextCapitalization.sentences,
-            maxLines: 3,
-            style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'Describe el estado, novedades o piezas intervenidas...',
-              hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-              filled: true,
-              fillColor: const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.all(14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.accentBlue, width: 1.5),
-              ),
-            ),
-          ),
-
-          if (_errorMessage != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFCA5A5)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 18),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(
-                        color: Color(0xFFB91C1C),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                  _buildStatusChip(phase),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
 
-          const SizedBox(height: 24),
-
-          // Botones de acción según el estado
-          if (phase.isPending) ...[
-            SizedBox(
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : () => _updateStatus('en_proceso'),
-                icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                label: const Text(
-                  'Iniciar Esta Fase',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accentBlue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              Text(
+                phase.description,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: AppColors.textSecondary,
                 ),
               ),
-            ),
-          ] else if (phase.isInProgress) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 50,
-                    child: OutlinedButton(
-                      onPressed: _isLoading ? null : _saveObservationsOnly,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primaryNavy,
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: const Text(
-                        'Guardar Nota',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
+              const SizedBox(height: 20),
+
+              // Observaciones
+              const Text(
+                'Observaciones',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _obsController,
+                textCapitalization: TextCapitalization.sentences,
+                minLines: 3,
+                maxLines: 5,
+                style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Estado, novedades o piezas intervenidas',
+                  hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+                  filled: true,
+                  fillColor: _Ui.mutedSurface,
+                  contentPadding: const EdgeInsets.all(14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_Ui.radius),
+                    borderSide: const BorderSide(color: _Ui.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_Ui.radius),
+                    borderSide: const BorderSide(color: _Ui.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_Ui.radius),
+                    borderSide: const BorderSide(color: AppColors.accentBlue, width: 1.5),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: SizedBox(
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : () => _updateStatus('completada'),
-                      icon: const Icon(Icons.check_circle_rounded, size: 20),
-                      label: const Text(
-                        'Finalizar Fase',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _Ui.errorBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _Ui.errorBorder),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: _Ui.error, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: _Ui.error,
+                            fontSize: 13,
+                            height: 1.35,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF059669),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ],
-            ),
-          ] else ...[
-            // Si ya está completada, solo permite actualizar observaciones
-            SizedBox(
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _saveObservationsOnly,
-                icon: const Icon(Icons.save_rounded, size: 20),
-                label: const Text(
-                  'Actualizar Observaciones',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryNavy,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-              ),
-            ),
-          ],
-        ],
+
+              const SizedBox(height: 20),
+              _buildActions(phase),
+            ],
+          ),
+        ),
       ),
     );
   }
