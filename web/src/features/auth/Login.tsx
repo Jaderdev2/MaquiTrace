@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { loginApi } from '../../services/api';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import heroImg from '../../assets/branding/login_hero.png';
+import heroImg from '../../assets/branding/login_present.png';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
