@@ -65,7 +65,20 @@ class MachineModel {
       state = OverallState.delivered;
     }
 
-    final phasesRaw = json['phases'] as List<dynamic>? ?? [];
+    final phasesRaw = List<dynamic>.from(json['phases'] as List<dynamic>? ?? []);
+    // Ordenar explícitamente las fases por secuencia operativa de MaquiTrace:
+    // 1. ensamblaje -> 2. lavado -> 3. pintura
+    int getPhaseOrder(dynamic p) {
+      if (p is Map<String, dynamic>) {
+        final name = (p['name'] ?? '').toString().toLowerCase();
+        if (name == 'ensamblaje') return 1;
+        if (name == 'lavado') return 2;
+        if (name == 'pintura') return 3;
+      }
+      return 99;
+    }
+    phasesRaw.sort((a, b) => getPhaseOrder(a).compareTo(getPhaseOrder(b)));
+
     final phasesList = <PhaseState>[];
     String? assignedOp;
     for (final p in phasesRaw) {

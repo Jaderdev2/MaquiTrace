@@ -120,12 +120,13 @@ export const Dashboard: React.FC = () => {
           <span>Ensamblaje</span>
         </div>
         <div className="phase-line"></div>
-        <div className={`phase-step ${getPhaseDotClass('pintura')}`} title="Fase: Pintura">
-          <span>Pintura</span>
+        <div className={`phase-step ${getPhaseDotClass('lavado')}`} title="Fase 2: Lavado">
+          <span>Lavado</span>
         </div>
         <div className="phase-line"></div>
-        <div className={`phase-step ${getPhaseDotClass('lavado')}`} title="Fase: Lavado">
-          <span>Lavado</span>
+        <div className={`phase-step ${getPhaseDotClass('pintura')}`} title="Fase 3: Pintura">
+          <span>Pintura</span>
+        </div>
         </div>
       </div>
     );

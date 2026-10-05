@@ -25,9 +25,9 @@ class PreparationPhaseModel {
 
   int get stepNumber {
     switch (name.toLowerCase()) {
-      case 'lavado':
-        return 1;
       case 'ensamblaje':
+        return 1;
+      case 'lavado':
         return 2;
       case 'pintura':
         return 3;
@@ -38,10 +38,10 @@ class PreparationPhaseModel {
 
   String get displayName {
     switch (name.toLowerCase()) {
-      case 'lavado':
-        return 'Lavado y Descontaminación';
       case 'ensamblaje':
         return 'Ensamblaje Mecánico';
+      case 'lavado':
+        return 'Lavado y Descontaminación';
       case 'pintura':
         return 'Pintura y Acabados';
       default:
@@ -51,10 +51,10 @@ class PreparationPhaseModel {
 
   String get description {
     switch (name.toLowerCase()) {
-      case 'lavado':
-        return 'Desengrase de motor, orugas, chasis y cabina del operador.';
       case 'ensamblaje':
-        return 'Acople de brazo hidráulico, mandos y verificación de torque de pernos.';
+        return 'Montaje de piezas, acople de pluma/tren de rodaje y torque de pernos.';
+      case 'lavado':
+        return 'Desengrase, limpieza de residuos de transporte marítimo y descontaminación.';
       case 'pintura':
         return 'Retoque de pintura anticorrosiva, pulido estético y rotulación oficial.';
       default:

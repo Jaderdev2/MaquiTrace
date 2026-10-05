@@ -40,8 +40,8 @@ export class PreparationPhasesService {
       if (defaultOperator) {
         await this.prisma.preparationPhase.createMany({
           data: [
-            { machineId, name: PhaseName.lavado, status: PhaseStatus.pendiente, operatorId: defaultOperator.id },
             { machineId, name: PhaseName.ensamblaje, status: PhaseStatus.pendiente, operatorId: defaultOperator.id },
+            { machineId, name: PhaseName.lavado, status: PhaseStatus.pendiente, operatorId: defaultOperator.id },
             { machineId, name: PhaseName.pintura, status: PhaseStatus.pendiente, operatorId: defaultOperator.id },
           ],
         });
@@ -53,10 +53,10 @@ export class PreparationPhasesService {
       }
     }
 
-    // Ordenar siempre en el orden secuencial de alistamiento: 1. lavado -> 2. ensamblaje -> 3. pintura
+    // Ordenar siempre en el orden secuencial de alistamiento: 1. ensamblaje -> 2. lavado -> 3. pintura
     const orderMap: Record<PhaseName, number> = {
-      [PhaseName.lavado]: 1,
-      [PhaseName.ensamblaje]: 2,
+      [PhaseName.ensamblaje]: 1,
+      [PhaseName.lavado]: 2,
       [PhaseName.pintura]: 3,
     };
 
@@ -84,24 +84,24 @@ export class PreparationPhasesService {
       throw new NotFoundException(`Fase con ID ${phaseId} no encontrada`);
     }
 
-    // Regla de Negocio: Restricción de avance secuencial
+    // Regla de Negocio: Restricción de avance secuencial (1. Ensamblaje -> 2. Lavado -> 3. Pintura)
     if (dto.status === PhaseStatus.en_proceso || dto.status === PhaseStatus.completada) {
-      if (phase.name === PhaseName.ensamblaje) {
-        const lavado = await this.prisma.preparationPhase.findFirst({
-          where: { machineId: phase.machineId, name: PhaseName.lavado },
-        });
-        if (lavado && lavado.status !== PhaseStatus.completada) {
-          throw new BadRequestException(
-            'Restricción de avance: La fase de Lavado debe estar completada antes de iniciar o completar Ensamblaje.',
-          );
-        }
-      } else if (phase.name === PhaseName.pintura) {
+      if (phase.name === PhaseName.lavado) {
         const ensamblaje = await this.prisma.preparationPhase.findFirst({
           where: { machineId: phase.machineId, name: PhaseName.ensamblaje },
         });
         if (ensamblaje && ensamblaje.status !== PhaseStatus.completada) {
           throw new BadRequestException(
-            'Restricción de avance: La fase de Ensamblaje debe estar completada antes de iniciar o completar Pintura.',
+            'Restricción de avance: La fase de Ensamblaje debe estar completada antes de iniciar o completar Lavado.',
+          );
+        }
+      } else if (phase.name === PhaseName.pintura) {
+        const lavado = await this.prisma.preparationPhase.findFirst({
+          where: { machineId: phase.machineId, name: PhaseName.lavado },
+        });
+        if (lavado && lavado.status !== PhaseStatus.completada) {
+          throw new BadRequestException(
+            'Restricción de avance: La fase de Lavado debe estar completada antes de iniciar o completar Pintura.',
           );
         }
       }

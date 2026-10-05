@@ -62,17 +62,17 @@ class PreparationService {
       PreparationPhaseModel(
         id: 'phase-1-$machineId',
         machineId: machineId,
-        name: 'lavado',
+        name: 'ensamblaje',
         status: 'completada',
-        observations: 'Lavado a presión de chasis y orugas completado.',
+        observations: 'Ensamblaje mecánico y torque estructural completados.',
         operatorName: 'Yuji Itadori',
       ),
       PreparationPhaseModel(
         id: 'phase-2-$machineId',
         machineId: machineId,
-        name: 'ensamblaje',
+        name: 'lavado',
         status: 'en_proceso',
-        observations: 'Ajuste de pasadores hidráulicos en progreso.',
+        observations: 'Lavado a presión de chasis y desengrase de ceras de transporte.',
         operatorName: 'Charly Murillo',
       ),
       PreparationPhaseModel(

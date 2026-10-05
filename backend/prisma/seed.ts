@@ -153,31 +153,31 @@ async function main() {
       data: [
         {
           machineId: m1.id,
-          name: PhaseName.lavado,
+          name: PhaseName.ensamblaje,
           status: PhaseStatus.completada,
-          observations: 'Lavado a presión de chasis y orugas completado sin residuos.',
-          operatorId: operario1.id,
+          observations: 'Acople de brazo hidráulico y ajuste de pasadores completado con torque certificado.',
+          operatorId: operario2.id,
           startedAt: new Date(Date.now() - 3600000 * 4),
           completedAt: new Date(Date.now() - 3600000 * 2),
         },
         {
           machineId: m1.id,
-          name: PhaseName.ensamblaje,
+          name: PhaseName.lavado,
           status: PhaseStatus.en_proceso,
-          observations: 'Acople de brazo hidráulico y ajuste de pasadores en progreso.',
-          operatorId: operario2.id,
+          observations: 'Lavado a presión de chasis y orugas en progreso para remover grasa de montaje.',
+          operatorId: operario1.id,
           startedAt: new Date(Date.now() - 3600000),
         },
         {
           machineId: m1.id,
           name: PhaseName.pintura,
           status: PhaseStatus.pendiente,
-          observations: 'Pendiente inspección tras finalizar ensamblaje.',
+          observations: 'Pendiente inspección tras finalizar lavado.',
           operatorId: operario1.id,
         },
       ],
     });
-    console.log('[Seed] Fases de alistamiento asociadas a Operario 1 (Itadori) y Operario 2 (Charly)');
+    console.log('[Seed] Fases de alistamiento (Ensamblaje -> Lavado -> Pintura) registradas.');
   }
 
   console.log('[Seed] Sembrado completado exitosamente.');
