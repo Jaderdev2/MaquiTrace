@@ -289,7 +289,7 @@ class _ManualSearchModalState extends State<ManualSearchModal> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : () => _searchSerial(_controller.text),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryNavy,
+                backgroundColor: AppColors.accentBlue,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(

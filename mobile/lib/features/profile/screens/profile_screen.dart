@@ -558,7 +558,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 24),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            style: _filledStyle(AppColors.primaryNavy),
+            style: _filledStyle(AppColors.accentBlue),
             child: const Text('Entendido'),
           ),
         ],
@@ -682,7 +682,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: AppColors.accentBlue,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         duration: const Duration(seconds: 2),

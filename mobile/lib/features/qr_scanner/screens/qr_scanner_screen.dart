@@ -187,7 +187,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               await _controller.start();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryNavy,
+              backgroundColor: AppColors.accentBlue,
               foregroundColor: Colors.white,
             ),
             child: const Text('Reintentar escaneo'),

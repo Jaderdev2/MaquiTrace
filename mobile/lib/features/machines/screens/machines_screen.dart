@@ -293,7 +293,7 @@ class _MachinesScreenState extends State<MachinesScreen> {
                             Navigator.pop(ctx);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryNavy,
+                            backgroundColor: AppColors.accentBlue,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             elevation: 0,

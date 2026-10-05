@@ -610,7 +610,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                         child: FilledButton(
                           onPressed: open,
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primaryNavy,
+                            backgroundColor: AppColors.accentBlue,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(_Ui.radius),
@@ -685,7 +685,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           FilledButton(
             onPressed: () => Navigator.pop(ctx),
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primaryNavy,
+              backgroundColor: AppColors.accentBlue,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(_Ui.radius),

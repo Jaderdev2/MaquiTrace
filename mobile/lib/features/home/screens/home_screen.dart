@@ -467,7 +467,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: FilledButton(
                   onPressed: () => _openMachine(machine),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
+                    backgroundColor: AppColors.accentBlue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(_Ui.radius),
@@ -786,7 +786,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: FilledButton(
                     onPressed: () => Navigator.pop(ctx),
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primaryNavy,
+                      backgroundColor: AppColors.accentBlue,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(_Ui.radius),

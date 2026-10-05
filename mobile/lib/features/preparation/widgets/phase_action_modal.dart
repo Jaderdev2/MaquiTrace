@@ -342,7 +342,7 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
       label: 'Guardar observaciones',
       loadingLabel: 'Guardando...',
       icon: Icons.save_rounded,
-      color: AppColors.primaryNavy,
+      color: AppColors.accentBlue,
       onPressed: _saveObservationsOnly,
     );
   }
