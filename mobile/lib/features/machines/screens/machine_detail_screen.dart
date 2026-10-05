@@ -6,7 +6,29 @@ import '../../preparation/models/preparation_phase_model.dart';
 import '../../preparation/services/preparation_service.dart';
 import '../../preparation/widgets/phase_action_modal.dart';
 import '../../qr_scanner/widgets/qr_display_modal.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 import '../models/machine_model.dart';
+
+/// Colores y medidas propias de esta pantalla.
+/// Un solo radio, bordes de 1 px y color solo cuando comunica estado.
+class _Ui {
+  static const background = Color(0xFFF5F7FA);
+  static const surface = Colors.white;
+  static const border = Color(0xFFE2E8F0);
+  static const divider = Color(0xFFEDF1F5);
+
+  static const success = Color(0xFF15803D);
+  static const successBg = Color(0xFFE8F5EC);
+  static const warning = Color(0xFFB45309);
+  static const warningBg = Color(0xFFFEF3C7);
+  static const info = Color(0xFF1D4ED8);
+  static const infoBg = Color(0xFFE6EFFE);
+  static const locked = Color(0xFF64748B);
+  static const lockedBg = Color(0xFFF1F5F9);
+
+  static const double radius = 10;
+  static const double pagePadding = 16;
+}
 
 class MachineDetailScreen extends StatefulWidget {
   final MachineModel machine;
@@ -46,63 +68,75 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     }
   }
 
+  // Estado general en tiempo real según las fases
+  OverallState _effectiveState(MachineModel m) {
+    if (_phases.isEmpty) return m.overallState;
+    if (_phases.every((p) => p.isCompleted)) return OverallState.completed;
+    if (_phases.any((p) => p.isInProgress || p.isCompleted)) {
+      return OverallState.inProgress;
+    }
+    return OverallState.pending;
+  }
 
+  ({String label, Color fg, Color bg}) _statusStyle(OverallState state) {
+    switch (state) {
+      case OverallState.pending:
+        return (label: 'Pendiente de inicio', fg: _Ui.warning, bg: _Ui.warningBg);
+      case OverallState.inProgress:
+        return (label: 'En alistamiento', fg: _Ui.info, bg: _Ui.infoBg);
+      case OverallState.completed:
+        return (label: 'Lista para despacho', fg: _Ui.success, bg: _Ui.successBg);
+      case OverallState.inTransit:
+        return (label: 'En tránsito a obra', fg: _Ui.info, bg: _Ui.infoBg);
+      case OverallState.delivered:
+        return (label: 'Entregada en sitio', fg: _Ui.success, bg: _Ui.successBg);
+    }
+  }
 
+  // Fases ordenadas: ensamblaje → lavado → pintura
+  List<PreparationPhaseModel> _orderedPhases(MachineModel machine) {
+    final phases = List<PreparationPhaseModel>.from(_phases);
+    phases.sort((a, b) => a.stepNumber.compareTo(b.stepNumber));
+
+    // Si aún no hay fases cargadas, armar plantilla por defecto
+    if (phases.isEmpty) {
+      phases.addAll([
+        PreparationPhaseModel(id: '1', machineId: machine.id, name: 'ensamblaje', status: 'completada'),
+        PreparationPhaseModel(id: '2', machineId: machine.id, name: 'lavado', status: 'en_proceso'),
+        PreparationPhaseModel(id: '3', machineId: machine.id, name: 'pintura', status: 'pendiente'),
+      ]);
+    }
+    return phases;
+  }
+
+  // Regla de negocio: una fase queda bloqueada mientras la anterior
+  // no esté completada. La primera nunca se bloquea.
+  bool _isLocked(List<PreparationPhaseModel> phases, int index) {
+    return index > 0 && !phases[index - 1].isCompleted;
+  }
+
+  IconData _phaseIcon(PreparationPhaseModel phase) {
+    final n = phase.name.toLowerCase();
+    if (n.contains('lav')) return Icons.water_drop_rounded;
+    if (n.contains('ensam')) return Icons.build_rounded;
+    if (n.contains('pint')) return Icons.format_paint_rounded;
+    return Icons.settings_rounded;
+  }
+
+  ({String label, Color fg, Color bg}) _phaseStatus(
+    PreparationPhaseModel phase,
+    bool isLocked,
+  ) {
+    if (isLocked) return (label: 'Bloqueada', fg: _Ui.locked, bg: _Ui.lockedBg);
+    if (phase.isCompleted) return (label: 'Completada', fg: _Ui.success, bg: _Ui.successBg);
+    if (phase.isInProgress) return (label: 'En proceso', fg: _Ui.info, bg: _Ui.infoBg);
+    return (label: 'Pendiente', fg: _Ui.warning, bg: _Ui.warningBg);
+  }
 
   @override
   Widget build(BuildContext context) {
     final m = widget.machine;
-
-    // Determinar el estado general en tiempo real según las fases
-    OverallState effectiveState = m.overallState;
-    if (_phases.isNotEmpty) {
-      if (_phases.every((p) => p.isCompleted)) {
-        effectiveState = OverallState.completed;
-      } else if (_phases.any((p) => p.isInProgress || p.isCompleted)) {
-        effectiveState = OverallState.inProgress;
-      } else {
-        effectiveState = OverallState.pending;
-      }
-    }
-
-    // Configuración de estado
-    String statusLabel;
-    Color statusColor;
-    Color statusBg;
-    Color statusBorder;
-
-    switch (effectiveState) {
-      case OverallState.inProgress:
-        statusLabel = 'En alistamiento';
-        statusColor = AppColors.accentBlue;
-        statusBg = const Color(0xFFEFF6FF);
-        statusBorder = const Color(0xFFDBEAFE);
-        break;
-      case OverallState.pending:
-        statusLabel = 'Pendiente de inicio';
-        statusColor = const Color(0xFFD97706);
-        statusBg = const Color(0xFFFEF3C7);
-        statusBorder = const Color(0xFFFDE68A);
-        break;
-      case OverallState.completed:
-        statusLabel = 'Lista para despacho';
-        statusColor = const Color(0xFF059669);
-        statusBg = const Color(0xFFECFDF5);
-        statusBorder = const Color(0xFFA7F3D0);
-        break;
-      case OverallState.inTransit:
-        statusLabel = 'En tránsito a obra';
-        statusColor = const Color(0xFF2563EB);
-        statusBg = const Color(0xFFDBEAFE);
-        statusBorder = const Color(0xFFBFDBFE);
-        break;
-      case OverallState.delivered:
-        statusLabel = 'Entregada en sitio';
-        statusColor = const Color(0xFF059669);
-        statusBg = const Color(0xFFECFDF5);
-        statusBorder = const Color(0xFFA7F3D0);
-        break;
-    }
+    final status = _statusStyle(_effectiveState(m));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -111,31 +145,26 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: _Ui.background,
         body: SafeArea(
           bottom: false,
           child: Column(
             children: [
-              // 1. Barra de navegación superior
               _buildTopBar(context, m),
-
-              // 2. Contenido scrolleable
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+                  padding: EdgeInsets.fromLTRB(
+                    _Ui.pagePadding,
+                    16,
+                    _Ui.pagePadding,
+                    24 + MediaQuery.of(context).padding.bottom,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Tarjeta Hero con datos principales de la máquina
-                      _buildHeroCard(m, statusLabel, statusColor, statusBg, statusBorder),
-                      const SizedBox(height: 18),
-
-                      // Progreso y avance de alistamiento
-                      _buildPreparationProgressCard(),
+                      _buildSummaryCard(m, status),
                       const SizedBox(height: 16),
-
-                      // Fases Secuenciales de Alistamiento (Lavado -> Ensamblaje -> Pintura)
-                      _buildSequentialPhasesSection(m),
+                      _buildProcessCard(m),
                     ],
                   ),
                 ),
@@ -147,209 +176,126 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     );
   }
 
-  // --- Barra superior limpia ---
+  // --- Barra superior ---
   Widget _buildTopBar(BuildContext context, MachineModel machine) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1),
-        ),
+        color: _Ui.surface,
+        border: Border(bottom: BorderSide(color: _Ui.border)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Botón volver
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: const Icon(
-                Icons.arrow_back_rounded,
-                size: 20,
+          IconButton(
+            tooltip: 'Volver',
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          ),
+          const Expanded(
+            child: Text(
+              'Detalle de máquina',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
             ),
           ),
-
-          // Título central
-          Column(
-            children: [
-              const Text(
-                'Detalle de máquina',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                'Serial: ${machine.serial}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-
-          // Botón ver código QR
-          GestureDetector(
-            onTap: () => _showMachineQrModal(context, machine),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: const Icon(
-                Icons.qr_code_2_rounded,
-                size: 20,
-                color: AppColors.textPrimary,
-              ),
-            ),
+          IconButton(
+            tooltip: 'Ver código QR',
+            onPressed: () => _showMachineQrModal(context, machine),
+            icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.textPrimary),
           ),
         ],
       ),
     );
   }
 
-  // --- Tarjeta Hero Principal ---
-  Widget _buildHeroCard(
+  // --- Resumen de la máquina (con foto) ---
+  Widget _buildSummaryCard(
     MachineModel machine,
-    String statusLabel,
-    Color statusColor,
-    Color statusBg,
-    Color statusBorder,
+    ({String label, Color fg, Color bg}) status,
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x05000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ],
+        color: _Ui.surface,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: _Ui.border),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Foto de la máquina con badge de categoría superpuesto
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
-                child: SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: Image.asset(
-                    machine.displayImage,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFFEFF6FF),
-                        child: const Center(
-                          child: Icon(
-                            Icons.precision_manufacturing_rounded,
-                            size: 48,
-                            color: AppColors.accentBlue,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              // Píldora de Categoría
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xD90F172A),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    machine.category.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: 0.6,
+          SizedBox(
+            height: 150,
+            child: Image.asset(
+              machine.displayImage,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: _Ui.lockedBg,
+                  child: const Center(
+                    child: Icon(
+                      Icons.precision_manufacturing_rounded,
+                      size: 56,
+                      color: _Ui.locked,
                     ),
                   ),
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-
-          // Información descriptiva
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Text(
+                  machine.category,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  machine.name,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            machine.name,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                              letterSpacing: -0.5,
+                    _buildChip(status.label, status.fg, status.bg, large: true),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: () => _copySerial(machine.serial),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Serial ${machine.serial}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Serial: ${machine.serial}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Badge de Estado
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: statusBorder),
-                      ),
-                      child: Text(
-                        statusLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
+                            const SizedBox(width: 6),
+                            const Icon(Icons.copy_rounded, size: 16, color: _Ui.locked),
+                          ],
                         ),
                       ),
                     ),
@@ -363,479 +309,345 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     );
   }
 
+  void _copySerial(String serial) {
+    Clipboard.setData(ClipboardData(text: serial));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Serial copiado'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
 
+  Widget _buildChip(
+    String label,
+    Color fg,
+    Color bg, {
+    bool large = false,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: large ? 12 : 8, vertical: large ? 6 : 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(large ? 8 : 6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: large ? 13 : 12,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      ),
+    );
+  }
 
-  // --- Tarjeta de Progreso General de Alistamiento ---
-  Widget _buildPreparationProgressCard() {
-    final completedCount = _phases.where((p) => p.isCompleted).length;
-    final total = _phases.isEmpty ? 3 : _phases.length;
-    final progress = (completedCount / total).clamp(0.0, 1.0);
-    final percentInt = (progress * 100).toInt();
+  // --- Alistamiento: línea de tiempo con todas las fases ---
+  Widget _buildProcessCard(MachineModel machine) {
+    if (_isLoadingPhases) {
+      return const SkeletonGroup(
+        child: MachineDetailProcessSkeleton(),
+      );
+    }
 
+    final phases = _orderedPhases(machine);
+    final completedCount = phases.where((p) => p.isCompleted).length;
+    final total = phases.length;
     final isAllDone = completedCount == total && total > 0;
 
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isAllDone ? const Color(0xFFF0FDF4) : Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isAllDone ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
-          width: isAllDone ? 1.5 : 1.0,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x05000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ],
+        color: _Ui.surface,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: _Ui.border),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    isAllDone ? Icons.verified_rounded : Icons.pending_actions_rounded,
-                    color: isAllDone ? const Color(0xFF16A34A) : AppColors.accentBlue,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Progreso de Alistamiento',
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Alistamiento',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isAllDone ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  '$completedCount / $total Fases ($percentInt%)',
+                Text(
+                  '$completedCount de $total fases',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: isAllDone ? const Color(0xFF16A34A) : AppColors.accentBlue,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isAllDone ? _Ui.success : _Ui.info,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Barra de progreso lineal
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: const Color(0xFFE2E8F0),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isAllDone ? const Color(0xFF16A34A) : AppColors.accentBlue,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          Text(
-            isAllDone
-                ? 'Todas las fases completadas. La máquina está lista para despacho a transporte.'
-                : 'Se requiere completar la secuencia obligatoria de fases para habilitar el despacho.',
-            style: TextStyle(
-              fontSize: 12,
-              color: isAllDone ? const Color(0xFF15803D) : AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- Línea de Tiempo Secuencial de las 3 Fases Oficiales ---
-  Widget _buildSequentialPhasesSection(MachineModel machine) {
-    if (_isLoadingPhases) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: const Center(
-          child: Column(
-            children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accentBlue),
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Consultando fases de alistamiento...',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Asegurar las 3 fases ordenadas: 1. lavado -> 2. ensamblaje -> 3. pintura
-    final phases = List<PreparationPhaseModel>.from(_phases);
-    phases.sort((a, b) => a.stepNumber.compareTo(b.stepNumber));
-
-    // Si aún no hay fases cargadas, armar plantilla por defecto
-    if (phases.isEmpty) {
-      phases.addAll([
-        PreparationPhaseModel(id: '1', machineId: machine.id, name: 'lavado', status: 'completada'),
-        PreparationPhaseModel(id: '2', machineId: machine.id, name: 'ensamblaje', status: 'en_proceso'),
-        PreparationPhaseModel(id: '3', machineId: machine.id, name: 'pintura', status: 'pendiente'),
-      ]);
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Fases de Alistamiento Obligatorio',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 22, color: AppColors.textSecondary),
+                  tooltip: 'Actualizar fases',
+                  onPressed: _loadPhases,
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.accentBlue),
-                tooltip: 'Actualizar fases',
-                onPressed: _loadPhases,
-                visualDensity: VisualDensity.compact,
-              ),
-            ],
-          ),
-          const Text(
-            'Avance secuencial: Cada fase debe completarse antes de iniciar la siguiente.',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-              height: 1.3,
+              ],
             ),
           ),
-          const SizedBox(height: 18),
-
-          // Renderizar los 3 pasos secuenciales con evaluación de restricción
-          ...List.generate(phases.length, (index) {
-            final phase = phases[index];
-            final isLast = index == phases.length - 1;
-
-            // REGLA DE NEGOCIO ESTRICTA:
-            // Fase 1 (Lavado): Nunca está bloqueada.
-            // Fase 2 (Ensamblaje): Bloqueada si Fase 1 no está completada.
-            // Fase 3 (Pintura): Bloqueada si Fase 2 no está completada.
-            bool isLocked = false;
-            PreparationPhaseModel? prerequisitePhase;
-
-            if (index > 0) {
-              final prev = phases[index - 1];
-              if (!prev.isCompleted) {
-                isLocked = true;
-                prerequisitePhase = prev;
-              }
-            }
-
-            return _buildSequentialPhaseItem(
-              phase: phase,
-              isLocked: isLocked,
-              prerequisitePhase: prerequisitePhase,
-              isLast: isLast,
-              onTap: () {
-                if (isLocked) {
-                  _showLockedPhaseDialog(context, phase, prerequisitePhase!);
-                } else {
-                  PhaseActionModal.show(
-                    context: context,
-                    machineId: widget.machine.id,
-                    phase: phase,
-                    onPhaseUpdated: _loadPhases,
-                  );
-                }
-              },
-            );
-          }),
+          const Divider(height: 1, color: _Ui.divider),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+            child: Column(
+              children: List.generate(phases.length, (i) {
+                return _buildTimelineRow(
+                  phases: phases,
+                  index: i,
+                  isLast: i == phases.length - 1,
+                );
+              }),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSequentialPhaseItem({
-    required PreparationPhaseModel phase,
-    required bool isLocked,
-    required PreparationPhaseModel? prerequisitePhase,
-    required bool isLast,
-    required VoidCallback onTap,
-  }) {
-    Color indicatorBg;
-    Widget indicatorChild;
-    Color cardBg;
-    Color borderColor;
+  Widget _buildNode(PreparationPhaseModel phase, bool locked) {
+    const double size = 40;
+    if (locked) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: _Ui.lockedBg,
+          shape: BoxShape.circle,
+          border: Border.all(color: _Ui.border, width: 2),
+        ),
+        child: const Icon(Icons.lock_outline_rounded, size: 18, color: _Ui.locked),
+      );
+    }
+    if (phase.isCompleted) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(color: _Ui.success, shape: BoxShape.circle),
+        child: const Icon(Icons.check_rounded, size: 24, color: Colors.white),
+      );
+    }
+    if (phase.isInProgress) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: _Ui.info,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: _Ui.info.withValues(alpha: 0.2),
+              spreadRadius: 4,
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Icon(_phaseIcon(phase), size: 20, color: Colors.white),
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: _Ui.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: _Ui.warning, width: 2),
+      ),
+      child: Icon(_phaseIcon(phase), size: 20, color: _Ui.warning),
+    );
+  }
 
-    if (isLocked) {
-      indicatorBg = const Color(0xFFE2E8F0);
-      indicatorChild = const Icon(Icons.lock_rounded, size: 14, color: Color(0xFF94A3B8));
-      cardBg = const Color(0xFFF8FAFC);
-      borderColor = const Color(0xFFE2E8F0);
-    } else if (phase.isCompleted) {
-      indicatorBg = const Color(0xFF059669);
-      indicatorChild = const Icon(Icons.check_rounded, size: 16, color: Colors.white);
-      cardBg = const Color(0xFFF0FDF4);
-      borderColor = const Color(0xFFBBF7D0);
-    } else if (phase.isInProgress) {
-      indicatorBg = AppColors.accentBlue;
-      indicatorChild = Text(
-        '${phase.stepNumber}',
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white),
-      );
-      cardBg = const Color(0xFFEFF6FF);
-      borderColor = const Color(0xFFBFDBFE);
-    } else {
-      indicatorBg = const Color(0xFFD97706);
-      indicatorChild = Text(
-        '${phase.stepNumber}',
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white),
-      );
-      cardBg = Colors.white;
-      borderColor = const Color(0xFFE2E8F0);
+  Widget _buildTimelineRow({
+    required List<PreparationPhaseModel> phases,
+    required int index,
+    required bool isLast,
+  }) {
+    final phase = phases[index];
+    final isLocked = _isLocked(phases, index);
+    final prerequisite = isLocked ? phases[index - 1] : null;
+    final st = _phaseStatus(phase, isLocked);
+    final hasObservations = phase.observations != null && phase.observations!.isNotEmpty;
+    final isActionable = !isLocked && !phase.isCompleted;
+
+    void open() {
+      if (isLocked) {
+        _showLockedPhaseDialog(context, phase, prerequisite!);
+      } else {
+        PhaseActionModal.show(
+          context: context,
+          machineId: widget.machine.id,
+          phase: phase,
+          onPhaseUpdated: _loadPhases,
+        );
+      }
     }
 
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Columna de indicador y línea vertical conectora
-          Column(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: indicatorBg,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(child: indicatorChild),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: phase.isCompleted ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+          // Riel: nodo + línea que baja a la siguiente fase
+          SizedBox(
+            width: 44,
+            child: Column(
+              children: [
+                const SizedBox(height: 2),
+                _buildNode(phase, isLocked),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 3,
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: phase.isCompleted ? _Ui.success : _Ui.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(width: 14),
 
-          // Tarjeta interactiva de la fase
+          // Contenido de la fase, sin caja
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
-              child: GestureDetector(
-                onTap: onTap,
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: borderColor, width: 1.2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    onTap: open,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
                         children: [
                           Expanded(
                             child: Text(
                               phase.displayName,
                               style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: isLocked ? AppColors.textMuted : AppColors.textPrimary,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: isLocked ? _Ui.locked : AppColors.textPrimary,
                               ),
                             ),
                           ),
-                          _buildPhaseStatusBadge(phase, isLocked),
+                          const SizedBox(width: 8),
+                          _buildChip(st.label, st.fg, st.bg),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    phase.description,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: isLocked ? _Ui.locked : AppColors.textSecondary,
+                    ),
+                  ),
+                  if (isLocked) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Se habilita al completar "${prerequisite?.displayName ?? 'la fase anterior'}".',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _Ui.locked,
+                      ),
+                    ),
+                  ] else ...[
+                    if (hasObservations) ...[
+                      const SizedBox(height: 10),
                       Text(
-                        phase.description,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isLocked ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-                          height: 1.3,
+                        phase.observations!,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      if (isLocked) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF94A3B8)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Bloqueada: Requiere finalizar "${prerequisitePhase?.displayName ?? 'fase anterior'}".',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
+                    ],
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_outline_rounded, size: 18, color: AppColors.textSecondary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            phase.operatorName != null
+                                ? 'Operario: ${phase.operatorName}'
+                                : 'Sin operario asignado',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
                             ),
-                          ],
+                          ),
                         ),
                       ],
-                      if (!isLocked && phase.observations != null && phase.observations!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    const SizedBox(height: 12),
+                    if (isActionable)
+                      SizedBox(
+                        height: 44,
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: open,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primaryNavy,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(_Ui.radius),
+                            ),
+                            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                           ),
+                          child: Text(phase.isInProgress ? 'Continuar fase' : 'Iniciar fase'),
+                        ),
+                      )
+                    else
+                      InkWell(
+                        onTap: open,
+                        borderRadius: BorderRadius.circular(6),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 6),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.comment_outlined, size: 14, color: AppColors.accentBlue),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  phase.observations!,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textPrimary,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                              Text(
+                                'Ver detalle',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.accentBlue,
                                 ),
                               ),
+                              Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.accentBlue),
                             ],
                           ),
                         ),
-                      ],
-                      if (!isLocked) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              phase.operatorName != null
-                                  ? 'Operario: ${phase.operatorName}'
-                                  : 'Tocar para gestionar fase',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.accentBlue,
-                              ),
-                            ),
-                            const Icon(
-                              Icons.chevron_right_rounded,
-                              size: 18,
-                              color: AppColors.accentBlue,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                      ),
+                  ],
+                ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPhaseStatusBadge(PreparationPhaseModel phase, bool isLocked) {
-    if (isLocked) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_outline_rounded, size: 12, color: Color(0xFF94A3B8)),
-            SizedBox(width: 4),
-            Text(
-              'Bloqueada',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF64748B),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    Color bg;
-    Color fg;
-    String label;
-
-    if (phase.isCompleted) {
-      bg = const Color(0xFFDCFCE7);
-      fg = const Color(0xFF15803D);
-      label = 'Completada';
-    } else if (phase.isInProgress) {
-      bg = const Color(0xFFDBEAFE);
-      fg = const Color(0xFF1D4ED8);
-      label = 'En Proceso';
-    } else {
-      bg = const Color(0xFFFEF3C7);
-      fg = const Color(0xFFB45309);
-      label = 'Pendiente';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: fg,
-        ),
       ),
     );
   }
@@ -849,86 +661,45 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFEF3C7),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.lock_rounded, color: Color(0xFFD97706), size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Fase Bloqueada',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryNavy,
-                ),
-              ),
-            ),
-          ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'No puedes iniciar ni registrar avances en la fase de "${phase.displayName}".',
-              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.35),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.accentBlue),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Debes completar primero la fase #${prerequisite.stepNumber}: ${prerequisite.displayName}.',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        title: const Text(
+          'Fase bloqueada',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: Text(
+          'No se puede iniciar ni registrar avances en "${phase.displayName}" '
+          'hasta completar la fase ${prerequisite.stepNumber}: ${prerequisite.displayName}.',
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.4,
+            color: AppColors.textPrimary,
+          ),
         ),
         actions: [
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(
+            style: FilledButton.styleFrom(
               backgroundColor: AppColors.primaryNavy,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(_Ui.radius),
+              ),
             ),
-            child: const Text('Entendido', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text('Entendido'),
           ),
         ],
       ),
     );
   }
 
-
-
-
-  // --- Modal para Código QR de la Máquina ---
+  // --- Modal con el código QR de la máquina ---
   void _showMachineQrModal(BuildContext context, MachineModel machine) {
     QrDisplayModal.show(context, machine);
   }
 }
-
