@@ -1,88 +1,55 @@
-/**
- * Tipos de dominio centrales de MaquiTrace.
- * Alineados con el esquema de base de datos y la aplicación móvil.
- */
+export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'OPERATOR' | 'administrador' | 'supervisor' | 'operario' | 'transportador';
 
-export type UserRole = 'OPERATOR' | 'SUPERVISOR' | 'TRANSPORTER' | 'ADMIN';
-
-export type MachineCategory =
-  | 'Excavadoras'
-  | 'Cargadores frontales'
-  | 'Retroexcavadoras'
-  | 'Volquetas'
-  | 'Motoniveladoras';
-
-export type OverallState =
-  | 'pending'
-  | 'in_progress'
-  | 'completed'
-  | 'in_transit'
-  | 'delivered';
-
-export type PhaseState = 'pending' | 'in_progress' | 'completed';
-
-export interface Headquarters {
+export interface User {
   id: string;
   name: string;
-  department: string;
-  facilityAddress: string;
-  supervisorName: string;
+  email: string;
+  role: UserRole | { name: string };
+  phone?: string;
 }
 
-export interface UserProfile {
+export type MachineStatus = 'pendiente' | 'en_proceso' | 'completada' | 'en_transito' | 'entregada';
+export type PhaseName = 'ensamblaje' | 'pintura' | 'lavado';
+export type PhaseStatus = 'pendiente' | 'en_proceso' | 'completada';
+
+export interface PreparationPhase {
   id: string;
-  name: string;
-  nationalId: string;
-  operatorCode: string;
-  role: UserRole;
-  headquartersId: string;
-  certTitle?: string;
-  certExpiresAt?: string;
+  name: PhaseName;
+  status: PhaseStatus;
+  observations?: string;
+  operatorId?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface Evidence {
+  id: string;
+  type: 'foto' | 'video';
+  url: string;
+  createdAt: string;
 }
 
 export interface Machine {
   id: string;
-  name: string;
+  category: string;
   serial: string;
-  category: MachineCategory;
-  modelYear: string;
-  overallState: OverallState;
-  yardLocation: string;
-  operatingHours: string;
-  fuelPercent: number;
-  batteryVoltage: string;
-  headquartersId: string;
-  assignedOperator?: string;
-  imageUrl?: string;
-  notes?: string;
+  model: string;
+  status: MachineStatus;
+  phases?: PreparationPhase[];
+  evidence?: Evidence[];
+  createdAt?: string;
 }
 
-export interface PreparationPhase {
-  phaseNumber: number;
-  name: string;
-  status: PhaseState;
-  completedAt?: string;
-  notes?: string;
+export interface LoginResponse {
+  accessToken: string;
+  user: User;
 }
 
-export interface EvidencePhoto {
-  id: string;
-  preparationId: string;
-  angle: 'frente' | 'oruga_izq' | 'cabina' | 'motor';
-  url: string;
-  takenAt: string;
-}
-
-export interface Preparation {
-  id: string;
-  machineId: string;
-  operatorId: string;
-  supervisorId?: string;
-  status: OverallState;
-  startedAt: string;
-  closedAt?: string;
-  durationMinutes?: number;
-  phases: PreparationPhase[];
-  photos: EvidencePhoto[];
-  notes?: string;
+export interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  login: (token: string, user: User) => void;
+  logout: () => void;
 }
