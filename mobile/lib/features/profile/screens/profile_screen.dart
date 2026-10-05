@@ -6,6 +6,21 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../history/screens/history_screen.dart';
 
+/// Colores y medidas compartidas con el resto de pantallas del flujo.
+/// Un solo radio, bordes de 1 px y color solo cuando comunica estado.
+class _Ui {
+  static const background = Color(0xFFF5F7FA);
+  static const surface = Colors.white;
+  static const border = Color(0xFFE2E8F0);
+  static const divider = Color(0xFFEDF1F5);
+  static const handle = Color(0xFFCBD5E1);
+  static const locked = Color(0xFF64748B);
+  static const danger = Color(0xFFDC2626);
+
+  static const double radius = 10;
+  static const double pagePadding = 16;
+}
+
 class ProfileScreen extends StatefulWidget {
   final bool showScaffold;
   final ValueChanged<int>? onNavigateToTab;
@@ -23,130 +38,82 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _biometricAuth = true;
 
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.currentUser;
+
     final content = SafeArea(
       bottom: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+        padding: const EdgeInsets.fromLTRB(
+          _Ui.pagePadding,
+          18,
+          _Ui.pagePadding,
+          100,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Cabecera sobria y profesional
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Perfil',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.6,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Ficha técnica del operario',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-                // Botón discreto para ver credencial QR
-                GestureDetector(
-                  onTap: _showDigitalCredentialModal,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x06000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.qr_code_2_rounded,
-                          size: 18,
-                          color: AppColors.textPrimary,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Credencial',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            // Cabecera
+            const Text(
+              'Perfil',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 3),
+            const Text(
+              'Ficha técnica del operario',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 20),
 
-            // Tarjeta Credencial Industrial (Navy + Azul corporativo MaquiTrace)
-            _buildIndustrialCredentialCard(),
-            const SizedBox(height: 16),
-
-            // Métricas de Rendimiento en Patio (Monocromáticas y sobrias)
-            _buildYardMetricsRow(),
+            // Identidad del operario
+            _buildIdentityCard(),
             const SizedBox(height: 28),
 
-            // Sección 1: Ficha del Operario y Patio
-            _buildSectionTitle('OPERACIÓN Y PATIO'),
+            // Sección 1: cuenta
+            _buildSectionTitle('Datos de la cuenta'),
             const SizedBox(height: 10),
-            _buildSettingsContainer([
-              _buildSimpleTile(
-                icon: Icons.badge_outlined,
-                title: 'Documento de identidad',
-                value: 'CC 1.020.485.912',
-                onTap: null,
+            _buildGroup([
+              _buildTile(
+                icon: Icons.alternate_email_rounded,
+                title: 'Correo corporativo',
+                value: user != null && user.email.isNotEmpty
+                    ? user.email
+                    : 'operario@maquitrace.com',
               ),
-              _buildDivider(),
-              _buildSimpleTile(
+              _buildTile(
+                icon: Icons.phone_outlined,
+                title: 'Teléfono de contacto',
+                value: user?.phone != null && user!.phone!.isNotEmpty
+                    ? user.phone!
+                    : 'No registrado',
+              ),
+              _buildTile(
                 icon: Icons.location_on_outlined,
                 title: 'Sede operativa',
                 value: 'Sede Buenaventura · Valle del Cauca',
-                onTap: () => _showDetailModal(
-                  title: 'Sede y Asignación',
+                onTap: () => _showDetailSheet(
+                  title: 'Sede y asignación',
                   body:
                       'Sede Puerto Buenaventura (Terminal Portuario / Vía Alterna Interna).\nJefe de Operaciones: Ing. Carlos Mendoza.\nTurno activo: 07:00 - 16:00 (Lunes a Sábado).',
                 ),
               ),
-              _buildDivider(),
-              _buildSimpleTile(
-                icon: Icons.verified_outlined,
-                title: 'Licencia técnica de alistamiento',
-                value: 'CAT / Komatsu · Vence Dic 2026',
-                onTap: () => _showDetailModal(
-                  title: 'Certificación Técnica',
-                  body:
-                      'Operador certificado para inspección de sistemas hidráulicos, prueba de estanqueidad y alistamiento mecánico nivel 2 según normativa técnica nacional.',
-                ),
-              ),
-              _buildDivider(),
-              _buildSimpleTile(
+              _buildTile(
                 icon: Icons.history_rounded,
                 title: 'Historial de alistamientos',
                 value: 'Ver registros anteriores',
-                isAction: true,
                 onTap: () {
                   if (widget.onNavigateToTab != null) {
                     widget.onNavigateToTab!(3); // Ir a pestaña de Historial
@@ -162,10 +129,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ]),
             const SizedBox(height: 28),
 
-            // Sección 2: Seguridad y Sistema
-            _buildSectionTitle('SEGURIDAD Y SOPORTE'),
+            // Sección 2: seguridad y soporte
+            _buildSectionTitle('Seguridad y soporte'),
             const SizedBox(height: 10),
-            _buildSettingsContainer([
+            _buildGroup([
               _buildSwitchRow(
                 icon: Icons.fingerprint_rounded,
                 title: 'Acceso biométrico',
@@ -173,41 +140,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 value: _biometricAuth,
                 onChanged: (val) => setState(() => _biometricAuth = val),
               ),
-              _buildDivider(),
-              _buildSimpleTile(
+              _buildTile(
                 icon: Icons.support_agent_rounded,
                 title: 'Contactar a supervisor de turno',
                 value: 'Ing. Carlos Mendoza',
-                isAction: true,
-                onTap: _showContactSupervisorModal,
+                onTap: _showContactSupervisorSheet,
               ),
-              _buildDivider(),
-              _buildSimpleTile(
+              _buildTile(
                 icon: Icons.menu_book_outlined,
                 title: 'Manual de alistamiento de maquinaria',
                 value: 'Protocolos PDF v2.4',
-                isAction: true,
-                onTap: () => _showDetailModal(
-                  title: 'Manual de Protocolos',
+                onTap: () => _showDetailSheet(
+                  title: 'Manual de protocolos',
                   body:
-                      'El manual contiene las listas de chequeo oficiales para las fases de Ensamblaje, Pintura y Lavado, junto con los ángulos fotográficos obligatorios.',
+                      'El manual contiene las listas de chequeo oficiales para las fases de Ensamblaje, Lavado y Pintura, junto con los ángulos fotográficos obligatorios.',
                 ),
               ),
             ]),
             const SizedBox(height: 32),
 
-            // Botón de Cerrar Sesión (Sobrio, fondo gris claro con acento rojo mínimo)
             _buildLogoutTile(),
             const SizedBox(height: 16),
 
-            // Versión de la App al pie
             const Center(
               child: Text(
                 'MaquiTrace Mobile · v1.0.0 (Build 104)',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 13,
                   color: AppColors.textMuted,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -223,250 +183,129 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _Ui.background,
       body: content,
     );
   }
 
-  // Tarjeta Credencial Industrial en Azul Marino MaquiTrace
-  Widget _buildIndustrialCredentialCard() {
-    final authProvider = context.watch<AuthProvider>();
-    final user = authProvider.currentUser;
-    final userName = user != null && user.name.isNotEmpty ? user.name : 'Yuji Itadori';
-    final userRole = user != null ? 'Rol: ${user.role.toUpperCase()}' : 'Operario de Alistamiento';
-    final initials = userName.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).take(2).join().toUpperCase();
+  // --- Identidad: avatar, nombre, rol y datos de credencial ---
+  Widget _buildIdentityCard() {
+    final user = context.watch<AuthProvider>().currentUser;
+    final userName = user != null && user.name.isNotEmpty ? user.name : 'Operario';
+    final userRole = user != null && user.role.trim().isNotEmpty
+        ? _capitalize(user.role.trim())
+        : 'Operario de alistamiento';
+    final initials = userName
+        .split(' ')
+        .where((e) => e.isNotEmpty)
+        .map((e) => e[0])
+        .take(2)
+        .join()
+        .toUpperCase();
+    final identifier = user != null && user.id.isNotEmpty
+        ? (user.id.length >= 8
+            ? user.id.substring(0, 8).toUpperCase()
+            : user.id.toUpperCase())
+        : 'OP-ACTIVO';
 
     return Container(
-      width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.primaryNavy,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x180F172A),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
+        color: _Ui.surface,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: _Ui.border),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Marca de agua sutil en esquina
-          Positioned(
-            right: -16,
-            bottom: -16,
-            child: Icon(
-              Icons.agriculture_rounded,
-              size: 130,
-              color: Colors.white.withValues(alpha: 0.04),
-            ),
-          ),
           Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                // Fila superior: Credencial digital y Empresa
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'CREDENCIAL DIGITAL',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.1,
-                        color: Color(0xFF94A3B8),
-                      ),
-                    ),
-                    Text(
-                      'MAQUITRACE',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-
-                // Datos del Operario
-                Row(
-                  children: [
-                    // Avatar con foto o iniciales con reborde azul sutil
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.accentBlue,
-                          width: 2,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          initials.isNotEmpty ? initials : 'OP',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            userName,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            userRole,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF94A3B8),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Separador tenue
                 Container(
-                  height: 1,
-                  color: Colors.white.withValues(alpha: 0.1),
+                  width: 64,
+                  height: 64,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryNavy,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      initials.isNotEmpty ? initials : 'OP',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 14),
-
-                // Fila inferior de credencial: Código y Sede
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'CÓDIGO DE OPERARIO',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
-                            letterSpacing: 0.8,
-                          ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                          color: AppColors.textPrimary,
                         ),
-                        SizedBox(height: 2),
-                        Text(
-                          'OP-0482',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        userRole,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
                         ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'SEDE ASIGNADA',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Buenaventura',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
+          const Divider(height: 1, color: _Ui.divider),
+          _buildInfoRow('Identificador', identifier),
+          const Divider(height: 1, color: _Ui.divider),
+          _buildInfoRow('Sede asignada', 'Buenaventura'),
         ],
       ),
     );
   }
 
-  // Fila de Métricas limpia y sin colores estridentes
-  Widget _buildYardMetricsRow() {
+  Widget _buildInfoRow(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
-      ),
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildMetricColumn('48', 'Alistamientos'),
-          _buildMetricDivider(),
-          _buildMetricColumn('98.4%', 'Cumplimiento'),
-          _buildMetricDivider(),
-          _buildMetricColumn('164', 'Evidencias'),
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMetricColumn(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetricDivider() {
-    return Container(
-      width: 1,
-      height: 26,
-      color: const Color(0xFFE2E8F0),
     );
   }
 
@@ -474,61 +313,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Text(
       title,
       style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: Color(0xFF64748B),
-        letterSpacing: 0.8,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
       ),
     );
   }
 
-  Widget _buildSettingsContainer(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+  // Lista agrupada: intercala divisores entre filas
+  Widget _buildGroup(List<Widget> rows) {
+    return Material(
+      color: _Ui.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        side: const BorderSide(color: _Ui.border),
       ),
       child: Column(
-        children: children,
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const Divider(height: 1, indent: 54, color: _Ui.divider),
+            rows[i],
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildDivider() {
-    return const Divider(
-      height: 1,
-      thickness: 1,
-      indent: 52,
-      color: Color(0xFFF1F5F9),
-    );
-  }
-
-  // Fila simple monocromática para datos y enlaces
-  Widget _buildSimpleTile({
+  // Fila de dato o enlace; el chevron aparece solo si se puede tocar
+  Widget _buildTile({
     required IconData icon,
     required String title,
     required String value,
-    bool isAction = false,
     VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 18, color: const Color(0xFF475569)),
-            ),
-            const SizedBox(width: 12),
+            Icon(icon, size: 24, color: AppColors.textSecondary),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,7 +362,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
@@ -544,28 +370,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 2),
                   Text(
                     value,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isAction ? FontWeight.w600 : FontWeight.w400,
-                      color: isAction ? AppColors.accentBlue : AppColors.textSecondary,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.35,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isAction)
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: Color(0xFF94A3B8),
-              ),
+            if (onTap != null)
+              const Icon(Icons.chevron_right_rounded, size: 22, color: _Ui.locked),
           ],
         ),
       ),
     );
   }
 
-  // Fila para switches de configuración
   Widget _buildSwitchRow({
     required IconData icon,
     required String title,
@@ -574,19 +395,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required ValueChanged<bool> onChanged,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 18, color: const Color(0xFF475569)),
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, size: 24, color: AppColors.textSecondary),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,7 +407,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
@@ -603,422 +416,265 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 13,
+                    height: 1.35,
                     color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Switch(
             value: value,
             onChanged: onChanged,
             activeThumbColor: Colors.white,
             activeTrackColor: AppColors.accentBlue,
             inactiveThumbColor: Colors.white,
-            inactiveTrackColor: const Color(0xFFCBD5E1),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            inactiveTrackColor: _Ui.handle,
           ),
         ],
       ),
     );
   }
 
-  // Botón de Cerrar Sesión profesional y sin estridencias
   Widget _buildLogoutTile() {
-    return InkWell(
-      onTap: _showLogoutConfirmDialog,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.logout_rounded,
-              size: 18,
-              color: Color(0xFFDC2626),
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Cerrar sesión',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFDC2626),
+    return Material(
+      color: _Ui.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        side: const BorderSide(color: _Ui.border),
+      ),
+      child: InkWell(
+        onTap: _showLogoutConfirmSheet,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout_rounded, size: 20, color: _Ui.danger),
+              SizedBox(width: 8),
+              Text(
+                'Cerrar sesión',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: _Ui.danger,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Modal para ver credencial digital QR de operario
-  void _showDigitalCredentialModal() {
-    showModalBottomSheet(
+  // ---------- Sheets ----------
+
+  // Sheet base: tirador, padding y scroll con el mismo estilo del resto de la app
+  Future<void> _showSheet(Widget Function(BuildContext ctx) content) {
+    return showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Credencial de Acceso a Patio',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Presenta este código para registrar tu ingreso o firmar entregas de maquinaria.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Contenedor del código QR
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  children: const [
-                    Icon(
-                      Icons.qr_code_2_rounded,
-                      size: 140,
-                      color: AppColors.primaryNavy,
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'OP-0482 · JHON FREDY RESTREPO',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Listo',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showDetailModal({required String title, required String body}) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Center(
                 child: Container(
-                  width: 36,
+                  width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
+                    color: _Ui.handle,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+              content(ctx),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  ButtonStyle _filledStyle(Color color) {
+    return FilledButton.styleFrom(
+      backgroundColor: color,
+      foregroundColor: Colors.white,
+      minimumSize: const Size.fromHeight(48),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_Ui.radius),
+      ),
+      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    );
+  }
+
+  ButtonStyle get _outlinedStyle {
+    return OutlinedButton.styleFrom(
+      foregroundColor: AppColors.textPrimary,
+      minimumSize: const Size.fromHeight(48),
+      side: const BorderSide(color: _Ui.handle),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_Ui.radius),
+      ),
+      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    );
+  }
+
+  void _showDetailSheet({required String title, required String body}) {
+    _showSheet(
+      (ctx) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            body,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: _filledStyle(AppColors.primaryNavy),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showContactSupervisorSheet() {
+    _showSheet(
+      (ctx) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Supervisor de turno',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Ing. Carlos Mendoza · Operaciones Sede Buenaventura',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _showFeedback('Llamando a supervisor...');
+                  },
+                  icon: const Icon(Icons.phone_outlined, size: 20),
+                  label: const Text('Llamar'),
+                  style: _outlinedStyle,
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                body,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  height: 1.5,
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _showFeedback('Abriendo chat interno...');
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+                  label: const Text('Mensaje'),
+                  style: _filledStyle(AppColors.accentBlue),
                 ),
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutConfirmSheet() {
+    _showSheet(
+      (ctx) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '¿Cerrar sesión?',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Deberás ingresar tus credenciales nuevamente para acceder.',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
                   onPressed: () => Navigator.of(ctx).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Entendido',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
+                  style: _outlinedStyle,
+                  child: const Text('Cancelar'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () async {
+                    final authProvider = context.read<AuthProvider>();
+                    final navigator = Navigator.of(context);
+                    Navigator.of(ctx).pop();
+                    await authProvider.logout();
+                    if (mounted) {
+                      navigator.pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  },
+                  style: _filledStyle(_Ui.danger),
+                  child: const Text('Cerrar sesión'),
                 ),
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  void _showContactSupervisorModal() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Supervisor de Turno',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Ing. Carlos Mendoza · Operaciones Sede Buenaventura',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        _showFeedback('Llamando a supervisor...');
-                      },
-                      icon: const Icon(Icons.phone_outlined, size: 18),
-                      label: const Text('Llamar'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        foregroundColor: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        _showFeedback('Abriendo chat interno...');
-                      },
-                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                      label: const Text('Mensaje'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showLogoutConfirmDialog() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                '¿Cerrar sesión?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Deberás ingresar tus credenciales nuevamente para acceder.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        foregroundColor: AppColors.textSecondary,
-                      ),
-                      child: const Text('Cancelar'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final authProvider = context.read<AuthProvider>();
-                        final navigator = Navigator.of(context);
-                        Navigator.of(ctx).pop();
-                        await authProvider.logout();
-                        if (mounted) {
-                          navigator.pushAndRemoveUntil(
-                            MaterialPageRoute(builder: (_) => const LoginScreen()),
-                            (route) => false,
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDC2626),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cerrar sesión',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+        ],
+      ),
     );
   }
 

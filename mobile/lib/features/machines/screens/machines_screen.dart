@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/machine_model.dart';
 import '../services/machines_service.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 import 'machine_detail_screen.dart';
 
 class MachinesScreen extends StatefulWidget {
@@ -528,8 +529,19 @@ class _MachinesScreenState extends State<MachinesScreen> {
                 final list = _getMachinesForCategory(cat);
 
                 if (_isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.accentBlue),
+                  return const SkeletonGroup(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(20, 2, 20, 100),
+                      child: Column(
+                        children: [
+                          MachineCardSkeleton(),
+                          SizedBox(height: 12),
+                          MachineCardSkeleton(),
+                          SizedBox(height: 12),
+                          MachineCardSkeleton(),
+                        ],
+                      ),
+                    ),
                   );
                 }
 

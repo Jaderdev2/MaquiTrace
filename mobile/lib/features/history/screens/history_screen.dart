@@ -3,28 +3,28 @@ import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../machines/models/machine_model.dart';
+import '../../machines/services/machines_service.dart';
 import '../../machines/screens/machine_detail_screen.dart';
 
-class HistoryItem {
-  final MachineModel machine;
-  final DateTime timestamp;
-  final String duration;
-  final String supervisor;
-  final int completedPhases;
-  final int totalPhases;
-  final int photosCount;
-  final String? note;
+/// Colores y medidas compartidas con el resto de pantallas del flujo.
+/// Un solo radio, bordes de 1 px y color solo cuando comunica estado.
+class _Ui {
+  static const background = Color(0xFFF5F7FA);
+  static const surface = Colors.white;
+  static const border = Color(0xFFE2E8F0);
+  static const divider = Color(0xFFEDF1F5);
 
-  const HistoryItem({
-    required this.machine,
-    required this.timestamp,
-    required this.duration,
-    required this.supervisor,
-    this.completedPhases = 4,
-    this.totalPhases = 4,
-    this.photosCount = 4,
-    this.note,
-  });
+  static const success = Color(0xFF15803D);
+  static const successBg = Color(0xFFE8F5EC);
+  static const warning = Color(0xFFB45309);
+  static const warningBg = Color(0xFFFEF3C7);
+  static const info = Color(0xFF1D4ED8);
+  static const infoBg = Color(0xFFE6EFFE);
+  static const locked = Color(0xFF64748B);
+  static const lockedBg = Color(0xFFF1F5F9);
+
+  static const double radius = 10;
+  static const double pagePadding = 16;
 }
 
 class HistoryScreen extends StatefulWidget {
@@ -36,157 +36,240 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
-  String _selectedFilter = 'Todos';
+class _HistoryScreenState extends State<HistoryScreen>
+    with SingleTickerProviderStateMixin {
+  final MachinesService _machinesService = MachinesService();
+  late final PageController _pageController;
+  late final ScrollController _tabScrollController;
+  late final AnimationController _skeletonController;
+  late final Animation<double> _skeletonAnimation;
 
-  final List<String> _filters = const [
+  int _selectedTabIndex = 0;
+  bool _isLoading = true;
+  List<MachineModel> _apiMachines = [];
+
+  final List<String> _tabs = const [
     'Todos',
-    'Hoy',
-    'Esta semana',
-    'Septiembre',
+    'En alistamiento',
+    'Completados',
+    'Pendientes',
   ];
 
-  // Datos representativos del historial de alistamientos en Sede Buenaventura
-  final List<HistoryItem> _allHistory = [
-    // Hoy (25 Septiembre)
-    HistoryItem(
-      machine: const MachineModel(
-        id: '1',
-        name: 'CAT 320D',
-        serial: 'ABC123',
-        category: 'Excavadoras',
-        overallState: OverallState.inProgress,
-        phases: [PhaseState.completed, PhaseState.inProgress, PhaseState.pending, PhaseState.pending],
-        location: 'Sede Buenaventura · Patio 2 (B-04)',
-        operatingHours: '3,420 h',
-        fuelPercent: 75,
-      ),
-      timestamp: DateTime(2026, 9, 25, 11, 30),
-      duration: '1h 15m',
-      supervisor: 'Ing. Carlos Mendoza',
-      completedPhases: 2,
-      totalPhases: 4,
-      photosCount: 3,
-      note: 'En proceso de pruebas de torque y mandos hidráulicos.',
-    ),
-    HistoryItem(
-      machine: const MachineModel(
-        id: '3',
-        name: 'CAT 320D',
-        serial: 'DEF789',
-        category: 'Excavadoras',
-        overallState: OverallState.completed,
-        phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed, PhaseState.completed],
-        location: 'Sede Buenaventura · Zona Despacho',
-        operatingHours: '4,150 h',
-        fuelPercent: 95,
-      ),
-      timestamp: DateTime(2026, 9, 25, 9, 15),
-      duration: '1h 25m',
-      supervisor: 'Ing. Carlos Mendoza',
-      completedPhases: 4,
-      totalPhases: 4,
-      photosCount: 4,
-      note: 'Alistamiento aprobado al 100%. Equipo listo para despacho a obra portuaria.',
-    ),
+  late final List<GlobalKey> _tabKeys;
 
-    // Ayer (24 Septiembre)
-    HistoryItem(
-      machine: const MachineModel(
-        id: '6',
-        name: 'CAT 140M',
-        serial: 'MN-9042',
-        category: 'Motoniveladoras',
-        overallState: OverallState.completed,
-        phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed, PhaseState.completed],
-        location: 'Sede Buenaventura · Patio 2 (B-08)',
-        operatingHours: '2,680 h',
-        fuelPercent: 82,
-      ),
-      timestamp: DateTime(2026, 9, 24, 16, 10),
-      duration: '1h 40m',
-      supervisor: 'Ing. Carlos Mendoza',
-      completedPhases: 4,
-      totalPhases: 4,
-      photosCount: 4,
-      note: 'Se completaron 2 litros de refrigerante 50/50 y se verificó cuchilla vertedera.',
-    ),
-    HistoryItem(
-      machine: const MachineModel(
-        id: '2',
-        name: 'Komatsu WA470',
-        serial: 'KMT458',
-        category: 'Cargadores frontales',
-        overallState: OverallState.completed,
-        phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed, PhaseState.completed],
-        location: 'Sede Buenaventura · Patio 1 (C-12)',
-        operatingHours: '1,890 h',
-        fuelPercent: 90,
-      ),
-      timestamp: DateTime(2026, 9, 24, 14, 0),
-      duration: '1h 10m',
-      supervisor: 'Ing. Carlos Mendoza',
-      completedPhases: 4,
-      totalPhases: 4,
-      photosCount: 4,
-      note: 'Lavado a presión de orugas y compartimiento de radiador ejecutado con éxito.',
-    ),
-    HistoryItem(
-      machine: const MachineModel(
-        id: '4',
-        name: 'John Deere 310L',
-        serial: 'JD310-992',
-        category: 'Retroexcavadoras',
-        overallState: OverallState.completed,
-        phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed, PhaseState.completed],
-        location: 'Sede Buenaventura · Patio 1 (A-05)',
-        operatingHours: '3,120 h',
-        fuelPercent: 85,
-      ),
-      timestamp: DateTime(2026, 9, 24, 10, 20),
-      duration: '1h 05m',
-      supervisor: 'Ing. Carlos Mendoza',
-      completedPhases: 4,
-      totalPhases: 4,
-      photosCount: 4,
-      note: 'Inspección de estabilizadores y lubricación de articulaciones terminada.',
-    ),
+  @override
+  void initState() {
+    super.initState();
+    _tabKeys = List.generate(_tabs.length, (_) => GlobalKey());
+    _pageController = PageController(initialPage: 0);
+    _tabScrollController = ScrollController();
+    _skeletonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _skeletonAnimation = Tween<double>(begin: 0.45, end: 0.9).animate(
+      CurvedAnimation(parent: _skeletonController, curve: Curves.easeInOut),
+    );
+    _loadFromBackend();
+  }
 
-    // 23 Septiembre
-    HistoryItem(
-      machine: const MachineModel(
-        id: '5',
-        name: 'Kenworth T800',
-        serial: 'KW-8841',
-        category: 'Volquetas',
-        overallState: OverallState.delivered,
-        phases: [PhaseState.completed, PhaseState.completed, PhaseState.completed, PhaseState.completed],
-        location: 'Sede Buenaventura · En ruta',
-        operatingHours: '5,800 h',
-        fuelPercent: 100,
-      ),
-      timestamp: DateTime(2026, 9, 23, 17, 45),
-      duration: '55m',
-      supervisor: 'Ing. Carlos Mendoza',
-      completedPhases: 4,
-      totalPhases: 4,
-      photosCount: 4,
-      note: 'Despachada a proyecto vial Buenaventura - Buga con remisión firmada.',
-    ),
-  ];
+  @override
+  void dispose() {
+    _skeletonController.dispose();
+    _pageController.dispose();
+    _tabScrollController.dispose();
+    super.dispose();
+  }
 
-  List<HistoryItem> get _filteredHistory {
-    switch (_selectedFilter) {
-      case 'Hoy':
-        return _allHistory.where((h) => h.timestamp.day == 25).toList();
-      case 'Esta semana':
-        return _allHistory;
-      case 'Septiembre':
-        return _allHistory;
+  Future<void> _loadFromBackend() async {
+    setState(() => _isLoading = true);
+    try {
+      final backendList = await _machinesService.search();
+      if (backendList.isNotEmpty && mounted) {
+        setState(() {
+          _apiMachines = backendList;
+        });
+      }
+    } catch (_) {
+      // Si falla, el getter _allMachines recurre al localCatalog
+    }
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  List<MachineModel> get _allMachines =>
+      _apiMachines.isNotEmpty ? _apiMachines : MachinesService.localCatalog;
+
+  List<MachineModel> _getMachinesForTab(String tab) {
+    switch (tab) {
+      case 'En alistamiento':
+        return _allMachines
+            .where((m) => m.overallState == OverallState.inProgress)
+            .toList();
+      case 'Completados':
+        return _allMachines
+            .where((m) =>
+                m.overallState == OverallState.completed ||
+                m.overallState == OverallState.delivered)
+            .toList();
+      case 'Pendientes':
+        return _allMachines
+            .where((m) => m.overallState == OverallState.pending)
+            .toList();
+      case 'Todos':
       default:
-        return _allHistory;
+        return _allMachines;
     }
   }
+
+  void _onTabSelected(int index) {
+    setState(() => _selectedTabIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    _scrollToTab(index);
+  }
+
+  void _scrollToTab(int index) {
+    final ctx = _tabKeys[index].currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  // ---------- Helpers de estado ----------
+
+  ({String label, Color fg, Color bg}) _stateStyle(OverallState state) {
+    switch (state) {
+      case OverallState.pending:
+        return (label: 'Pendiente de inicio', fg: _Ui.warning, bg: _Ui.warningBg);
+      case OverallState.inProgress:
+        return (label: 'En alistamiento', fg: _Ui.info, bg: _Ui.infoBg);
+      case OverallState.completed:
+        return (label: 'Lista para despacho', fg: _Ui.success, bg: _Ui.successBg);
+      case OverallState.inTransit:
+        return (label: 'En tránsito a obra', fg: _Ui.info, bg: _Ui.infoBg);
+      case OverallState.delivered:
+        return (label: 'Entregada en sitio', fg: _Ui.success, bg: _Ui.successBg);
+    }
+  }
+
+  int _completedPhases(MachineModel m) =>
+      m.phases.where((p) => p == PhaseState.completed).length;
+
+  int _totalPhases(MachineModel m) => m.phases.isNotEmpty ? m.phases.length : 3;
+
+  PhaseState _phaseAt(MachineModel m, int i) =>
+      i < m.phases.length ? m.phases[i] : PhaseState.pending;
+
+  bool _isPhaseLocked(MachineModel m, int i) {
+    if (i == 0) return false;
+    return _phaseAt(m, i - 1) != PhaseState.completed &&
+        _phaseAt(m, i) == PhaseState.pending;
+  }
+
+  IconData _phaseIcon(int i) {
+    const icons = [
+      Icons.build_rounded,
+      Icons.water_drop_rounded,
+      Icons.format_paint_rounded,
+    ];
+    return i < icons.length ? icons[i] : Icons.settings_rounded;
+  }
+
+  String _phaseName(int i) {
+    const names = ['Ensamblaje', 'Lavado', 'Pintura'];
+    return i < names.length ? names[i] : 'Fase ${i + 1}';
+  }
+
+  Widget _buildChip(String label, Color fg, Color bg, {bool large = false}) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: large ? 12 : 8, vertical: large ? 6 : 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(large ? 8 : 6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: large ? 13 : 12,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnail(MachineModel m, double size) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.asset(
+          m.displayImage,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: _Ui.lockedBg,
+            child: const Icon(
+              Icons.precision_manufacturing_rounded,
+              color: _Ui.locked,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Mismo indicador circular que usan el detalle y el home.
+  Widget _buildNode(PhaseState st, bool locked, int index, double size) {
+    final iconSize = size * 0.5;
+    if (locked) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: _Ui.lockedBg,
+          shape: BoxShape.circle,
+          border: Border.all(color: _Ui.border, width: 2),
+        ),
+        child: Icon(Icons.lock_outline_rounded, size: iconSize, color: _Ui.locked),
+      );
+    }
+    if (st == PhaseState.completed) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(color: _Ui.success, shape: BoxShape.circle),
+        child: Icon(Icons.check_rounded, size: iconSize + 4, color: Colors.white),
+      );
+    }
+    if (st == PhaseState.inProgress) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(color: _Ui.info, shape: BoxShape.circle),
+        child: Icon(_phaseIcon(index), size: iconSize, color: Colors.white),
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: _Ui.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: _Ui.warning, width: 2),
+      ),
+      child: Icon(_phaseIcon(index), size: iconSize, color: _Ui.warning),
+    );
+  }
+
+  // ---------- Pantalla ----------
 
   @override
   Widget build(BuildContext context) {
@@ -195,49 +278,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Cabecera limpia
           _buildHeader(context),
-
-          // 2. Filtros horizontales
-          _buildFilterChips(),
-          const SizedBox(height: 10),
-
-          // 3. Lista cronológica scrolleable
+          _buildTabsRow(),
+          const SizedBox(height: 12),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Tarjeta resumen del mes
-                  _buildMonthlySummaryCard(),
-                  const SizedBox(height: 20),
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _tabs.length,
+              onPageChanged: (index) {
+                setState(() => _selectedTabIndex = index);
+                _scrollToTab(index);
+              },
+              itemBuilder: (context, tabIndex) {
+                final tab = _tabs[tabIndex];
+                final list = _getMachinesForTab(tab);
 
-                  // Bloques cronológicos
-                  if (_filteredHistory.isEmpty)
-                    _buildEmptyState()
-                  else ...[
-                    if (_hasDateGroup(25)) ...[
-                      _buildDateSectionHeader('Hoy · 25 de Septiembre', _getGroupCount(25)),
-                      const SizedBox(height: 10),
-                      ..._buildGroupItems(25),
-                      const SizedBox(height: 20),
-                    ],
-                    if (_hasDateGroup(24)) ...[
-                      _buildDateSectionHeader('Ayer · 24 de Septiembre', _getGroupCount(24)),
-                      const SizedBox(height: 10),
-                      ..._buildGroupItems(24),
-                      const SizedBox(height: 20),
-                    ],
-                    if (_hasDateGroup(23)) ...[
-                      _buildDateSectionHeader('23 de Septiembre', _getGroupCount(23)),
-                      const SizedBox(height: 10),
-                      ..._buildGroupItems(23),
-                      const SizedBox(height: 20),
-                    ],
-                  ],
-                ],
-              ),
+                return RefreshIndicator(
+                  onRefresh: _loadFromBackend,
+                  color: AppColors.primaryNavy,
+                  child: _isLoading
+                      ? _buildSkeletonList()
+                      : list.isEmpty
+                          ? _buildEmptyState(tab)
+                          : ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(bottom: 110),
+                              itemCount: list.length,
+                              separatorBuilder: (_, _) => const ColoredBox(
+                                color: _Ui.surface,
+                                child: Divider(height: 1, indent: 88, color: _Ui.divider),
+                              ),
+                              itemBuilder: (context, index) =>
+                                  _buildHistoryRow(list[index]),
+                            ),
+                );
+              },
             ),
           ),
         ],
@@ -255,70 +330,55 @@ class _HistoryScreenState extends State<HistoryScreen> {
         statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: _Ui.background,
         body: bodyContent,
       ),
     );
   }
 
-  bool _hasDateGroup(int day) {
-    return _filteredHistory.any((h) => h.timestamp.day == day);
-  }
-
-  int _getGroupCount(int day) {
-    return _filteredHistory.where((h) => h.timestamp.day == day).length;
-  }
-
-  List<Widget> _buildGroupItems(int day) {
-    final items = _filteredHistory.where((h) => h.timestamp.day == day).toList();
-    return items.map((item) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: _buildHistoryCard(item),
-      );
-    }).toList();
-  }
-
   // --- Cabecera ---
   Widget _buildHeader(BuildContext context) {
+    final showBack = Navigator.of(context).canPop() && widget.showScaffold;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+      padding: const EdgeInsets.fromLTRB(_Ui.pagePadding, 18, _Ui.pagePadding, 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'Historial',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Historial',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.5,
+                  ),
                 ),
-              ),
-              SizedBox(height: 3),
-              Text(
-                'Registros de alistamiento · Sede Buenaventura',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
+                SizedBox(height: 3),
+                Text(
+                  'Trazabilidad de alistamientos · Sede Buenaventura',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          if (Navigator.of(context).canPop() && widget.showScaffold)
-            GestureDetector(
+          if (showBack)
+            InkWell(
               onTap: () => Navigator.of(context).pop(),
+              customBorder: const CircleBorder(),
               child: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: _Ui.border),
                 ),
                 child: const Icon(
                   Icons.arrow_back_rounded,
@@ -332,346 +392,189 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // --- Filtros Horizontales ---
-  Widget _buildFilterChips() {
+  // --- Pestañas en píldora con conteo ---
+  Widget _buildTabsRow() {
     return SizedBox(
-      height: 36,
-      child: ListView.separated(
+      height: 38,
+      child: SingleChildScrollView(
+        controller: _tabScrollController,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _filters.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final filter = _filters[index];
-          final isSelected = filter == _selectedFilter;
-
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedFilter = filter;
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryNavy : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isSelected ? AppColors.primaryNavy : const Color(0xFFE2E8F0),
-                ),
-              ),
-              child: Text(
-                filter,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // --- Tarjeta Resumen Mensual ---
-  Widget _buildMonthlySummaryCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x04000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  '38',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Alistamientos en Septiembre',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 38,
-            color: const Color(0xFFF1F5F9),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  '1h 15m',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Tiempo promedio por equipo',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- Encabezado de Sección por Fecha ---
-  Widget _buildDateSectionHeader(String dateLabel, int count) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          dateLabel,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            '$count ${count == 1 ? 'registro' : 'registros'}',
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- Tarjeta de Historial Individual ---
-  Widget _buildHistoryCard(HistoryItem item) {
-    final m = item.machine;
-
-    // Configuración limpia de etiquetas
-    String statusText;
-    Color statusBg;
-    Color statusColor;
-
-    switch (m.overallState) {
-      case OverallState.completed:
-        statusText = 'Completado';
-        statusBg = const Color(0xFFECFDF5);
-        statusColor = const Color(0xFF059669);
-        break;
-      case OverallState.inProgress:
-        statusText = 'En proceso';
-        statusBg = const Color(0xFFEFF6FF);
-        statusColor = AppColors.accentBlue;
-        break;
-      case OverallState.delivered:
-        statusText = 'Despachado';
-        statusBg = const Color(0xFFF1F5F9);
-        statusColor = AppColors.textPrimary;
-        break;
-      default:
-        statusText = 'Pendiente';
-        statusBg = const Color(0xFFFEF3C7);
-        statusColor = const Color(0xFFD97706);
-    }
-
-    final hourStr = '${item.timestamp.hour.toString().padLeft(2, '0')}:${item.timestamp.minute.toString().padLeft(2, '0')}';
-
-    return InkWell(
-      onTap: () => _showHistoryDetailModal(context, item),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x04000000),
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: _Ui.pagePadding),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Miniatura real de la máquina
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 64,
-                height: 64,
-                child: Image.asset(
-                  m.displayImage,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: const Color(0xFFEFF6FF),
-                    child: const Icon(
-                      Icons.precision_manufacturing_rounded,
-                      color: AppColors.accentBlue,
+          children: List.generate(_tabs.length, (index) {
+            final tab = _tabs[index];
+            final isSelected = index == _selectedTabIndex;
+            final count = _getMachinesForTab(tab).length;
+
+            return Padding(
+              padding: EdgeInsets.only(right: index == _tabs.length - 1 ? 0 : 8),
+              child: GestureDetector(
+                key: _tabKeys[index],
+                onTap: () => _onTabSelected(index),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.accentBlue : Colors.white,
+                    borderRadius: BorderRadius.circular(19),
+                    border: Border.all(
+                      color: isSelected ? AppColors.accentBlue : _Ui.border,
                     ),
                   ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Información descriptiva del alistamiento
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        m.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.3,
+                        tab,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected ? Colors.white : AppColors.textSecondary,
                         ),
                       ),
+                      const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(6),
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.2)
+                              : _Ui.lockedBg,
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          statusText,
+                          '$count',
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: statusColor,
+                            color: isSelected ? Colors.white : AppColors.textSecondary,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${m.category} · Serial: ${m.serial}',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Metadata operativa (Hora, Duración, Fases y Fotos)
-                  Row(
-                    children: [
-                      _buildInlineTag(Icons.access_time_rounded, '$hourStr (${item.duration})'),
-                      const SizedBox(width: 10),
-                      _buildInlineTag(Icons.photo_camera_outlined, '${item.photosCount} fotos'),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-
-            // Flecha a detalle
-            const Padding(
-              padding: EdgeInsets.only(top: 20),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: Color(0xFFCBD5E1),
-              ),
-            ),
-          ],
+            );
+          }),
         ),
       ),
     );
   }
 
-  Widget _buildInlineTag(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: AppColors.textMuted),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textMuted,
+  // --- Fila del historial ---
+  Widget _buildHistoryRow(MachineModel m) {
+    final st = _stateStyle(m.overallState);
+    final total = _totalPhases(m);
+    final done = _completedPhases(m);
+
+    return Material(
+      color: _Ui.surface,
+      child: InkWell(
+        onTap: () => _showHistoryDetailModal(context, m),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: _Ui.pagePadding, vertical: 12),
+          child: Row(
+            children: [
+              _buildThumbnail(m, 60),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      m.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${m.category} · Serial ${m.serial}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _buildChip(st.label, st.fg, st.bg),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ...List.generate(total, (i) {
+                              final p = _phaseAt(m, i);
+                              final color = p == PhaseState.completed
+                                  ? _Ui.success
+                                  : p == PhaseState.inProgress
+                                      ? _Ui.info
+                                      : _Ui.border;
+                              return Container(
+                                width: 20,
+                                height: 4,
+                                margin: const EdgeInsets.only(right: 3),
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              );
+                            }),
+                            const SizedBox(width: 5),
+                            Text(
+                              '$done de $total',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded, size: 22, color: _Ui.locked),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
-  // --- Modal de Acta de Inspección / Detalle del Historial ---
-  void _showHistoryDetailModal(BuildContext context, HistoryItem item) {
-    final m = item.machine;
-    final hourStr = '${item.timestamp.hour.toString().padLeft(2, '0')}:${item.timestamp.minute.toString().padLeft(2, '0')}';
-    final dateStr = '${item.timestamp.day}/${item.timestamp.month}/${item.timestamp.year}';
+  // --- Ficha de la máquina ---
+  void _showHistoryDetailModal(BuildContext context, MachineModel m) {
+    final total = _totalPhases(m);
+    final done = _completedPhases(m);
+    final st = _stateStyle(m.overallState);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Tirador de arrastre
                 Center(
                   child: Container(
                     width: 40,
@@ -682,123 +585,114 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
                 // Encabezado
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Acta de alistamiento',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                            letterSpacing: -0.3,
+                    _buildThumbnail(m, 56),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            m.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${m.name} · Serial ${m.serial}',
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                          const SizedBox(height: 2),
+                          Text(
+                            '${m.category} · Serial ${m.serial}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textMuted),
+                      tooltip: 'Cerrar',
+                      icon: const Icon(Icons.close_rounded, size: 22, color: AppColors.textSecondary),
                       onPressed: () => Navigator.pop(ctx),
-                      visualDensity: VisualDensity.compact,
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _buildChip(st.label, st.fg, st.bg, large: true),
+                ),
+                const SizedBox(height: 8),
 
-                // Ficha técnica resumida del acta
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildReceiptRow('Fecha y hora de cierre', '$dateStr · $hourStr'),
-                      const Divider(height: 16, color: Color(0xFFE2E8F0)),
-                      _buildReceiptRow('Duración del alistamiento', item.duration),
-                      const Divider(height: 16, color: Color(0xFFE2E8F0)),
-                      _buildReceiptRow('Supervisor validador', item.supervisor),
-                      const Divider(height: 16, color: Color(0xFFE2E8F0)),
-                      _buildReceiptRow('Fases completadas', '${item.completedPhases} de ${item.totalPhases} requeridas'),
-                      const Divider(height: 16, color: Color(0xFFE2E8F0)),
-                      _buildReceiptRow('Evidencias fotográficas', '${item.photosCount} fotos anexadas'),
-                    ],
-                  ),
+                // Datos de la máquina
+                const Divider(height: 1, color: _Ui.divider),
+                _buildMetricRow('Sede operativa', m.location.split('·').first.trim()),
+                const Divider(height: 1, color: _Ui.divider),
+                _buildMetricRow('Horas de operación', m.operatingHours),
+                const Divider(height: 1, color: _Ui.divider),
+                _buildMetricRow('Nivel de combustible', '${m.fuelPercent}%'),
+                const Divider(height: 1, color: _Ui.divider),
+                _buildMetricRow('Operario asignado', m.assignedOperator),
+                const Divider(height: 1, color: _Ui.divider),
+                const SizedBox(height: 20),
+
+                // Fases
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Fases',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$done de $total completadas',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: done == total ? _Ui.success : _Ui.info,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 14),
+                _buildPhaseTimeline(m, total),
+                const SizedBox(height: 22),
 
-                // Nota del operario
-                if (item.note != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F6FF),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFDBEAFE)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.notes_rounded, size: 16, color: AppColors.accentBlue),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            item.note!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textPrimary,
-                              height: 1.35,
+                SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.of(context)
+                          .push(
+                            MaterialPageRoute(
+                              builder: (_) => MachineDetailScreen(machine: m),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Botón para ir a la Ficha de la Máquina
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MachineDetailScreen(machine: m),
+                          )
+                          .then((_) => _loadFromBackend());
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primaryNavy,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(_Ui.radius),
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                     ),
-                  ),
-                  child: const Text(
-                    'Ver ficha completa de la máquina',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    child: const Text('Ver ficha técnica y fases'),
                   ),
                 ),
               ],
@@ -809,50 +703,225 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildReceiptRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
+  Widget _buildPhaseTimeline(MachineModel m, int total) {
+    const double node = 32;
+    final rows = <Widget>[];
+
+    for (var i = 0; i < total; i++) {
+      final st = _phaseAt(m, i);
+      final locked = _isPhaseLocked(m, i);
+      final isLast = i == total - 1;
+
+      final String label;
+      final Color fg;
+      final Color bg;
+      if (locked) {
+        label = 'Bloqueada';
+        fg = _Ui.locked;
+        bg = _Ui.lockedBg;
+      } else if (st == PhaseState.completed) {
+        label = 'Completada';
+        fg = _Ui.success;
+        bg = _Ui.successBg;
+      } else if (st == PhaseState.inProgress) {
+        label = 'En proceso';
+        fg = _Ui.info;
+        bg = _Ui.infoBg;
+      } else {
+        label = 'Pendiente';
+        fg = _Ui.warning;
+        bg = _Ui.warningBg;
+      }
+
+      rows.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: node,
+                child: Column(
+                  children: [
+                    _buildNode(st, locked, i, node),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 3,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          decoration: BoxDecoration(
+                            color: st == PhaseState.completed ? _Ui.success : _Ui.border,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+                  child: SizedBox(
+                    height: node,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _phaseName(i),
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: locked ? _Ui.locked : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        _buildChip(label, fg, bg),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+      );
+    }
+
+    return Column(children: rows);
+  }
+
+  Widget _buildMetricRow(String label, String value) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      alignment: Alignment.centerLeft,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String tab) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 24),
+          child: Column(
+            children: [
+              const Icon(Icons.inbox_outlined, size: 40, color: AppColors.textMuted),
+              const SizedBox(height: 12),
+              Text(
+                'Sin registros en "$tab"',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'No hay maquinaria con este estado en el patio.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
-        children: const [
-          Icon(Icons.history_toggle_off_rounded, size: 48, color: AppColors.textMuted),
-          SizedBox(height: 12),
-          Text(
-            'No hay registros para este filtro',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+  // --- Skeleton con la misma forma que las filas ---
+  Widget _buildSkeletonList() {
+    return AnimatedBuilder(
+      animation: _skeletonAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _skeletonAnimation.value,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 110),
+            itemCount: 5,
+            separatorBuilder: (_, _) => const ColoredBox(
+              color: _Ui.surface,
+              child: Divider(height: 1, indent: 88, color: _Ui.divider),
+            ),
+            itemBuilder: (_, _) => _buildSkeletonRow(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _skeletonBar(double width, double height, {Color color = _Ui.border}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonRow() {
+    return Container(
+      color: _Ui.surface,
+      padding: const EdgeInsets.symmetric(horizontal: _Ui.pagePadding, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: _Ui.lockedBg,
+              borderRadius: BorderRadius.circular(6),
             ),
           ),
-          SizedBox(height: 4),
-          Text(
-            'Prueba seleccionando otro período o "Todos"',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _skeletonBar(130, 14),
+                const SizedBox(height: 8),
+                _skeletonBar(170, 12, color: _Ui.lockedBg),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _skeletonBar(90, 20, color: _Ui.lockedBg),
+                    const SizedBox(width: 10),
+                    _skeletonBar(64, 8, color: _Ui.lockedBg),
+                  ],
+                ),
+              ],
             ),
           ),
         ],

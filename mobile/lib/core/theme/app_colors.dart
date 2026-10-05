@@ -6,15 +6,15 @@ class AppColors {
   // Colores corporativos MaquiTrace
   static const Color primaryNavy = Color(0xFF0F172A);
   static const Color primaryNavyMuted = Color(0xFF93A7C7);
-  static const Color accentBlue = Color(0xFF0066FF); // Azul vibrante del botón y "Trace"
-  static const Color primaryBlueHover = Color(0xFF0052CC);
+  static const Color accentBlue = Color(0xFF1D4ED8); // Azul corporativo e industrial
+  static const Color primaryBlueHover = Color(0xFF1E40AF);
 
   // Estados de alistamiento
   static const Color statusPending = Color(0xFFF59E0B);
   static const Color pendingTint = Color(0xFFFEF3C7);
 
-  static const Color statusInProgress = Color(0xFF0066FF);
-  static const Color inProgressTint = Color(0xFFEFF6FF);
+  static const Color statusInProgress = Color(0xFF1D4ED8);
+  static const Color inProgressTint = Color(0xFFE6EFFE);
 
   static const Color statusCompleted = Color(0xFF10B981);
   static const Color statusGreen = Color(0xFF10B981);
