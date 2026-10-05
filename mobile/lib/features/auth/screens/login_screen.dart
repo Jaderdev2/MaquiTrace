@@ -319,13 +319,86 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
+
+                      // Accesos rápidos para desarrollo y pruebas
+                      const Center(
+                        child: Text(
+                          'Cuentas de prueba rápida',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildQuickLoginChip(
+                            label: 'Operario',
+                            email: 'itadori@maquitrace.com',
+                            pass: 'Operario1234!',
+                          ),
+                          _buildQuickLoginChip(
+                            label: 'Charly',
+                            email: 'charly@maquitrace.com',
+                            pass: 'Operario1234!',
+                          ),
+                          _buildQuickLoginChip(
+                            label: 'Transportador',
+                            email: 'transportador@maquitrace.com',
+                            pass: 'Transportador1234!',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickLoginChip({
+    required String label,
+    required String email,
+    required String pass,
+  }) {
+    return InkWell(
+      onTap: () {
+        _emailController.text = email;
+        _passwordController.text = pass;
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.accentBlue),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
         ),
       ),
     );

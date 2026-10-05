@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/constants/api_constants.dart';
 import '../models/user_model.dart';
@@ -17,10 +18,11 @@ class AuthService {
     final candidateUrls = ApiConstants.candidateBaseUrls;
     http.Response? lastResponse;
 
-    // Probar las URLs candidatas (USB con adb reverse, Emulador o Wi-Fi)
+    // Probar las URLs candidatas (USB con adb reverse, Wi-Fi o Emulador)
     for (final base in candidateUrls) {
       try {
         final url = Uri.parse('$base/auth/login');
+        debugPrint('[AuthService] Intentando login en: $url');
         final response = await http
             .post(
               url,
@@ -30,17 +32,18 @@ class AuthService {
                 'password': password,
               }),
             )
-            .timeout(const Duration(seconds: 3));
+            .timeout(const Duration(seconds: 4));
 
+        debugPrint('[AuthService] Respuesta de $base: HTTP ${response.statusCode}');
         // Si el servidor respondió (cualquier código HTTP), encontramos el backend activo
         ApiConstants.setActiveBaseUrl(base);
         lastResponse = response;
         break;
-      } on TimeoutException {
-        // Continuar al siguiente candidato
+      } on TimeoutException catch (e) {
+        debugPrint('[AuthService] Timeout en $base: $e');
         continue;
-      } catch (_) {
-        // Continuar al siguiente candidato
+      } catch (e) {
+        debugPrint('[AuthService] Error de conexión en $base: $e');
         continue;
       }
     }
