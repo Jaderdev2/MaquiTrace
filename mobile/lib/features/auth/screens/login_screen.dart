@@ -22,6 +22,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = true;
+  bool _showQuickAccounts = false;
+  int _welcomeTapCount = 0;
 
   @override
   void dispose() {
@@ -149,24 +151,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Título Bienvenido a MaquiTrace
-                      RichText(
-                        text: const TextSpan(
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                            height: 1.15,
-                            letterSpacing: -0.5,
-                          ),
-                          children: [
-                            TextSpan(text: 'Bienvenido a\n'),
-                            TextSpan(text: 'Maqui'),
-                            TextSpan(
-                              text: 'Trace',
-                              style: TextStyle(color: AppColors.accentBlue),
+                      // Título Bienvenido a MaquiTrace (tocar 3 veces para alternar modo pruebas)
+                      GestureDetector(
+                        onTap: () {
+                          _welcomeTapCount++;
+                          if (_welcomeTapCount >= 3) {
+                            setState(() {
+                              _showQuickAccounts = !_showQuickAccounts;
+                              _welcomeTapCount = 0;
+                            });
+                          }
+                        },
+                        child: RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                              height: 1.15,
+                              letterSpacing: -0.5,
                             ),
-                          ],
+                            children: [
+                              TextSpan(text: 'Bienvenido a\n'),
+                              TextSpan(text: 'Maqui'),
+                              TextSpan(
+                                text: 'Trace',
+                                style: TextStyle(color: AppColors.accentBlue),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -319,43 +332,61 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
-                      // Accesos rápidos para desarrollo y pruebas
-                      const Center(
-                        child: Text(
-                          'Cuentas de prueba rápida',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textMuted,
+                      // Accesos rápidos para desarrollo y pruebas (ocultos por defecto para mantener la vista limpia)
+                      if (_showQuickAccounts) ...[
+                        const SizedBox(height: 8),
+                        const Center(
+                          child: Text(
+                            'Cuentas de prueba rápida',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _buildQuickLoginChip(
+                              label: 'Itadori',
+                              email: 'itadori@maquitrace.com',
+                              pass: 'Operario1234!',
+                            ),
+                            _buildQuickLoginChip(
+                              label: 'Charly',
+                              email: 'charly@maquitrace.com',
+                              pass: 'Operario1234!',
+                            ),
+                            _buildQuickLoginChip(
+                              label: 'Transportador',
+                              email: 'transportador@maquitrace.com',
+                              pass: 'Transportador1234!',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Zona baja interactiva amplia: doble toque en cualquier parte inferior para alternar cuentas de prueba
+                      GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onDoubleTap: () {
+                          setState(() {
+                            _showQuickAccounts = !_showQuickAccounts;
+                          });
+                        },
+                        child: Container(
+                          height: _showQuickAccounts ? 40 : 140,
+                          width: double.infinity,
+                          color: Colors.transparent,
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _buildQuickLoginChip(
-                            label: 'Operario',
-                            email: 'itadori@maquitrace.com',
-                            pass: 'Operario1234!',
-                          ),
-                          _buildQuickLoginChip(
-                            label: 'Charly',
-                            email: 'charly@maquitrace.com',
-                            pass: 'Operario1234!',
-                          ),
-                          _buildQuickLoginChip(
-                            label: 'Transportador',
-                            email: 'transportador@maquitrace.com',
-                            pass: 'Transportador1234!',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
                     ],
                   ),
                 ),

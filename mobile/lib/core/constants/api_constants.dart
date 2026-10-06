@@ -6,11 +6,12 @@ class ApiConstants {
   static const String apiPath = '/api/v1';
 
   /// IP local principal de tu computador en la red Wi-Fi
-  static const String localWifiIp = '192.168.1.100';
+  static const String localWifiIp = '192.168.1.102';
 
   /// Lista de IPs locales conocidas donde ejecutas el backend (Trabajo, Casa, etc.)
   static const List<String> knownWifiIps = [
-    '192.168.1.100', // Wi-Fi Trabajo (Red actual)
+    '192.168.1.102', // Wi-Fi actual (hoy)
+    '192.168.1.100', // Wi-Fi Trabajo (ayer)
     '192.168.1.17',  // Wi-Fi Casa
   ];
 
