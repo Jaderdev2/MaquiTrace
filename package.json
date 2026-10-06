@@ -1,0 +1,15 @@
+{
+  "name": "maquitrace-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepositorio MaquiTrace: Backend (NestJS), Web (React/Vite) y Mobile (Flutter)",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:web": "npm --prefix web run dev",
+    "dev:mobile": "cd mobile && flutter run",
+    "dev": "npx --yes concurrently -n \"BACKEND,WEB\" -c \"blue,magenta\" \"npm --prefix backend run start:dev\" \"npm --prefix web run dev\"",
+    "build:backend": "npm --prefix backend run build",
+    "build:web": "npm --prefix web run build",
+    "build:mobile": "cd mobile && flutter build apk --split-per-abi"
+  }
+}
