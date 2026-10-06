@@ -160,29 +160,36 @@ export const Login: React.FC = () => {
               </button>
             </form>
 
-            {/* Accesos rápidos de prueba discretos para desarrollo */}
+            {/* Accesos rápidos con credenciales reales de la base de datos (docs/credenciales.md) */}
             <div className="quick-access-strip">
-              <span className="quick-label">Cuentas de prueba:</span>
+              <span className="quick-label">Cuentas BD:</span>
               <button
                 type="button"
                 className="quick-chip"
-                onClick={() => handleQuickCredentials('admin@maquitrace.com', 'admin123')}
+                onClick={() => handleQuickCredentials('admin@maquitrace.com', 'Admin1234!')}
               >
                 Admin
               </button>
               <button
                 type="button"
                 className="quick-chip"
-                onClick={() => handleQuickCredentials('supervisor@maquitrace.com', 'super123')}
+                onClick={() => handleQuickCredentials('itadori@maquitrace.com', 'Operario1234!')}
               >
-                Supervisor
+                Operario (Itadori)
               </button>
               <button
                 type="button"
                 className="quick-chip"
-                onClick={() => handleQuickCredentials('operario@maquitrace.com', 'oper123')}
+                onClick={() => handleQuickCredentials('charly@maquitrace.com', 'Operario1234!')}
               >
-                Operario
+                Operario (Charly)
+              </button>
+              <button
+                type="button"
+                className="quick-chip"
+                onClick={() => handleQuickCredentials('transportador@maquitrace.com', 'Transporte1234!')}
+              >
+                Transporte
               </button>
             </div>
           </div>

@@ -16,7 +16,7 @@ import {
   Eye,
   Server,
   Layers,
-  Activity,
+  AlertTriangle,
   Loader2,
 } from 'lucide-react';
 
@@ -24,7 +24,7 @@ export const Dashboard: React.FC = () => {
   const { user, logout, token } = useAuth();
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isMock, setIsMock] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [categoryFilter, setCategoryFilter] = useState<string>('todos');
@@ -33,12 +33,13 @@ export const Dashboard: React.FC = () => {
   const loadMachines = async () => {
     if (!token) return;
     setLoading(true);
+    setError(null);
     try {
-      const result = await fetchMachinesApi(token);
-      setMachines(result.data);
-      setIsMock(result.isMock);
-    } catch (err) {
+      const data = await fetchMachinesApi(token);
+      setMachines(data);
+    } catch (err: any) {
       console.error('Error fetching machines:', err);
+      setError(err.message || 'No se pudo conectar con el backend de MaquiTrace.');
     } finally {
       setLoading(false);
     }
@@ -48,14 +49,14 @@ export const Dashboard: React.FC = () => {
     loadMachines();
   }, [token]);
 
-  // Derived KPIs
+  // KPIs derivados del backend real
   const totalCount = machines.length;
   const inProcessCount = machines.filter((m) => m.status === 'en_proceso').length;
   const inTransitCount = machines.filter((m) => m.status === 'en_transito').length;
   const completedCount = machines.filter((m) => m.status === 'completada' || m.status === 'entregada').length;
   const pendingCount = machines.filter((m) => m.status === 'pendiente').length;
 
-  // Filtered List
+  // Filtrado reactivo en memoria sobre la lista del backend
   const filteredMachines = machines.filter((m) => {
     const matchesSearch =
       m.serial.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -115,15 +116,15 @@ export const Dashboard: React.FC = () => {
 
     return (
       <div className="phase-tracker">
-        <div className={`phase-step ${getPhaseDotClass('ensamblaje')}`} title="Fase 1: Ensamblaje">
+        <div className={`phase-step ${getPhaseDotClass('ensamblaje')}`} title="Fase: Ensamblaje">
           <span>Ensamblaje</span>
         </div>
         <div className="phase-line"></div>
-        <div className={`phase-step ${getPhaseDotClass('pintura')}`} title="Fase 2: Pintura">
+        <div className={`phase-step ${getPhaseDotClass('pintura')}`} title="Fase: Pintura">
           <span>Pintura</span>
         </div>
         <div className="phase-line"></div>
-        <div className={`phase-step ${getPhaseDotClass('lavado')}`} title="Fase 3: Lavado">
+        <div className={`phase-step ${getPhaseDotClass('lavado')}`} title="Fase: Lavado">
           <span>Lavado</span>
         </div>
       </div>
@@ -132,7 +133,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="dashboard-layout">
-      {/* Top Navbar Header */}
+      {/* Barra superior de navegación */}
       <header className="navbar">
         <div className="navbar-brand">
           <div className="logo-icon-bg shadow-glow">
@@ -145,9 +146,9 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="navbar-right">
-          <div className={`server-status-pill ${isMock ? 'warning' : 'success'}`}>
+          <div className={`server-status-pill ${error ? 'warning' : 'success'}`}>
             <Server size={14} />
-            <span>{isMock ? 'Modo Demostración' : 'API NestJS Conectada'}</span>
+            <span>{error ? 'Desconectado del Backend' : 'API NestJS Conectada'}</span>
           </div>
 
           <div className="user-profile-badge">
@@ -167,19 +168,29 @@ export const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Contenido Principal */}
       <main className="dashboard-content">
-        {/* Banner Alert for Backend State */}
-        {isMock && (
-          <div className="info-banner">
-            <Activity size={18} className="banner-icon" />
-            <div>
-              <strong>Visualizando Maquinaria en Modo Demostración:</strong> El servidor local NestJS en <code>http://localhost:3000</code> no respondió en este instante, por lo que se han cargado datos simulados e interactivos de prueba.
+        {/* Banner de error de conexión en caso de que el backend esté caído */}
+        {error && (
+          <div className="info-banner" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#F87171' }}>
+            <AlertTriangle size={18} className="banner-icon" />
+            <div style={{ flex: 1 }}>
+              <strong>Error de conexión con el backend:</strong> {error}
+              <div style={{ marginTop: '4px', fontSize: '12px', color: '#94A3B8' }}>
+                Verifica que el backend NestJS esté corriendo en <code>http://localhost:3000/api/v1</code> y que la base de datos PostgreSQL esté activa.
+              </div>
             </div>
+            <button
+              onClick={loadMachines}
+              className="btn-action"
+              style={{ background: '#EF4444', color: '#FFFFFF', borderColor: '#DC2626' }}
+            >
+              Reintentar
+            </button>
           </div>
         )}
 
-        {/* Metric Cards / KPI Summary */}
+        {/* Tarjetas de Métricas / KPIs */}
         <section className="kpi-grid">
           <div className="kpi-card card-total">
             <div className="kpi-icon"><Layers size={22} /></div>
@@ -222,7 +233,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        {/* Toolbar & Filter Options */}
+        {/* Barra de Filtros y Búsqueda */}
         <section className="toolbar-card">
           <div className="search-box">
             <Search size={18} className="search-icon" />
@@ -252,37 +263,37 @@ export const Dashboard: React.FC = () => {
               <span>Categoría:</span>
               <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
                 <option value="todos">Todas las categorías</option>
-                <option value="Excavadora">Excavadoras</option>
-                <option value="Retroexcavadora">Retroexcavadoras</option>
-                <option value="Cargador Frontal">Cargadores Frontales</option>
-                <option value="Bulldozer">Bulldozers</option>
-                <option value="Motoniveladora">Motoniveladoras</option>
+                <option value="Excavadoras">Excavadoras</option>
+                <option value="Retroexcavadoras">Retroexcavadoras</option>
+                <option value="Cargadores frontales">Cargadores frontales</option>
+                <option value="Bulldozers">Bulldozers</option>
+                <option value="Motoniveladoras">Motoniveladoras</option>
               </select>
             </div>
 
-            <button className="btn-refresh" onClick={loadMachines} title="Actualizar datos">
+            <button className="btn-refresh" onClick={loadMachines} title="Actualizar datos desde backend">
               <RefreshCw size={16} className={loading ? 'spinner' : ''} />
             </button>
           </div>
         </section>
 
-        {/* Machinery Data Table */}
+        {/* Tabla de Maquinarias */}
         <section className="table-card">
           <div className="table-header-title">
-            <h3>Registro e Historial de Maquinaria</h3>
+            <h3>Inventario de Maquinaria (Backend en Vivo)</h3>
             <span className="table-count">Mostrando {filteredMachines.length} de {totalCount} máquinas</span>
           </div>
 
           {loading ? (
             <div className="table-loading-state">
               <Loader2 size={32} className="spinner text-primary" />
-              <p>Cargando información de maquinaria...</p>
+              <p>Consultando base de datos a través de la API...</p>
             </div>
           ) : filteredMachines.length === 0 ? (
             <div className="table-empty-state">
               <Truck size={40} className="empty-icon" />
-              <h4>No se encontraron maquinarias</h4>
-              <p>Intenta cambiar los filtros de búsqueda o el estado seleccionado.</p>
+              <h4>{error ? 'No se pudo cargar la información' : 'No se encontraron maquinarias'}</h4>
+              <p>{error ? 'Verifica la conexión con el backend.' : 'No hay máquinas que coincidan con los criterios seleccionados.'}</p>
             </div>
           ) : (
             <div className="table-responsive">
@@ -334,7 +345,7 @@ export const Dashboard: React.FC = () => {
         </section>
       </main>
 
-      {/* Detail Modal */}
+      {/* Modal de Detalle */}
       <MachineDetailModal
         machine={selectedMachine}
         onClose={() => setSelectedMachine(null)}
