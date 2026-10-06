@@ -5,6 +5,9 @@ class ApiConstants {
   static const String port = '3000';
   static const String apiPath = '/api/v1';
 
+  /// URL de producción en la nube (Render con Neon PostgreSQL 24/7)
+  static const String cloudBaseUrl = 'https://maquitrace-backend.onrender.com/api/v1';
+
   /// IP local principal de tu computador en la red Wi-Fi
   static const String localWifiIp = '192.168.1.102';
 
@@ -21,19 +24,12 @@ class ApiConstants {
   /// Token JWT activo en memoria
   static String? authToken;
 
-
   static String get baseUrl {
     if (_activeBaseUrl != null) {
       return _activeBaseUrl!;
     }
-    if (kIsWeb) {
-      return 'http://localhost:$port$apiPath';
-    }
-    if (Platform.isAndroid) {
-      // Por defecto intenta localhost (funciona con USB + adb reverse)
-      return 'http://localhost:$port$apiPath';
-    }
-    return 'http://localhost:$port$apiPath';
+    // Por defecto usa la nube de Render (funciona desde cualquier lugar con 4G o Wi-Fi)
+    return cloudBaseUrl;
   }
 
   static void setActiveBaseUrl(String url) {
@@ -49,6 +45,10 @@ class ApiConstants {
     final list = <String>[];
     if (_activeBaseUrl != null && _activeBaseUrl!.isNotEmpty) {
       list.add(_activeBaseUrl!);
+    }
+    // Prioridad 1: Backend en la nube (Render)
+    if (!list.contains(cloudBaseUrl)) {
+      list.add(cloudBaseUrl);
     }
     if (kIsWeb) {
       if (!list.contains('http://localhost:$port$apiPath')) {
