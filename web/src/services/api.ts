@@ -1,6 +1,6 @@
 import type { LoginResponse, Machine } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://maquitrace-backend.onrender.com/api/v1';
 
 /**
  * Petición de autenticación al backend NestJS.
