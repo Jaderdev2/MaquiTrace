@@ -7,12 +7,15 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/transport/screens/transport_home_screen.dart';
 
+import 'features/evidence/providers/evidence_provider.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => EvidenceProvider()),
       ],
       child: const MaquiTraceApp(),
     ),

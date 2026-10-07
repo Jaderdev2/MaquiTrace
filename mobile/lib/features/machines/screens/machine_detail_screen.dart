@@ -8,6 +8,7 @@ import '../../preparation/widgets/phase_action_modal.dart';
 import '../../qr_scanner/widgets/qr_display_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../models/machine_model.dart';
+import '../../evidence/screens/evidence_checklist_screen.dart';
 
 /// Colores y medidas propias de esta pantalla.
 /// Un solo radio, bordes de 1 px y color solo cuando comunica estado.
@@ -163,7 +164,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildSummaryCard(m, status),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+                      _buildEvidenceButtonCard(context, m),
+                      const SizedBox(height: 14),
                       _buildProcessCard(m),
                     ],
                   ),
@@ -205,11 +208,102 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
             ),
           ),
           IconButton(
+            tooltip: 'Evidencias y Checklist',
+            onPressed: () => _openEvidenceChecklist(context, machine),
+            icon: const Icon(Icons.camera_alt_outlined, color: AppColors.accentBlue),
+          ),
+          IconButton(
             tooltip: 'Ver código QR',
             onPressed: () => _showMachineQrModal(context, machine),
             icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.textPrimary),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openEvidenceChecklist(BuildContext context, MachineModel machine) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EvidenceChecklistScreen(
+          machineId: machine.id,
+          machineSerial: machine.serial,
+          machineModel: machine.name,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEvidenceButtonCard(BuildContext context, MachineModel machine) {
+    return InkWell(
+      onTap: () => _openEvidenceChecklist(context, machine),
+      borderRadius: BorderRadius.circular(_Ui.radius),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(_Ui.radius),
+          border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.35)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.accentBlue.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.inProgressTint,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.camera_alt_rounded,
+                color: AppColors.accentBlue,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Checklist y Evidencias',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Icon(Icons.cloud_done_rounded, size: 14, color: AppColors.accentBlue),
+                    ],
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Fotos de ángulos obligatorios en Oracle Cloud',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppColors.accentBlue,
+            ),
+          ],
+        ),
       ),
     );
   }

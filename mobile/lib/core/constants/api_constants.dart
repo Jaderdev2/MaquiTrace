@@ -77,4 +77,8 @@ class ApiConstants {
   static String get profileUrl => '$baseUrl/auth/profile';
   static String get machinesUrl => '$baseUrl/machines';
   static String get transportUrl => '$baseUrl/transport';
+  static String machineEvidenceUrl(String machineId) => '$baseUrl/machines/$machineId/evidence';
+  static String machinePhaseEvidenceUrl(String machineId, String phaseId) =>
+      '$baseUrl/machines/$machineId/phases/$phaseId/evidence';
+  static String get evidenceUrl => '$baseUrl/evidence';
 }
