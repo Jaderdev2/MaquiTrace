@@ -1,0 +1,238 @@
+/* ==========================================================================
+   MAQUITRACE - NAVBAR SUPERIOR (src/styles/navbar.css)
+   Barra superior blanca limpia según diseño en PDF.
+   ========================================================================== */
+
+.top-navbar {
+  height: 68px;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.btn-toggle-sidebar {
+  display: none;
+  background: none;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  color: #475569;
+  cursor: pointer;
+  padding: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 1024px) {
+  .btn-toggle-sidebar {
+    display: inline-flex;
+  }
+}
+
+/* Buscador superior */
+.navbar-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+}
+
+.search-field-icon {
+  position: absolute;
+  left: 14px;
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+.navbar-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 16px 0 42px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: #0F172A;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.navbar-search-input:focus {
+  background-color: #FFFFFF;
+  border-color: #0066FF;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+.navbar-search-input::placeholder {
+  color: #94A3B8;
+}
+
+/* Lado Derecho */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.btn-nav-icon {
+  position: relative;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  color: #475569;
+  cursor: pointer;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-nav-icon:hover {
+  background: #F1F5F9;
+  color: #0066FF;
+}
+
+.nav-icon-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  background-color: #EF4444;
+  border-radius: 50%;
+  border: 1.5px solid #FFFFFF;
+}
+
+/* Perfil de Usuario */
+.user-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 12px;
+  transition: background-color 0.15s ease;
+  position: relative;
+}
+
+.user-menu-trigger:hover {
+  background-color: #F8FAFC;
+}
+
+.user-avatar-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #EFF6FF;
+  color: #0066FF;
+  border: 1px solid #DBEAFE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.user-text-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.user-name-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.user-role-subtitle {
+  font-size: 11px;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.caret-icon {
+  color: #94A3B8;
+  margin-left: 2px;
+}
+
+/* Dropdown flotante de sesión */
+.user-dropdown-card {
+  position: absolute;
+  top: 56px;
+  right: 0;
+  width: 210px;
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 50;
+  animation: fadeIn 0.15s ease;
+}
+
+.dropdown-user-header {
+  padding: 8px 10px 10px 10px;
+  border-bottom: 1px solid #F1F5F9;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.dropdown-user-email {
+  font-size: 11px;
+  color: #64748B;
+  word-break: break-all;
+}
+
+.dropdown-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #DC2626;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.dropdown-item-btn:hover {
+  background-color: #FEF2F2;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

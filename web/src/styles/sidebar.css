@@ -1,0 +1,151 @@
+/* ==========================================================================
+   MAQUITRACE - SIDEBAR NAVEGACIÓN IZQUIERDA (src/styles/sidebar.css)
+   Fiel al diseño del PDF de arquitectura y panel de control.
+   ========================================================================== */
+
+.app-sidebar {
+  width: 248px;
+  min-width: 248px;
+  background-color: #0B1729;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  z-index: 40;
+  user-select: none;
+}
+
+/* Header de la barra lateral con Logo */
+.sidebar-header {
+  padding: 24px 20px 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-logo {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+}
+
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-brand-title {
+  font-size: 19px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.4px;
+  line-height: 1.1;
+}
+
+.sidebar-brand-title span {
+  color: #0066FF;
+}
+
+/* Menús de Navegación */
+.sidebar-nav {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #94A3B8;
+  background: transparent;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s ease;
+}
+
+.sidebar-item:hover {
+  background-color: #14233C;
+  color: #E2E8F0;
+}
+
+.sidebar-item.active {
+  background-color: #1D4ED8;
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35);
+}
+
+.sidebar-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Sección Inferior de Ajustes y Soporte */
+.sidebar-footer-nav {
+  padding: 12px 14px 6px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Tarjeta de Branding Inferior */
+.sidebar-bottom-badge {
+  margin: 12px 14px 18px 14px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #10223D 0%, #0B1729 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-bottom-badge::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0066FF 0%, #FF6E00 100%);
+}
+
+.bottom-badge-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.bottom-badge-desc {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+/* Responsive Drawer para pantallas pequeñas */
+@media (max-width: 1024px) {
+  .app-sidebar {
+    position: fixed;
+    left: -260px;
+    transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .app-sidebar.open {
+    left: 0;
+  }
+}

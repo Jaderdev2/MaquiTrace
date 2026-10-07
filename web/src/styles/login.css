@@ -1,0 +1,327 @@
+/* ==========================================================================
+   MAQUITRACE - ESTILOS DE LA PANTALLA DE LOGIN (src/styles/login.css)
+   Preservado al 100% idéntico a la maqueta de referencia original.
+   ========================================================================== */
+
+.login-page-bg {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background-color: #F0F4FA;
+  box-sizing: border-box;
+}
+
+.login-container-card {
+  width: 956px;
+  max-width: 100%;
+  min-height: 640px;
+  background-color: #FFFFFF;
+  border-radius: 36px;
+  box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.08), 0 0 1px 1px rgba(0, 0, 0, 0.03);
+  display: grid;
+  grid-template-columns: 478px 1fr;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Panel Izquierdo: Hero Gráfico */
+.login-hero-side {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0A1628;
+  display: flex;
+}
+
+.hero-full-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Panel Derecho: Formulario Blanco */
+.login-form-side {
+  position: relative;
+  background-color: #FFFFFF;
+  padding: 44px 44px 28px 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Decoración curva suave en la esquina superior derecha */
+.corner-accent-bubble {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 135px;
+  height: 135px;
+  background-color: #E2EEF8;
+  border-bottom-left-radius: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.form-main-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-title-group {
+  margin-top: 12px;
+}
+
+.login-main-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #0A1128;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  margin: 0;
+  font-family: inherit;
+}
+
+.brand-accent-blue {
+  color: #0066FF;
+}
+
+.login-description-text {
+  font-size: 13.5px;
+  color: #64748B;
+  margin-top: 12px;
+  margin-bottom: 26px;
+  line-height: 1.45;
+}
+
+.auth-error-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: 10px;
+  color: #DC2626;
+  font-size: 12.5px;
+  margin-bottom: 16px;
+}
+
+.error-alert-icon {
+  flex-shrink: 0;
+}
+
+.login-form-fields {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.field-input-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-leading-icon {
+  position: absolute;
+  left: 14px;
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+.field-input-box input {
+  width: 100%;
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  padding: 0 16px 0 42px;
+  font-size: 14px;
+  color: #1E293B;
+  background-color: #FFFFFF;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.field-input-box input:focus {
+  border-color: #0066FF;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.12);
+}
+
+.field-input-box input::placeholder {
+  color: #94A3B8;
+}
+
+.field-trailing-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.field-trailing-btn:hover {
+  color: #475569;
+}
+
+.remember-forgot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 22px 0;
+  font-size: 13px;
+}
+
+.checkbox-custom-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-custom-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #0066FF;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.checkbox-text {
+  color: #475569;
+  font-weight: 400;
+}
+
+.forgot-password-link {
+  color: #0066FF;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.forgot-password-link:hover {
+  text-decoration: underline;
+}
+
+.btn-submit-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  background-color: #0066FF;
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.28);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-submit-login:hover:not(:disabled) {
+  background-color: #0052CC;
+  transform: translateY(-1px);
+}
+
+.btn-submit-login:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Chips de acceso rápido */
+.quick-access-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 11.5px;
+  color: #94A3B8;
+  flex-wrap: wrap;
+}
+
+.quick-label {
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.quick-chip {
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-chip:hover {
+  background: #E2EEF8;
+  color: #0066FF;
+  border-color: #BFDBFE;
+}
+
+/* Footer de la tarjeta */
+.login-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #64748B;
+  margin-top: 24px;
+}
+
+.footer-company {
+  font-weight: 600;
+  color: #334155;
+}
+
+.footer-sep {
+  color: #CBD5E1;
+}
+
+.footer-slogan {
+  color: #64748B;
+}
+
+/* Reglas Responsive para Login */
+@media (max-width: 900px) {
+  .login-container-card {
+    grid-template-columns: 1fr;
+    border-radius: 24px;
+  }
+  .login-hero-side {
+    max-height: 280px;
+  }
+}
