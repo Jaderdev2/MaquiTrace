@@ -143,6 +143,50 @@ async function main() {
     },
   });
 
+  await prisma.machine.upsert({
+    where: { serial: 'MOT552' },
+    update: {},
+    create: {
+      serial: 'MOT552',
+      model: 'CAT 140M3 AWD',
+      category: 'Motoniveladoras',
+      status: MachineStatus.en_proceso,
+    },
+  });
+
+  await prisma.machine.upsert({
+    where: { serial: 'VOL883' },
+    update: {},
+    create: {
+      serial: 'VOL883',
+      model: 'Volvo A40G Articulada',
+      category: 'Volquetas',
+      status: MachineStatus.pendiente,
+    },
+  });
+
+  await prisma.machine.upsert({
+    where: { serial: 'VOL104' },
+    update: {},
+    create: {
+      serial: 'VOL104',
+      model: 'CAT 745 Dumper',
+      category: 'Volquetas',
+      status: MachineStatus.completada,
+    },
+  });
+
+  await prisma.machine.upsert({
+    where: { serial: 'CRG701' },
+    update: {},
+    create: {
+      serial: 'CRG701',
+      model: 'Komatsu WA380-8',
+      category: 'Cargadores frontales',
+      status: MachineStatus.en_proceso,
+    },
+  });
+
   // 5. Fases de alistamiento de prueba para CAT 320D (ABC123)
   const existingPhases = await prisma.preparationPhase.count({
     where: { machineId: m1.id },
