@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { EvidenceType } from '@prisma/client';
 import { OciStorageService } from './oci-storage.service';
+import { UploadedFileDto } from './evidence.types';
 
 export interface RegisterEvidenceDto {
   machineId: string;
@@ -24,7 +25,7 @@ export class EvidenceService {
    */
   async uploadEvidence(
     machineId: string,
-    file: Express.Multer.File,
+    file: UploadedFileDto,
     dto: { phaseId?: string; type?: EvidenceType; observations?: string },
     userId: string,
   ) {

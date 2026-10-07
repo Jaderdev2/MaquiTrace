@@ -9,6 +9,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as path from 'path';
 import * as crypto from 'crypto';
 
+import { UploadedFileDto } from './evidence.types';
+
 @Injectable()
 export class OciStorageService {
   private readonly logger = new Logger(OciStorageService.name);
@@ -49,7 +51,7 @@ export class OciStorageService {
    * Sube un archivo a Oracle Cloud Object Storage y retorna la clave y URL accesible
    */
   async uploadFile(
-    file: Express.Multer.File,
+    file: UploadedFileDto,
     folder: string = 'evidencias',
   ): Promise<{ key: string; url: string }> {
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';

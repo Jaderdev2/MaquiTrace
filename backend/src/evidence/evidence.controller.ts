@@ -22,6 +22,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { EvidenceService, RegisterEvidenceDto } from './evidence.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EvidenceType } from '@prisma/client';
+import { UploadedFileDto } from './evidence.types';
 
 @ApiTags('Evidence')
 @ApiBearerAuth('JWT-auth')
@@ -87,7 +88,7 @@ export class EvidenceController {
   )
   async uploadForMachine(
     @Param('machineId') machineId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: UploadedFileDto,
     @Body() body: { phaseId?: string; type?: EvidenceType; observations?: string },
     @Request() req: any,
   ) {
