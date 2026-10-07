@@ -1,352 +1,760 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchMachinesApi } from '../../services/api';
-import type { Machine, MachineStatus } from '../../types';
+import type { Machine, PreparationPhase } from '../../types';
+import { Sidebar } from '../../components/Sidebar';
+import { Navbar } from '../../components/Navbar';
 import { MachineDetailModal } from '../../components/MachineDetailModal';
 import {
-  Truck,
-  LogOut,
-  Search,
-  Filter,
-  RefreshCw,
-  Wrench,
+  Layers,
   Clock,
   CheckCircle2,
+  ChevronRight,
+  Calendar,
+  Truck,
+  Camera,
+  Wrench,
+  RefreshCw,
+  Database,
   MapPin,
+  AlertCircle,
   Eye,
-  Server,
-  Layers,
-  AlertTriangle,
-  Loader2,
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const { user, logout, token } = useAuth();
+  const { user, token } = useAuth();
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentTab, setCurrentTab] = useState<string>('inicio');
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
-  const [categoryFilter, setCategoryFilter] = useState<string>('todos');
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const loadMachines = async () => {
+  // Carga de datos reales desde el backend NestJS (Neon PostgreSQL)
+  const loadMachines = useCallback(async () => {
     if (!token) return;
-    setLoading(true);
-    setError(null);
     try {
+      setLoading(true);
+      setError(null);
       const data = await fetchMachinesApi(token);
       setMachines(data);
+      setLastUpdated(new Date());
     } catch (err: any) {
-      console.error('Error fetching machines:', err);
-      setError(err.message || 'No se pudo conectar con el backend de MaquiTrace.');
+      console.error('Error al consultar maquinarias del backend:', err);
+      setError(err.message || 'Error de conexión con el backend');
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     loadMachines();
-  }, [token]);
+  }, [loadMachines]);
 
-  // KPIs derivados del backend real
-  const totalCount = machines.length;
+  // Helper para identificar la fase activa o última fase de una máquina
+  const getActivePhase = (machine: Machine): { name: string; status: string; operatorName: string } => {
+    if (!machine.phases || machine.phases.length === 0) {
+      return { name: 'Sin iniciar', status: 'pendiente', operatorName: 'Sin asignar' };
+    }
+
+    // Prioridad 1: Fase que está en proceso
+    const inProcess = machine.phases.find((p: PreparationPhase) => p.status === 'en_proceso');
+    if (inProcess) {
+      return {
+        name: inProcess.name,
+        status: inProcess.status,
+        operatorName: inProcess.operator?.name || 'Por asignar',
+      };
+    }
+
+    // Prioridad 2: Si todas están completadas
+    const allCompleted = machine.phases.every((p: PreparationPhase) => p.status === 'completada');
+    if (allCompleted) {
+      const last = machine.phases[machine.phases.length - 1];
+      return {
+        name: 'Finalizado',
+        status: 'completada',
+        operatorName: last?.operator?.name || 'Equipo finalizado',
+      };
+    }
+
+    // Prioridad 3: Siguiente fase pendiente
+    const nextPending = machine.phases.find((p: PreparationPhase) => p.status === 'pendiente');
+    if (nextPending) {
+      return {
+        name: nextPending.name,
+        status: 'pendiente',
+        operatorName: nextPending.operator?.name || 'Por asignar',
+      };
+    }
+
+    return { name: 'En espera', status: 'pendiente', operatorName: 'Sin asignar' };
+  };
+
+  // Clases CSS de etapas del alistamiento
+  const getStageClass = (stage: string) => {
+    switch (stage.toLowerCase()) {
+      case 'pintura': return 'pill-stage-pintura';
+      case 'lavado': return 'pill-stage-lavado';
+      case 'ensamblaje': return 'pill-stage-ensamblaje';
+      case 'finalizado': return 'pill-stage-finalizado';
+      default: return 'pill-stage-ensamblaje';
+    }
+  };
+
+  // Clases CSS de estados generales
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'en_proceso':
+        return { label: 'En proceso', className: 'pill-status-process' };
+      case 'completada':
+        return { label: 'Completada', className: 'pill-status-ready' };
+      case 'en_transito':
+        return { label: 'En tránsito', className: 'pill-status-transit' };
+      case 'pendiente':
+        return { label: 'Pendiente', className: 'pill-status-pending' };
+      case 'entregada':
+        return { label: 'Entregada', className: 'pill-status-ready' };
+      default:
+        return { label: status, className: 'pill-status-process' };
+    }
+  };
+
+  // -------------------------------------------------------------
+  // MÉTRICAS 100% REALES DERIVADAS DEL BACKEND
+  // -------------------------------------------------------------
+  const totalMachines = machines.length;
   const inProcessCount = machines.filter((m) => m.status === 'en_proceso').length;
-  const inTransitCount = machines.filter((m) => m.status === 'en_transito').length;
-  const completedCount = machines.filter((m) => m.status === 'completada' || m.status === 'entregada').length;
   const pendingCount = machines.filter((m) => m.status === 'pendiente').length;
+  const completedCount = machines.filter((m) => m.status === 'completada').length;
+  const inTransitCount = machines.filter((m) => m.status === 'en_transito').length;
+  const totalEvidenceCount = machines.reduce((acc, m) => acc + (m.evidence?.length || 0), 0);
 
-  // Filtrado reactivo en memoria sobre la lista del backend
+  // Estadísticas del flujo por fases oficiales (ensamblaje, pintura, lavado)
+  const getPhaseBreakdown = (phaseName: 'ensamblaje' | 'pintura' | 'lavado') => {
+    let active = 0;
+    let completed = 0;
+    let pending = 0;
+
+    machines.forEach((m) => {
+      const ph = m.phases?.find((p) => p.name.toLowerCase() === phaseName);
+      if (ph) {
+        if (ph.status === 'en_proceso') active++;
+        else if (ph.status === 'completada') completed++;
+        else pending++;
+      }
+    });
+
+    return { active, completed, pending, total: active + completed + pending };
+  };
+
+  const ensamblajeStats = getPhaseBreakdown('ensamblaje');
+  const pinturaStats = getPhaseBreakdown('pintura');
+  const lavadoStats = getPhaseBreakdown('lavado');
+
+  // Máquinas agrupadas por categoría
+  const categoryCounts = machines.reduce((acc, m) => {
+    const cat = m.category || 'Sin categoría';
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Viajes reales de transporte asociados a las máquinas
+  const activeTrips = machines.flatMap((m) =>
+    (m.trips || []).map((t) => ({
+      ...t,
+      machineModel: m.model,
+      machineSerial: m.serial,
+      machineCategory: m.category,
+    }))
+  );
+
+  // Filtrado reactivo de la tabla de Alistamientos Recientes
   const filteredMachines = machines.filter((m) => {
-    const matchesSearch =
-      m.serial.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.category.toLowerCase().includes(searchTerm.toLowerCase());
+    // Filtro por estado
+    if (statusFilter !== 'todos' && m.status !== statusFilter) {
+      return false;
+    }
 
-    const matchesStatus = statusFilter === 'todos' || m.status === statusFilter;
-    const matchesCategory = categoryFilter === 'todos' || m.category === categoryFilter;
-
-    return matchesSearch && matchesStatus && matchesCategory;
+    // Filtro por término de búsqueda (modelo, serie, categoría u operario)
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
+    const phaseInfo = getActivePhase(m);
+    return (
+      m.model.toLowerCase().includes(q) ||
+      m.serial.toLowerCase().includes(q) ||
+      (m.category && m.category.toLowerCase().includes(q)) ||
+      phaseInfo.operatorName.toLowerCase().includes(q)
+    );
   });
 
-  const getRoleDisplayName = (role: any) => {
-    const roleStr = typeof role === 'object' ? role?.name : role;
-    switch (roleStr?.toUpperCase()) {
-      case 'ADMIN':
-      case 'ADMINISTRADOR':
-        return 'Administrador';
-      case 'SUPERVISOR':
-        return 'Supervisor';
-      case 'OPERATOR':
-      case 'OPERARIO':
-        return 'Operario';
-      case 'TRANSPORTADOR':
-        return 'Transportador';
-      default:
-        return roleStr || 'Usuario';
-    }
-  };
-
-  const getStatusBadge = (status: MachineStatus) => {
-    switch (status) {
-      case 'pendiente':
-        return <span className="badge badge-amber"><Clock size={12} /> Pendiente</span>;
-      case 'en_proceso':
-        return <span className="badge badge-blue"><Wrench size={12} /> En Alistamiento</span>;
-      case 'completada':
-        return <span className="badge badge-emerald"><CheckCircle2 size={12} /> Listo</span>;
-      case 'en_transito':
-        return <span className="badge badge-purple"><MapPin size={12} /> En Tránsito GPS</span>;
-      case 'entregada':
-        return <span className="badge badge-teal"><CheckCircle2 size={12} /> Entregada</span>;
-      default:
-        return <span className="badge">{status}</span>;
-    }
-  };
-
-  const renderPhaseTracker = (machine: Machine) => {
-    const phases = machine.phases || [];
-    const getPhaseDotClass = (pName: string) => {
-      const ph = phases.find((p) => p.name === pName);
-      if (!ph) return 'dot-pending';
-      if (ph.status === 'completada') return 'dot-completed';
-      if (ph.status === 'en_proceso') return 'dot-active';
-      return 'dot-pending';
-    };
-
-    return (
-      <div className="phase-tracker">
-        <div className={`phase-step ${getPhaseDotClass('ensamblaje')}`} title="Fase: Ensamblaje">
-          <span>Ensamblaje</span>
-        </div>
-        <div className="phase-line"></div>
-        <div className={`phase-step ${getPhaseDotClass('lavado')}`} title="Fase 2: Lavado">
-          <span>Lavado</span>
-        </div>
-        <div className="phase-line"></div>
-        <div className={`phase-step ${getPhaseDotClass('pintura')}`} title="Fase 3: Pintura">
-          <span>Pintura</span>
-        </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="dashboard-layout">
-      {/* Barra superior de navegación */}
-      <header className="navbar">
-        <div className="navbar-brand">
-          <div className="logo-icon-bg shadow-glow">
-            <Truck className="logo-icon" size={24} />
-          </div>
-          <div>
-            <h1 className="navbar-title">Maqui<span className="text-secondary">Trace</span></h1>
-            <span className="navbar-subtitle">Panel de Supervisión y Trazabilidad</span>
-          </div>
-        </div>
+    <div className="dashboard-root">
+      {/* 1. Menú lateral izquierdo (Sidebar) */}
+      <Sidebar
+        currentTab={currentTab}
+        onSelectTab={setCurrentTab}
+        isOpen={sidebarOpen}
+        onCloseMobile={() => setSidebarOpen(false)}
+      />
 
-        <div className="navbar-right">
-          <div className={`server-status-pill ${error ? 'warning' : 'success'}`}>
-            <Server size={14} />
-            <span>{error ? 'Desconectado del Backend' : 'API NestJS Conectada'}</span>
-          </div>
+      {/* 2. Área Principal de Contenido */}
+      <div className="dashboard-main-area">
+        {/* Barra superior con Buscador y Perfil */}
+        <Navbar
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
 
-          <div className="user-profile-badge">
-            <div className="user-avatar">
-              {user?.name?.charAt(0) || 'U'}
+        {/* Contenido Central del Dashboard */}
+        <main className="dashboard-container">
+          {/* Encabezado: Saludo, Título y Estado de sincronización en vivo */}
+          <section className="dashboard-heading-row">
+            <div className="heading-left-box">
+              <span className="greeting-label">
+                Bienvenido, {user?.name || 'Administrador'}
+              </span>
+              <div className="heading-title-line">
+                <h1 className="dashboard-main-title">Panel de control</h1>
+                <div className="backend-live-indicator" title="Conexión establecida con PostgreSQL Neon">
+                  <span className="live-dot"></span>
+                  <span>Backend en línea</span>
+                </div>
+              </div>
+              <p className="dashboard-main-desc">
+                Supervisión en tiempo real del alistamiento, inspección y logística de maquinaria pesada.
+              </p>
             </div>
-            <div className="user-info">
-              <span className="user-name">{user?.name}</span>
-              <span className="user-role-tag">{getRoleDisplayName(user?.role)}</span>
-            </div>
-          </div>
 
-          <button className="btn-logout" onClick={logout} title="Cerrar Sesión">
-            <LogOut size={18} />
-            <span>Salir</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Contenido Principal */}
-      <main className="dashboard-content">
-        {/* Banner de error de conexión en caso de que el backend esté caído */}
-        {error && (
-          <div className="info-banner" style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#F87171' }}>
-            <AlertTriangle size={18} className="banner-icon" />
-            <div style={{ flex: 1 }}>
-              <strong>Error de conexión con el backend:</strong> {error}
-              <div style={{ marginTop: '4px', fontSize: '12px', color: '#94A3B8' }}>
-                Verifica que el backend NestJS esté corriendo en <code>http://localhost:3000/api/v1</code> y que la base de datos PostgreSQL esté activa.
+            <div className="heading-right-meta">
+              <div className="meta-date">
+                <Calendar size={14} />
+                <span>
+                  {new Date().toLocaleDateString('es-CO', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
+              <div className="meta-sync-row">
+                <span className="meta-time">
+                  Actualizado: {lastUpdated.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <button
+                  type="button"
+                  onClick={loadMachines}
+                  className={`btn-refresh-data ${loading ? 'spinning' : ''}`}
+                  title="Sincronizar datos del backend"
+                >
+                  <RefreshCw size={13} />
+                </button>
               </div>
             </div>
-            <button
-              onClick={loadMachines}
-              className="btn-action"
-              style={{ background: '#EF4444', color: '#FFFFFF', borderColor: '#DC2626' }}
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
+          </section>
 
-        {/* Tarjetas de Métricas / KPIs */}
-        <section className="kpi-grid">
-          <div className="kpi-card card-total">
-            <div className="kpi-icon"><Layers size={22} /></div>
-            <div className="kpi-body">
-              <span className="kpi-title">Total Maquinaria</span>
-              <span className="kpi-value">{totalCount}</span>
-            </div>
-          </div>
-
-          <div className="kpi-card card-process">
-            <div className="kpi-icon"><Wrench size={22} /></div>
-            <div className="kpi-body">
-              <span className="kpi-title">En Alistamiento</span>
-              <span className="kpi-value">{inProcessCount}</span>
-            </div>
-          </div>
-
-          <div className="kpi-card card-transit">
-            <div className="kpi-icon"><MapPin size={22} /></div>
-            <div className="kpi-body">
-              <span className="kpi-title">En Tránsito (GPS)</span>
-              <span className="kpi-value">{inTransitCount}</span>
-            </div>
-          </div>
-
-          <div className="kpi-card card-completed">
-            <div className="kpi-icon"><CheckCircle2 size={22} /></div>
-            <div className="kpi-body">
-              <span className="kpi-title">Listas / Entregadas</span>
-              <span className="kpi-value">{completedCount}</span>
-            </div>
-          </div>
-
-          <div className="kpi-card card-pending">
-            <div className="kpi-icon"><Clock size={22} /></div>
-            <div className="kpi-body">
-              <span className="kpi-title">Pendientes</span>
-              <span className="kpi-value">{pendingCount}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Barra de Filtros y Búsqueda */}
-        <section className="toolbar-card">
-          <div className="search-box">
-            <Search size={18} className="search-icon" />
-            <input
-              type="text"
-              placeholder="Buscar por código serial, modelo o categoría..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="filter-group">
-            <div className="filter-item">
-              <Filter size={16} />
-              <span>Estado:</span>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="todos">Todos los estados</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="en_proceso">En Alistamiento</option>
-                <option value="completada">Completada</option>
-                <option value="en_transito">En Tránsito</option>
-                <option value="entregada">Entregada</option>
-              </select>
-            </div>
-
-            <div className="filter-item">
-              <span>Categoría:</span>
-              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                <option value="todos">Todas las categorías</option>
-                <option value="Excavadoras">Excavadoras</option>
-                <option value="Retroexcavadoras">Retroexcavadoras</option>
-                <option value="Cargadores frontales">Cargadores frontales</option>
-                <option value="Bulldozers">Bulldozers</option>
-                <option value="Motoniveladoras">Motoniveladoras</option>
-              </select>
-            </div>
-
-            <button className="btn-refresh" onClick={loadMachines} title="Actualizar datos desde backend">
-              <RefreshCw size={16} className={loading ? 'spinner' : ''} />
-            </button>
-          </div>
-        </section>
-
-        {/* Tabla de Maquinarias */}
-        <section className="table-card">
-          <div className="table-header-title">
-            <h3>Inventario de Maquinaria (Backend en Vivo)</h3>
-            <span className="table-count">Mostrando {filteredMachines.length} de {totalCount} máquinas</span>
-          </div>
-
-          {loading ? (
-            <div className="table-loading-state">
-              <Loader2 size={32} className="spinner text-primary" />
-              <p>Consultando base de datos a través de la API...</p>
-            </div>
-          ) : filteredMachines.length === 0 ? (
-            <div className="table-empty-state">
-              <Truck size={40} className="empty-icon" />
-              <h4>{error ? 'No se pudo cargar la información' : 'No se encontraron maquinarias'}</h4>
-              <p>{error ? 'Verifica la conexión con el backend.' : 'No hay máquinas que coincidan con los criterios seleccionados.'}</p>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="machines-table">
-                <thead>
-                  <tr>
-                    <th>Código Serial</th>
-                    <th>Modelo & Categoría</th>
-                    <th>Estado General</th>
-                    <th>Fases de Alistamiento</th>
-                    <th>Fecha de Registro</th>
-                    <th className="text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMachines.map((machine) => (
-                    <tr key={machine.id}>
-                      <td>
-                        <span className="serial-badge">{machine.serial}</span>
-                      </td>
-                      <td>
-                        <div className="machine-name-cell">
-                          <strong className="machine-model">{machine.model}</strong>
-                          <span className="machine-category">{machine.category}</span>
-                        </div>
-                      </td>
-                      <td>{getStatusBadge(machine.status)}</td>
-                      <td>{renderPhaseTracker(machine)}</td>
-                      <td>
-                        <span className="date-cell">
-                          {machine.createdAt ? new Date(machine.createdAt).toLocaleDateString('es-ES') : 'Reciente'}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        <button
-                          className="btn-action"
-                          onClick={() => setSelectedMachine(machine)}
-                        >
-                          <Eye size={16} />
-                          <span>Ver Detalle</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Alerta en caso de error de conexión */}
+          {error && (
+            <div className="dashboard-error-banner">
+              <AlertCircle size={18} />
+              <span>{error}</span>
+              <button type="button" onClick={loadMachines} className="btn-error-retry">
+                Reintentar
+              </button>
             </div>
           )}
-        </section>
-      </main>
 
-      {/* Modal de Detalle */}
+          {/* Tarjetas Superiores de Métricas (KPIs 100% reales del Backend) */}
+          <section className="kpi-cards-grid">
+            {/* KPI 1: Total Máquinas Registradas */}
+            <div className="kpi-stat-card kpi-blue" onClick={() => setStatusFilter('todos')}>
+              <div className="kpi-card-top">
+                <span className="kpi-number">{loading ? '...' : totalMachines}</span>
+                <div className="kpi-badge-circle">
+                  <Layers size={18} />
+                </div>
+              </div>
+              <div className="kpi-card-label">
+                <span>Total de maquinaria</span>
+                <ChevronRight size={14} className="kpi-arrow" />
+              </div>
+            </div>
+
+            {/* KPI 2: En Proceso de Alistamiento */}
+            <div className="kpi-stat-card kpi-amber" onClick={() => setStatusFilter('en_proceso')}>
+              <div className="kpi-card-top">
+                <span className="kpi-number">{loading ? '...' : inProcessCount}</span>
+                <div className="kpi-badge-circle">
+                  <Clock size={18} />
+                </div>
+              </div>
+              <div className="kpi-card-label">
+                <span>En alistamiento activo</span>
+                <ChevronRight size={14} className="kpi-arrow" />
+              </div>
+            </div>
+
+            {/* KPI 3: Pendientes por Iniciar */}
+            <div className="kpi-stat-card kpi-cyan" onClick={() => setStatusFilter('pendiente')}>
+              <div className="kpi-card-top">
+                <span className="kpi-number">{loading ? '...' : pendingCount}</span>
+                <div className="kpi-badge-circle">
+                  <Wrench size={18} />
+                </div>
+              </div>
+              <div className="kpi-card-label">
+                <span>Pendientes por iniciar</span>
+                <ChevronRight size={14} className="kpi-arrow" />
+              </div>
+            </div>
+
+            {/* KPI 4: Listas / Completadas */}
+            <div className="kpi-stat-card kpi-emerald" onClick={() => setStatusFilter('completada')}>
+              <div className="kpi-card-top">
+                <span className="kpi-number">{loading ? '...' : completedCount}</span>
+                <div className="kpi-badge-circle">
+                  <CheckCircle2 size={18} />
+                </div>
+              </div>
+              <div className="kpi-card-label">
+                <span>Listas / Completadas</span>
+                <ChevronRight size={14} className="kpi-arrow" />
+              </div>
+            </div>
+
+            {/* KPI 5: Evidencias Registradas */}
+            <div className="kpi-stat-card kpi-rose">
+              <div className="kpi-card-top">
+                <span className="kpi-number">{loading ? '...' : totalEvidenceCount}</span>
+                <div className="kpi-badge-circle">
+                  <Camera size={18} />
+                </div>
+              </div>
+              <div className="kpi-card-label">
+                <span>Evidencias cargadas</span>
+                <ChevronRight size={14} className="kpi-arrow" />
+              </div>
+            </div>
+          </section>
+
+          {/* DETALLE RELEVANTE 1: Flujo Operativo de Fases de Taller (Ensamblaje -> Pintura -> Lavado) */}
+          <section className="workshop-stages-section card-section">
+            <div className="section-card-header">
+              <div className="header-title-flex">
+                <span className="section-icon-tag"><Wrench size={18} /></span>
+                <div>
+                  <h2>Flujo operativo del taller</h2>
+                  <span className="section-subtitle">
+                    Distribución de las máquinas en las 3 fases reglamentarias de preparación.
+                  </span>
+                </div>
+              </div>
+              <div className="workshop-legend-row">
+                <span className="legend-chip legend-active">● En proceso</span>
+                <span className="legend-chip legend-done">● Completadas</span>
+                <span className="legend-chip legend-pending">● Pendientes</span>
+              </div>
+            </div>
+
+            <div className="workshop-stages-grid">
+              {/* Fase 1: Ensamblaje */}
+              <div className="stage-flow-card stage-ensamblaje">
+                <div className="stage-card-top">
+                  <div className="stage-icon-circle">
+                    <Wrench size={18} />
+                  </div>
+                  <div className="stage-title-box">
+                    <span className="stage-step-tag">Fase 1</span>
+                    <h3>Ensamblaje y Mecánica</h3>
+                  </div>
+                </div>
+                <div className="stage-metrics-row">
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-amber">{ensamblajeStats.active}</span>
+                    <span className="stage-metric-lbl">En proceso</span>
+                  </div>
+                  <div className="stage-metric-divider"></div>
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-emerald">{ensamblajeStats.completed}</span>
+                    <span className="stage-metric-lbl">Completadas</span>
+                  </div>
+                  <div className="stage-metric-divider"></div>
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-slate">{ensamblajeStats.pending}</span>
+                    <span className="stage-metric-lbl">Pendientes</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fase 2: Pintura */}
+              <div className="stage-flow-card stage-pintura">
+                <div className="stage-card-top">
+                  <div className="stage-icon-circle">
+                    <Layers size={18} />
+                  </div>
+                  <div className="stage-title-box">
+                    <span className="stage-step-tag">Fase 2</span>
+                    <h3>Pintura y Acabados</h3>
+                  </div>
+                </div>
+                <div className="stage-metrics-row">
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-blue">{pinturaStats.active}</span>
+                    <span className="stage-metric-lbl">En proceso</span>
+                  </div>
+                  <div className="stage-metric-divider"></div>
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-emerald">{pinturaStats.completed}</span>
+                    <span className="stage-metric-lbl">Completadas</span>
+                  </div>
+                  <div className="stage-metric-divider"></div>
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-slate">{pinturaStats.pending}</span>
+                    <span className="stage-metric-lbl">Pendientes</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fase 3: Lavado */}
+              <div className="stage-flow-card stage-lavado">
+                <div className="stage-card-top">
+                  <div className="stage-icon-circle">
+                    <Clock size={18} />
+                  </div>
+                  <div className="stage-title-box">
+                    <span className="stage-step-tag">Fase 3</span>
+                    <h3>Lavado y Control Final</h3>
+                  </div>
+                </div>
+                <div className="stage-metrics-row">
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-cyan">{lavadoStats.active}</span>
+                    <span className="stage-metric-lbl">En proceso</span>
+                  </div>
+                  <div className="stage-metric-divider"></div>
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-emerald">{lavadoStats.completed}</span>
+                    <span className="stage-metric-lbl">Completadas</span>
+                  </div>
+                  <div className="stage-metric-divider"></div>
+                  <div className="stage-metric-col">
+                    <span className="stage-metric-num text-slate">{lavadoStats.pending}</span>
+                    <span className="stage-metric-lbl">Pendientes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* SECCIÓN PRINCIPAL: ALISTAMIENTOS RECIENTES (Con datos reales de Backend) */}
+          <section className="card-section">
+            <div className="section-card-header">
+              <div className="header-title-flex">
+                <span className="section-icon-tag">☷</span>
+                <div>
+                  <h2>Alistamientos recientes</h2>
+                  <span className="section-subtitle">
+                    Equipos en el sistema con sus fases activas y operarios responsables.
+                  </span>
+                </div>
+              </div>
+
+              {/* Chips de filtrado rápido */}
+              <div className="filter-chips-row">
+                <button
+                  type="button"
+                  className={`filter-chip ${statusFilter === 'todos' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('todos')}
+                >
+                  Todos ({totalMachines})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${statusFilter === 'en_proceso' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('en_proceso')}
+                >
+                  En alistamiento ({inProcessCount})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${statusFilter === 'pendiente' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('pendiente')}
+                >
+                  Pendientes ({pendingCount})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${statusFilter === 'completada' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('completada')}
+                >
+                  Completadas ({completedCount})
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${statusFilter === 'en_transito' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('en_transito')}
+                >
+                  En tránsito ({inTransitCount})
+                </button>
+              </div>
+            </div>
+
+            <div className="table-scroll-wrapper">
+              {loading ? (
+                <div className="table-loading-state">
+                  <RefreshCw size={24} className="spinning text-primary" />
+                  <p>Cargando información de alistamientos desde la base de datos...</p>
+                </div>
+              ) : filteredMachines.length === 0 ? (
+                <div className="table-empty-state">
+                  <Database size={36} className="empty-icon" />
+                  <h4>No se encontraron alistamientos</h4>
+                  <p>
+                    {searchTerm
+                      ? `No hay máquinas que coincidan con la búsqueda "${searchTerm}".`
+                      : 'No hay equipos registrados bajo el filtro seleccionado en este momento.'}
+                  </p>
+                  {(searchTerm || statusFilter !== 'todos') && (
+                    <button
+                      type="button"
+                      className="btn-clear-filters"
+                      onClick={() => {
+                        setSearchTerm('');
+                        setStatusFilter('todos');
+                      }}
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <table className="modern-data-table">
+                  <thead>
+                    <tr>
+                      <th>Máquina</th>
+                      <th>Número de serie</th>
+                      <th>Operario asignado</th>
+                      <th>Etapa actual</th>
+                      <th>Estado del equipo</th>
+                      <th>Fecha de ingreso</th>
+                      <th className="text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMachines.map((machine) => {
+                      const phaseInfo = getActivePhase(machine);
+                      const statusBadge = getStatusBadge(machine.status);
+                      const formattedDate = machine.createdAt
+                        ? new Date(machine.createdAt).toLocaleDateString('es-CO', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
+                        : 'Reciente';
+                      const formattedTime = machine.createdAt
+                        ? new Date(machine.createdAt).toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : '';
+
+                      return (
+                        <tr key={machine.id}>
+                          <td>
+                            <div className="machine-cell-visual">
+                              <div className="machine-thumb-box">
+                                <Truck size={20} />
+                              </div>
+                              <div className="machine-text-names">
+                                <span className="machine-model-name">{machine.model}</span>
+                                <span className="machine-tag-sub">{machine.category}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="serial-code-text">{machine.serial}</span>
+                          </td>
+                          <td>
+                            <div className="operator-cell">
+                              <span className="operator-name-text">{phaseInfo.operatorName}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`pill-badge ${getStageClass(phaseInfo.name)}`}>
+                              {phaseInfo.name.charAt(0).toUpperCase() + phaseInfo.name.slice(1)}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`pill-badge ${statusBadge.className}`}>
+                              {statusBadge.label}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="table-time-text">
+                              {formattedDate}
+                              {formattedTime && <span className="time-sub-block">{formattedTime}</span>}
+                            </span>
+                          </td>
+                          <td className="text-right">
+                            <button
+                              type="button"
+                              className="btn-table-action"
+                              onClick={() => setSelectedMachine(machine)}
+                              title="Ver detalle del alistamiento"
+                            >
+                              <Eye size={15} />
+                              <span style={{ fontSize: '11px', marginLeft: '4px', fontWeight: 600 }}>Detalle</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+
+          {/* DETALLES RELEVANTES 2 Y 3: Logística y Distribución por Categoría */}
+          <div className="dashboard-bottom-grid">
+            {/* Control de Despacho y Transporte */}
+            <section className="card-section bottom-card-left">
+              <div className="section-card-header">
+                <div className="header-title-flex">
+                  <span className="section-icon-tag"><Truck size={18} /></span>
+                  <div>
+                    <h2>Control de despacho y transporte</h2>
+                    <span className="section-subtitle">
+                      Seguimiento a viajes registrados y traslados de maquinaria.
+                    </span>
+                  </div>
+                </div>
+                <span className="badge-trips-count">
+                  {activeTrips.length} {activeTrips.length === 1 ? 'viaje' : 'viajes'}
+                </span>
+              </div>
+
+              <div className="bottom-card-body">
+                {activeTrips.length > 0 ? (
+                  <div className="trips-table-wrapper">
+                    <table className="transit-compact-table">
+                      <thead>
+                        <tr>
+                          <th>Máquina</th>
+                          <th>Vehículo</th>
+                          <th>Destino</th>
+                          <th>Transportador</th>
+                          <th>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeTrips.map((trip) => (
+                          <tr key={trip.id}>
+                            <td>
+                              <strong>{trip.machineModel}</strong>
+                              <span style={{ display: 'block', fontSize: '11px', color: '#64748B' }}>
+                                {trip.machineSerial}
+                              </span>
+                            </td>
+                            <td>{trip.vehicle}</td>
+                            <td>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <MapPin size={12} style={{ color: '#0066FF' }} />
+                                {trip.destination}
+                              </span>
+                            </td>
+                            <td>{trip.transporter?.name || 'Asignado'}</td>
+                            <td>
+                              <span className="pill-badge pill-status-process">
+                                {trip.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="fleet-status-banner">
+                    <div className="fleet-status-icon">
+                      <Truck size={22} />
+                    </div>
+                    <div className="fleet-status-text">
+                      <strong>Todos los equipos en patio / taller</strong>
+                      <p>
+                        Actualmente no hay órdenes de traslado activas en carretera. Las {totalMachines} máquinas
+                        se encuentran en estaciones de alistamiento o en patio central de operaciones.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Resumen de Inventario por Categoría */}
+            <section className="card-section bottom-card-right">
+              <div className="section-card-header">
+                <div className="header-title-flex">
+                  <span className="section-icon-tag"><Database size={18} /></span>
+                  <div>
+                    <h2>Parque de maquinaria</h2>
+                    <span className="section-subtitle">
+                      Distribución de flota por categoría en base de datos.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bottom-card-body">
+                {Object.keys(categoryCounts).length > 0 ? (
+                  <div className="categories-list">
+                    {Object.entries(categoryCounts).map(([category, count]) => {
+                      const percentage = totalMachines > 0 ? Math.round((count / totalMachines) * 100) : 0;
+                      return (
+                        <div key={category} className="category-row-item">
+                          <div className="category-row-top">
+                            <span className="category-row-name">{category}</span>
+                            <span className="category-row-val">
+                              {count} {count === 1 ? 'unidad' : 'unidades'} ({percentage}%)
+                            </span>
+                          </div>
+                          <div className="category-track-bar">
+                            <div
+                              className="category-fill-bar"
+                              style={{ width: `${percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>
+                    No hay categorías registradas aún.
+                  </p>
+                )}
+
+                <div className="inventory-summary-footer">
+                  <div className="inventory-footer-item">
+                    <span className="footer-item-label">Evidencias fotográficas:</span>
+                    <span className="footer-item-value">{totalEvidenceCount} archivos</span>
+                  </div>
+                  <div className="inventory-footer-item">
+                    <span className="footer-item-label">Estado general:</span>
+                    <span className="footer-item-value text-emerald font-semibold">Operacional</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+
+      {/* Modal de Detalle con datos 100% reales */}
       <MachineDetailModal
         machine={selectedMachine}
         onClose={() => setSelectedMachine(null)}
@@ -354,3 +762,4 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+

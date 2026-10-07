@@ -18,6 +18,11 @@ export interface PreparationPhase {
   status: PhaseStatus;
   observations?: string;
   operatorId?: string;
+  operator?: {
+    id?: string;
+    name: string;
+    email?: string;
+  };
   startedAt?: string;
   completedAt?: string;
 }
@@ -29,6 +34,18 @@ export interface Evidence {
   createdAt: string;
 }
 
+export interface TransportTrip {
+  id: string;
+  vehicle: string;
+  destination: string;
+  status: 'pendiente' | 'en_transito' | 'entregado';
+  departureAt?: string;
+  arrivalAt?: string;
+  transporter?: {
+    name: string;
+  };
+}
+
 export interface Machine {
   id: string;
   category: string;
@@ -37,6 +54,7 @@ export interface Machine {
   status: MachineStatus;
   phases?: PreparationPhase[];
   evidence?: Evidence[];
+  trips?: TransportTrip[];
   createdAt?: string;
 }
 
