@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Truck,
@@ -24,22 +25,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onCloseMobile,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const mainNavItems = [
-    { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
-    { id: 'maquinas', label: 'Máquinas', icon: Truck },
-    { id: 'alistamientos', label: 'Alistamientos', icon: ClipboardCheck },
-    { id: 'seguimiento', label: 'Seguimiento', icon: Navigation },
-    { id: 'usuarios', label: 'Usuarios', icon: Users },
-    { id: 'evidencias', label: 'Evidencias e informes', icon: FileText },
+    { id: 'inicio', label: 'Inicio', icon: LayoutDashboard, path: '/dashboard' },
+    { id: 'maquinas', label: 'Máquinas', icon: Truck, path: '/dashboard' },
+    { id: 'alistamientos', label: 'Alistamientos', icon: ClipboardCheck, path: '/dashboard' },
+    { id: 'seguimiento', label: 'Seguimiento', icon: Navigation, path: '/dashboard' },
+    { id: 'usuarios', label: 'Usuarios', icon: Users, path: '/dashboard' },
+    { id: 'evidencias', label: 'Evidencias e informes', icon: FileText, path: '/dashboard' },
   ];
 
   const secondaryNavItems = [
-    { id: 'configuracion', label: 'Configuración', icon: Settings },
-    { id: 'ayuda', label: 'Ayuda', icon: HelpCircle },
+    { id: 'configuracion', label: 'Configuración', icon: Settings, path: '/dashboard' },
+    { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, path: '/dashboard' },
   ];
 
-  const handleItemClick = (id: string) => {
+  const handleItemClick = (id: string, path: string) => {
     onSelectTab(id);
+    if (location.pathname !== path) {
+      navigate(path);
+    }
     if (onCloseMobile) onCloseMobile();
   };
 
@@ -61,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={item.id}
                 type="button"
                 className={`sidebar-item ${isActive ? 'active' : ''}`}
-                onClick={() => handleItemClick(item.id)}
+                onClick={() => handleItemClick(item.id, item.path)}
               >
                 <span className="sidebar-item-icon">
                   <Icon size={19} />
@@ -84,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={item.id}
                 type="button"
                 className={`sidebar-item ${isActive ? 'active' : ''}`}
-                onClick={() => handleItemClick(item.id)}
+                onClick={() => handleItemClick(item.id, item.path)}
               >
                 <span className="sidebar-item-icon">
                   <Icon size={19} />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Search, Bell, ChevronDown, LogOut, Menu } from 'lucide-react';
 
@@ -14,6 +15,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSearchChange,
 }) => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const getRoleDisplayName = (role: any) => {
@@ -95,7 +97,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 className="dropdown-item-btn"
-                onClick={logout}
+                onClick={() => {
+                  logout();
+                  navigate('/login', { replace: true });
+                }}
               >
                 <LogOut size={16} />
                 <span>Cerrar sesión</span>

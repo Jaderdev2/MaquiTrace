@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { loginApi } from '../../services/api';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
@@ -6,6 +7,7 @@ import heroImg from '../../assets/branding/login_present.png';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -26,6 +28,7 @@ export const Login: React.FC = () => {
     try {
       const data = await loginApi(email.trim(), password.trim());
       login(data.accessToken, data.user);
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
       setError(err.message || 'Credenciales inválidas o error de conexión.');
     } finally {
