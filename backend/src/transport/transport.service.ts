@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MachineStatus, TripStatus } from '@prisma/client';
 
 export interface ReceiveTransportDto {
-  transporterId: string;
+  transporterId?: string;
   vehicle: string;
   destination: string;
 }
@@ -13,11 +13,16 @@ export class TransportService {
   constructor(private readonly prisma: PrismaService) {}
 
   // 1. Recepción de máquina por el transportador
-  async receiveMachine(machineId: string, dto: ReceiveTransportDto) {
+  async receiveMachine(machineId: string, dto: ReceiveTransportDto, userId?: string) {
+    const finalTransporterId = dto.transporterId || userId;
+    if (!finalTransporterId) {
+      throw new NotFoundException('Identificador de transportador requerido');
+    }
+
     const trip = await this.prisma.transportTrip.create({
       data: {
         machineId,
-        transporterId: dto.transporterId,
+        transporterId: finalTransporterId,
         vehicle: dto.vehicle,
         destination: dto.destination,
         status: TripStatus.pendiente,
