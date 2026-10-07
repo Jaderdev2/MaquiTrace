@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../preparation/models/preparation_phase_model.dart';
@@ -9,9 +10,12 @@ import '../../qr_scanner/widgets/qr_display_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../models/machine_model.dart';
 import '../../evidence/screens/evidence_checklist_screen.dart';
+import '../../evidence/providers/evidence_provider.dart';
+import '../../evidence/widgets/fullscreen_image_viewer.dart';
 
 /// Colores y medidas propias de esta pantalla.
-/// Un solo radio, bordes de 1 px y color solo cuando comunica estado.
+/// Un solo radio para tarjetas y botones, uno menor para chips y miniaturas,
+/// bordes de 1 px, sin sombras, y color solo cuando comunica estado.
 class _Ui {
   static const background = Color(0xFFF5F7FA);
   static const surface = Colors.white;
@@ -28,6 +32,7 @@ class _Ui {
   static const lockedBg = Color(0xFFF1F5F9);
 
   static const double radius = 10;
+  static const double radiusSmall = 6;
   static const double pagePadding = 16;
 }
 
@@ -52,6 +57,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   void initState() {
     super.initState();
     _loadPhases();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<EvidenceProvider>().fetchEvidences(widget.machine.id);
+      }
+    });
   }
 
   Future<void> _loadPhases() async {
@@ -69,29 +79,110 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     }
   }
 
-  // Estado general en tiempo real según las fases
-  OverallState _effectiveState(MachineModel m) {
-    if (_phases.isEmpty) return m.overallState;
-    if (_phases.every((p) => p.isCompleted)) return OverallState.completed;
-    if (_phases.any((p) => p.isInProgress || p.isCompleted)) {
-      return OverallState.inProgress;
+  // Estado general en tiempo real según fases y evidencias obligatorias
+  ({String label, Color fg, Color bg, bool isPhotosPending, int completedAngles}) _effectiveStatus(
+    BuildContext context,
+    MachineModel m,
+  ) {
+    if (m.overallState == OverallState.inTransit) {
+      return (
+        label: 'En tránsito a obra',
+        fg: _Ui.info,
+        bg: _Ui.infoBg,
+        isPhotosPending: false,
+        completedAngles: 4,
+      );
     }
-    return OverallState.pending;
-  }
+    if (m.overallState == OverallState.delivered) {
+      return (
+        label: 'Entregada en sitio',
+        fg: _Ui.success,
+        bg: _Ui.successBg,
+        isPhotosPending: false,
+        completedAngles: 4,
+      );
+    }
 
-  ({String label, Color fg, Color bg}) _statusStyle(OverallState state) {
-    switch (state) {
-      case OverallState.pending:
-        return (label: 'Pendiente de inicio', fg: _Ui.warning, bg: _Ui.warningBg);
-      case OverallState.inProgress:
-        return (label: 'En alistamiento', fg: _Ui.info, bg: _Ui.infoBg);
-      case OverallState.completed:
-        return (label: 'Lista para despacho', fg: _Ui.success, bg: _Ui.successBg);
-      case OverallState.inTransit:
-        return (label: 'En tránsito a obra', fg: _Ui.info, bg: _Ui.infoBg);
-      case OverallState.delivered:
-        return (label: 'Entregada en sitio', fg: _Ui.success, bg: _Ui.successBg);
+    final allPhasesCompleted = _phases.isNotEmpty && _phases.every((p) => p.isCompleted);
+    final anyPhaseStarted = _phases.any((p) => p.isInProgress || p.isCompleted);
+
+    // Conteo de los 4 ángulos obligatorios
+    final evidenceProvider = context.watch<EvidenceProvider>();
+    final evidences = evidenceProvider.getEvidencesForMachine(m.id);
+    const mandatoryKeys = ['frontal', 'lateral', 'cabina', 'serial'];
+    final completedAngles = mandatoryKeys.where((key) {
+      return evidences.any((e) {
+        final lowerUrl = e.url.toLowerCase();
+        final lowerObs = (e.observations ?? '').toLowerCase();
+        return lowerUrl.contains(key) || lowerObs.contains(key);
+      });
+    }).length;
+    final allAnglesCompleted = completedAngles >= mandatoryKeys.length;
+
+    // Regla MaquiTrace: Solo está Lista para despacho si terminó fases Y tiene los 4 ángulos
+    if (allPhasesCompleted && allAnglesCompleted) {
+      return (
+        label: 'Lista para despacho',
+        fg: _Ui.success,
+        bg: _Ui.successBg,
+        isPhotosPending: false,
+        completedAngles: completedAngles,
+      );
     }
+
+    // Fases mecánicas terminadas pero faltan fotos -> Pendiente de inspección fotográfica
+    if (allPhasesCompleted && !allAnglesCompleted) {
+      return (
+        label: 'Pendiente inspección ($completedAngles/4 fotos)',
+        fg: _Ui.warning,
+        bg: _Ui.warningBg,
+        isPhotosPending: true,
+        completedAngles: completedAngles,
+      );
+    }
+
+    if (anyPhaseStarted) {
+      return (
+        label: 'En alistamiento',
+        fg: _Ui.info,
+        bg: _Ui.infoBg,
+        isPhotosPending: false,
+        completedAngles: completedAngles,
+      );
+    }
+
+    // Fallback inteligente según el estado global de la máquina si _phases aún no está cargada
+    if (_phases.isEmpty) {
+      if (m.overallState == OverallState.completed) {
+        final isReady = m.isReadyForDispatch || allAnglesCompleted;
+        return (
+          label: isReady
+              ? 'Lista para despacho'
+              : 'Pendiente inspección ($completedAngles/4 fotos)',
+          fg: isReady ? _Ui.success : _Ui.warning,
+          bg: isReady ? _Ui.successBg : _Ui.warningBg,
+          isPhotosPending: !isReady,
+          completedAngles: completedAngles,
+        );
+      }
+      if (m.overallState == OverallState.inProgress) {
+        return (
+          label: 'En alistamiento',
+          fg: _Ui.info,
+          bg: _Ui.infoBg,
+          isPhotosPending: false,
+          completedAngles: completedAngles,
+        );
+      }
+    }
+
+    return (
+      label: 'Pendiente de inicio',
+      fg: _Ui.warning,
+      bg: _Ui.warningBg,
+      isPhotosPending: false,
+      completedAngles: completedAngles,
+    );
   }
 
   // Fases ordenadas: ensamblaje → lavado → pintura
@@ -137,7 +228,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final m = widget.machine;
-    final status = _statusStyle(_effectiveState(m));
+    final status = _effectiveStatus(context, m);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -163,10 +254,10 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildSummaryCard(m, status),
-                      const SizedBox(height: 14),
+                      _buildSummaryCard(context, m, status),
+                      const SizedBox(height: 16),
                       _buildEvidenceButtonCard(context, m),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       _buildProcessCard(m),
                     ],
                   ),
@@ -208,11 +299,6 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
             ),
           ),
           IconButton(
-            tooltip: 'Evidencias y Checklist',
-            onPressed: () => _openEvidenceChecklist(context, machine),
-            icon: const Icon(Icons.camera_alt_outlined, color: AppColors.accentBlue),
-          ),
-          IconButton(
             tooltip: 'Ver código QR',
             onPressed: () => _showMachineQrModal(context, machine),
             icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.textPrimary),
@@ -222,8 +308,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     );
   }
 
-  void _openEvidenceChecklist(BuildContext context, MachineModel machine) {
-    Navigator.of(context).push(
+  Future<void> _openEvidenceChecklist(BuildContext context, MachineModel machine) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EvidenceChecklistScreen(
           machineId: machine.id,
@@ -232,77 +318,249 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         ),
       ),
     );
+    if (context.mounted) {
+      context.read<EvidenceProvider>().fetchEvidences(machine.id);
+    }
   }
 
+  // --- Tarjeta de checklist fotográfico ---
   Widget _buildEvidenceButtonCard(BuildContext context, MachineModel machine) {
-    return InkWell(
-      onTap: () => _openEvidenceChecklist(context, machine),
-      borderRadius: BorderRadius.circular(_Ui.radius),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
+    final evidenceProvider = context.watch<EvidenceProvider>();
+    final evidences = evidenceProvider.getEvidencesForMachine(machine.id);
+    final isLoading = (evidenceProvider.isLoading && evidences.isEmpty) || _isLoadingPhases;
+
+    if (isLoading) {
+      return const SkeletonGroup(
+        child: MachineDetailEvidenceSkeleton(),
+      );
+    }
+
+    // Conteo de ángulos obligatorios cubiertos
+    const mandatoryKeys = ['frontal', 'lateral', 'cabina', 'serial'];
+    final completedCount = mandatoryKeys.where((key) {
+      return evidences.any((e) {
+        final lowerUrl = e.url.toLowerCase();
+        final lowerObs = (e.observations ?? '').toLowerCase();
+        return lowerUrl.contains(key) || lowerObs.contains(key);
+      });
+    }).length;
+
+    final isAllDone = completedCount >= mandatoryKeys.length;
+    final progress = (completedCount / mandatoryKeys.length).clamp(0.0, 1.0);
+    final missing = mandatoryKeys.length - completedCount;
+
+    final Color stateFg = isAllDone
+        ? _Ui.success
+        : completedCount > 0
+            ? _Ui.info
+            : _Ui.locked;
+    final Color stateBg = isAllDone
+        ? _Ui.successBg
+        : completedCount > 0
+            ? _Ui.infoBg
+            : _Ui.lockedBg;
+
+    final String subtitle = isAllDone
+        ? 'Los 4 ángulos obligatorios están capturados.'
+        : completedCount > 0
+            ? (missing == 1
+                ? 'Falta 1 ángulo obligatorio por capturar.'
+                : 'Faltan $missing ángulos obligatorios por capturar.')
+            : 'Aún sin fotos. Registra los 4 ángulos obligatorios.';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _Ui.surface,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: _Ui.border),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openEvidenceChecklist(context, machine),
           borderRadius: BorderRadius.circular(_Ui.radius),
-          border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.35)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accentBlue.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.inProgressTint,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.camera_alt_rounded,
-                color: AppColors.accentBlue,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Checklist y Evidencias',
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Cabecera
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: stateBg,
+                        borderRadius: BorderRadius.circular(_Ui.radius),
+                      ),
+                      child: Icon(
+                        isAllDone ? Icons.verified_rounded : Icons.camera_alt_rounded,
+                        color: stateFg,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Checklist y evidencias',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.35,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '$completedCount/${mandatoryKeys.length}',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: stateFg,
                         ),
                       ),
-                      SizedBox(width: 6),
-                      Icon(Icons.cloud_done_rounded, size: 14, color: AppColors.accentBlue),
-                    ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 14),
+
+                // Barra de progreso
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: _Ui.border,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isAllDone ? _Ui.success : _Ui.info,
+                    ),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Fotos de ángulos obligatorios en Oracle Cloud',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                ),
+
+                // Miniaturas si existen evidencias
+                if (evidences.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    height: 56,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: evidences.length,
+                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final ev = evidences[index];
+                        return InkWell(
+                          onTap: () {
+                            FullscreenImageViewer.openFromModel(context, ev);
+                          },
+                          borderRadius: BorderRadius.circular(_Ui.radiusSmall),
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: _Ui.lockedBg,
+                              borderRadius: BorderRadius.circular(_Ui.radiusSmall),
+                              border: Border.all(color: _Ui.border),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.network(
+                              ev.url,
+                              fit: BoxFit.cover,
+                              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                if (wasSynchronouslyLoaded) return child;
+                                return AnimatedOpacity(
+                                  opacity: frame == null ? 0 : 1,
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOut,
+                                  child: child,
+                                );
+                              },
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return const Center(
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.8,
+                                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentBlue),
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) => const Center(
+                                child: Icon(
+                                  Icons.image_not_supported_rounded,
+                                  size: 20,
+                                  color: _Ui.locked,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
-              ),
+
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: _Ui.divider),
+
+                // Pie: contador de evidencias + llamada a la acción
+                SizedBox(
+                  height: 44,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: evidences.isNotEmpty
+                            ? Text(
+                                evidences.length == 1
+                                    ? '1 evidencia registrada'
+                                    : '${evidences.length} evidencias registradas',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      Text(
+                        isAllDone ? 'Gestionar' : 'Completar checklist',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.accentBlue,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.accentBlue,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: AppColors.accentBlue,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -310,9 +568,18 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
 
   // --- Resumen de la máquina (con foto) ---
   Widget _buildSummaryCard(
+    BuildContext context,
     MachineModel machine,
-    ({String label, Color fg, Color bg}) status,
+    ({String label, Color fg, Color bg, bool isPhotosPending, int completedAngles}) status,
   ) {
+    if (_isLoadingPhases) {
+      return const SkeletonGroup(
+        child: MachineDetailSummarySkeleton(),
+      );
+    }
+
+    final heroTag = 'machine-photo-${machine.id}';
+
     return Container(
       decoration: BoxDecoration(
         color: _Ui.surface,
@@ -324,22 +591,68 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: 150,
-            child: Image.asset(
-              machine.displayImage,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: _Ui.lockedBg,
-                  child: const Center(
-                    child: Icon(
-                      Icons.precision_manufacturing_rounded,
-                      size: 56,
-                      color: _Ui.locked,
+            height: 180,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Hero(
+                  tag: heroTag,
+                  child: GestureDetector(
+                    onTap: () => _openMachinePhotoViewer(context, machine, heroTag),
+                    child: Image.asset(
+                      machine.displayImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: _Ui.lockedBg,
+                          child: const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.precision_manufacturing_rounded,
+                                  size: 44,
+                                  color: _Ui.locked,
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Sin imagen disponible',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: _Ui.locked,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                );
-              },
+                ),
+
+                // Pista de "toca para ampliar"
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.fullscreen_rounded,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Padding(
@@ -351,10 +664,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   machine.category,
                   style: const TextStyle(
                     fontSize: 13,
+                    fontWeight: FontWeight.w500,
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   machine.name,
                   style: const TextStyle(
@@ -364,41 +678,141 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    _buildChip(status.label, status.fg, status.bg, large: true),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: () => _copySerial(machine.serial),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Serial ${machine.serial}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                const SizedBox(height: 4),
+                InkWell(
+                  borderRadius: BorderRadius.circular(_Ui.radiusSmall),
+                  onTap: () => _copySerial(machine.serial),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(
+                                text: 'Serial  ',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
+                              TextSpan(
+                                text: machine.serial,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.copy_rounded, size: 16, color: _Ui.locked),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildChip(status.label, status.fg, status.bg, large: true),
+                if (status.isPhotosPending) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _Ui.warningBg,
+                      borderRadius: BorderRadius.circular(_Ui.radius),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: _Ui.warning, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Alistamiento terminado. Registra los 4 ángulos obligatorios para autorizar el despacho (${status.completedAngles}/4 listos).',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: _Ui.warning,
+                              fontWeight: FontWeight.w500,
+                              height: 1.4,
                             ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.copy_rounded, size: 16, color: _Ui.locked),
-                          ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Vista de pantalla completa de la foto principal de la máquina ---
+  void _openMachinePhotoViewer(BuildContext context, MachineModel machine, String heroTag) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        transitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return FadeTransition(
+            opacity: animation,
+            child: Scaffold(
+              backgroundColor: Colors.black,
+              body: SafeArea(
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Hero(
+                        tag: heroTag,
+                        child: InteractiveViewer(
+                          minScale: 0.8,
+                          maxScale: 4,
+                          child: Image.asset(
+                            machine.displayImage,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.precision_manufacturing_rounded,
+                              size: 64,
+                              color: Colors.white54,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        tooltip: 'Cerrar',
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                      ),
+                    ),
+                    Positioned(
+                      left: 16,
+                      bottom: 20,
+                      right: 16,
+                      child: Text(
+                        '${machine.name} · ${machine.serial}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -411,6 +825,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         const SnackBar(
           content: Text('Serial copiado'),
           duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
         ),
       );
   }
@@ -425,13 +840,13 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       padding: EdgeInsets.symmetric(horizontal: large ? 12 : 8, vertical: large ? 6 : 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(large ? 8 : 6),
+        borderRadius: BorderRadius.circular(_Ui.radiusSmall),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: large ? 13 : 12,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           color: fg,
         ),
       ),
@@ -469,7 +884,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     'Alistamiento',
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -478,7 +893,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   '$completedCount de $total fases',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: isAllDone ? _Ui.success : _Ui.info,
                   ),
                 ),
@@ -517,7 +932,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         decoration: BoxDecoration(
           color: _Ui.lockedBg,
           shape: BoxShape.circle,
-          border: Border.all(color: _Ui.border, width: 2),
+          border: Border.all(color: _Ui.border, width: 1.5),
         ),
         child: const Icon(Icons.lock_outline_rounded, size: 18, color: _Ui.locked),
       );
@@ -527,24 +942,15 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         width: size,
         height: size,
         decoration: const BoxDecoration(color: _Ui.success, shape: BoxShape.circle),
-        child: const Icon(Icons.check_rounded, size: 24, color: Colors.white),
+        child: const Icon(Icons.check_rounded, size: 22, color: Colors.white),
       );
     }
     if (phase.isInProgress) {
+      // Relleno sólido: se distingue de "pendiente" (aro) sin halos ni brillos
       return Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: _Ui.info,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: _Ui.info.withValues(alpha: 0.2),
-              spreadRadius: 4,
-              blurRadius: 0,
-            ),
-          ],
-        ),
+        decoration: const BoxDecoration(color: _Ui.info, shape: BoxShape.circle),
         child: Icon(_phaseIcon(phase), size: 20, color: Colors.white),
       );
     }
@@ -554,7 +960,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       decoration: BoxDecoration(
         color: _Ui.surface,
         shape: BoxShape.circle,
-        border: Border.all(color: _Ui.warning, width: 2),
+        border: Border.all(color: _Ui.warning, width: 1.5),
       ),
       child: Icon(_phaseIcon(phase), size: 20, color: _Ui.warning),
     );
@@ -579,8 +985,14 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         PhaseActionModal.show(
           context: context,
           machineId: widget.machine.id,
+          machineSerial: widget.machine.serial,
           phase: phase,
-          onPhaseUpdated: _loadPhases,
+          onPhaseUpdated: () {
+            _loadPhases();
+            if (context.mounted) {
+              context.read<EvidenceProvider>().fetchEvidences(widget.machine.id);
+            }
+          },
         );
       }
     }
@@ -591,7 +1003,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         children: [
           // Riel: nodo + línea que baja a la siguiente fase
           SizedBox(
-            width: 44,
+            width: 40,
             child: Column(
               children: [
                 const SizedBox(height: 2),
@@ -599,11 +1011,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                 if (!isLast)
                   Expanded(
                     child: Container(
-                      width: 3,
+                      width: 2,
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
                         color: phase.isCompleted ? _Ui.success : _Ui.border,
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(1),
                       ),
                     ),
                   ),
@@ -621,7 +1033,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                 children: [
                   InkWell(
                     onTap: open,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(_Ui.radiusSmall),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Row(
@@ -630,7 +1042,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                             child: Text(
                               phase.displayName,
                               style: TextStyle(
-                                fontSize: 17,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: isLocked ? _Ui.locked : AppColors.textPrimary,
                               ),
@@ -664,15 +1076,22 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   ] else ...[
                     if (hasObservations) ...[
                       const SizedBox(height: 10),
-                      Text(
-                        phase.observations!,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          height: 1.4,
-                          fontStyle: FontStyle.italic,
-                          color: AppColors.textPrimary,
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _Ui.lockedBg,
+                          borderRadius: BorderRadius.circular(_Ui.radius),
+                        ),
+                        child: Text(
+                          phase.observations!,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            height: 1.4,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
                     ],
@@ -715,25 +1134,22 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                         ),
                       )
                     else
-                      InkWell(
-                        onTap: open,
-                        borderRadius: BorderRadius.circular(6),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Ver detalle',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.accentBlue,
-                                ),
-                              ),
-                              Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.accentBlue),
-                            ],
-                          ),
+                      TextButton(
+                        onPressed: open,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.accentBlue,
+                          minimumSize: const Size(0, 44),
+                          padding: const EdgeInsets.only(right: 8),
+                          alignment: Alignment.centerLeft,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Ver detalle'),
+                            Icon(Icons.chevron_right_rounded, size: 20),
+                          ],
                         ),
                       ),
                   ],
@@ -755,6 +1171,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -781,6 +1198,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.accentBlue,
               foregroundColor: Colors.white,
+              minimumSize: const Size(0, 44),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(_Ui.radius),
               ),

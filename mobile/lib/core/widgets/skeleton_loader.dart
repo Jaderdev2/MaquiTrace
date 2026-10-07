@@ -515,3 +515,142 @@ class MachineCardSkeleton extends StatelessWidget {
     );
   }
 }
+
+// ============================================================================
+// SKELETON PARA LA TARJETA DE RESUMEN DE LA MÁQUINA (DETALLE DE MÁQUINA)
+// ============================================================================
+
+/// Esqueleto fiel a la tarjeta de resumen de máquina en MachineDetailScreen
+class MachineDetailSummarySkeleton extends StatelessWidget {
+  const MachineDetailSummarySkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Foto de cabecera de la máquina (180px)
+          const SkeletonBox(
+            width: double.infinity,
+            height: 180,
+            borderRadius: 0,
+          ),
+          // Contenido: Categoría, Nombre, Serial, Chip de estado
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Categoría
+                const SkeletonBox(width: 90, height: 13, borderRadius: 3),
+                const SizedBox(height: 8),
+                // Nombre de la máquina
+                const SkeletonBox(width: 200, height: 22, borderRadius: 4),
+                const SizedBox(height: 10),
+                // Serial
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    SkeletonBox(width: 140, height: 14, borderRadius: 3),
+                    SizedBox(width: 8),
+                    SkeletonBox(width: 16, height: 16, borderRadius: 3),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Chip de estado
+                const SkeletonBox(width: 130, height: 26, borderRadius: 6),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// SKELETON PARA LA TARJETA DE EVIDENCIAS Y CHECKLIST (DETALLE DE MÁQUINA)
+// ============================================================================
+
+/// Esqueleto fiel a la tarjeta enriquecida de evidencias con barra y miniaturas
+class MachineDetailEvidenceSkeleton extends StatelessWidget {
+  const MachineDetailEvidenceSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cabecera: Icono 44x44, títulos y chip de progreso
+          Row(
+            children: const [
+              SkeletonBox(width: 44, height: 44, borderRadius: 10),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        SkeletonBox(width: 135, height: 16, borderRadius: 4),
+                        Spacer(),
+                        SkeletonBox(width: 80, height: 22, borderRadius: 11),
+                      ],
+                    ),
+                    SizedBox(height: 6),
+                    SkeletonBox(width: 190, height: 12, borderRadius: 3),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Barra de progreso
+          const SkeletonBox(width: double.infinity, height: 5, borderRadius: 4),
+          const SizedBox(height: 12),
+
+          // Miniaturas de fotos (4 miniaturas cuadradas de 64x64)
+          Row(
+            children: const [
+              SkeletonBox(width: 64, height: 64, borderRadius: 10),
+              SizedBox(width: 8),
+              SkeletonBox(width: 64, height: 64, borderRadius: 10),
+              SizedBox(width: 8),
+              SkeletonBox(width: 64, height: 64, borderRadius: 10),
+              SizedBox(width: 8),
+              SkeletonBox(width: 64, height: 64, borderRadius: 10),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: const Color(0xFFEDF1F5)),
+          const SizedBox(height: 10),
+
+          // Fila inferior / estado OCI
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              SkeletonBox(width: 140, height: 12, borderRadius: 3),
+              SkeletonBox(width: 85, height: 12, borderRadius: 3),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
