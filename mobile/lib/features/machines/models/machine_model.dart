@@ -16,6 +16,8 @@ class MachineModel {
   final String assignedOperator;
   final String modelYear;
   final String? notes;
+  final int completedAnglesCount;
+  final bool hasAllMandatoryAngles;
 
   const MachineModel({
     required this.id,
@@ -31,7 +33,15 @@ class MachineModel {
     this.assignedOperator = 'Jhon R.',
     this.modelYear = '2023',
     this.notes,
+    this.completedAnglesCount = 0,
+    this.hasAllMandatoryAngles = false,
   });
+
+  bool get isReadyForDispatch =>
+      overallState == OverallState.completed && hasAllMandatoryAngles;
+
+  bool get isPendingPhotos =>
+      overallState == OverallState.completed && !hasAllMandatoryAngles;
 
   String get displayImage {
     if (imageAsset != null && imageAsset!.isNotEmpty) {
@@ -111,6 +121,21 @@ class MachineModel {
       }
     }
 
+    // Conteo de ángulos obligatorios a partir de evidencias
+    final dynamic evidenceRaw = json['evidence'] ?? json['evidences'];
+    final evidenceList = evidenceRaw is List ? evidenceRaw : const [];
+    const mandatoryKeys = ['frontal', 'lateral', 'cabina', 'serial'];
+    final completedAngles = mandatoryKeys.where((key) {
+      return evidenceList.any((item) {
+        if (item is Map) {
+          final url = (item['url'] ?? '').toString().toLowerCase();
+          final obs = (item['observations'] ?? '').toString().toLowerCase();
+          return url.contains(key) || obs.contains(key);
+        }
+        return false;
+      });
+    }).length;
+
     return MachineModel(
       id: json['id'] ?? '',
       name: json['model'] ?? json['name'] ?? 'Maquinaria',
@@ -124,6 +149,8 @@ class MachineModel {
       fuelPercent: json['fuelPercent'] ?? 75,
       modelYear: json['modelYear'] ?? '2023',
       notes: json['notes'],
+      completedAnglesCount: completedAngles,
+      hasAllMandatoryAngles: completedAngles >= mandatoryKeys.length,
     );
   }
 

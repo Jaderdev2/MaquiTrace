@@ -19,6 +19,11 @@ class EvidenceProvider extends ChangeNotifier {
   String? get successMessage => _successMessage;
 
   /// Obtiene las evidencias de una máquina específica
+  List<EvidenceModel> getEvidencesForMachine(String machineId) {
+    return _evidences.where((e) => e.machineId == machineId).toList();
+  }
+
+  /// Obtiene las evidencias de una fase específica
   List<EvidenceModel> getEvidencesForPhase(String? phaseId) {
     if (phaseId == null) return _evidences;
     return _evidences.where((e) => e.phaseId == phaseId).toList();

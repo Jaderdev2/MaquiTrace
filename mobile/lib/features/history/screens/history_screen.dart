@@ -144,14 +144,23 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   // ---------- Helpers de estado ----------
 
-  ({String label, Color fg, Color bg}) _stateStyle(OverallState state) {
-    switch (state) {
+  ({String label, Color fg, Color bg}) _stateStyle(MachineModel m) {
+    switch (m.overallState) {
       case OverallState.pending:
         return (label: 'Pendiente de inicio', fg: _Ui.warning, bg: _Ui.warningBg);
       case OverallState.inProgress:
         return (label: 'En alistamiento', fg: _Ui.info, bg: _Ui.infoBg);
       case OverallState.completed:
-        return (label: 'Lista para despacho', fg: _Ui.success, bg: _Ui.successBg);
+        if (m.hasAllMandatoryAngles) {
+          return (label: 'Lista para despacho', fg: _Ui.success, bg: _Ui.successBg);
+        }
+        return (
+          label: m.completedAnglesCount > 0
+              ? 'Pendiente fotos (${m.completedAnglesCount}/4)'
+              : 'Pendiente inspección',
+          fg: _Ui.warning,
+          bg: _Ui.warningBg,
+        );
       case OverallState.inTransit:
         return (label: 'En tránsito a obra', fg: _Ui.info, bg: _Ui.infoBg);
       case OverallState.delivered:
@@ -463,7 +472,7 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   // --- Fila del historial ---
   Widget _buildHistoryRow(MachineModel m) {
-    final st = _stateStyle(m.overallState);
+    final st = _stateStyle(m);
     final total = _totalPhases(m);
     final done = _completedPhases(m);
 
@@ -556,7 +565,7 @@ class _HistoryScreenState extends State<HistoryScreen>
   void _showHistoryDetailModal(BuildContext context, MachineModel m) {
     final total = _totalPhases(m);
     final done = _completedPhases(m);
-    final st = _stateStyle(m.overallState);
+    final st = _stateStyle(m);
 
     showModalBottomSheet(
       context: context,

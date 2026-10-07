@@ -93,7 +93,7 @@ class _MachinesScreenState extends State<MachinesScreen> {
       } else if (_selectedStatusFilter == 'Pendientes') {
         matchesStatus = m.overallState == OverallState.pending;
       } else if (_selectedStatusFilter == 'Listas') {
-        matchesStatus = m.overallState == OverallState.completed;
+        matchesStatus = m.overallState == OverallState.completed && m.hasAllMandatoryAngles;
       }
 
       return matchesSearch && matchesCat && matchesStatus;
@@ -639,9 +639,17 @@ class _MachinesScreenState extends State<MachinesScreen> {
         statusBg = const Color(0xFFFEF3C7);
         break;
       case OverallState.completed:
-        statusLabel = 'Lista para despacho';
-        statusColor = const Color(0xFF059669);
-        statusBg = const Color(0xFFECFDF5);
+        if (machine.hasAllMandatoryAngles) {
+          statusLabel = 'Lista para despacho';
+          statusColor = const Color(0xFF059669);
+          statusBg = const Color(0xFFECFDF5);
+        } else {
+          statusLabel = machine.completedAnglesCount > 0
+              ? 'Pendiente fotos (${machine.completedAnglesCount}/4)'
+              : 'Pendiente inspección';
+          statusColor = const Color(0xFFD97706);
+          statusBg = const Color(0xFFFEF3C7);
+        }
         break;
       case OverallState.inTransit:
         statusLabel = 'En tránsito';

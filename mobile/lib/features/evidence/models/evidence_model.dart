@@ -7,6 +7,7 @@ class EvidenceModel {
   final String uploadedBy;
   final String? uploaderName;
   final String? phaseName;
+  final String? observations;
   final DateTime createdAt;
 
   const EvidenceModel({
@@ -18,6 +19,7 @@ class EvidenceModel {
     required this.uploadedBy,
     this.uploaderName,
     this.phaseName,
+    this.observations,
     required this.createdAt,
   });
 
@@ -41,6 +43,7 @@ class EvidenceModel {
       uploadedBy: json['uploadedBy'] as String? ?? '',
       uploaderName: uploader,
       phaseName: phase,
+      observations: json['observations'] as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),

@@ -12,6 +12,7 @@ class PreviewEvidenceScreen extends StatefulWidget {
   final String angleTitle;
   final String? phaseId;
   final String? phaseName;
+  final String? angleKey;
   final CompressionResult compression;
   final bool isVideo;
 
@@ -21,6 +22,7 @@ class PreviewEvidenceScreen extends StatefulWidget {
     required this.machineId,
     required this.machineSerial,
     required this.angleTitle,
+    this.angleKey,
     this.phaseId,
     this.phaseName,
     required this.compression,
@@ -43,14 +45,18 @@ class _PreviewEvidenceScreenState extends State<PreviewEvidenceScreen> {
   Future<void> _handleConfirmUpload() async {
     final provider = context.read<EvidenceProvider>();
 
+    final angleTag = widget.angleKey != null ? '[angle:${widget.angleKey}] ' : '';
+    final notes = _notesController.text.trim();
+    final observations = notes.isNotEmpty
+        ? '$angleTag[${widget.angleTitle}] $notes'
+        : '$angleTag[${widget.angleTitle}] Evidencia capturada';
+
     final success = await provider.uploadEvidence(
       machineId: widget.machineId,
       file: widget.compression.file,
       phaseId: widget.phaseId,
       type: widget.isVideo ? 'video' : 'foto',
-      observations: _notesController.text.trim().isNotEmpty
-          ? '[${widget.angleTitle}] ${_notesController.text.trim()}'
-          : '[${widget.angleTitle}] Evidencia capturada',
+      observations: observations,
     );
 
     if (!mounted) return;

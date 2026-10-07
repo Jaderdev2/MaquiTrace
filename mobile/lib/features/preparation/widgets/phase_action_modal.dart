@@ -1,7 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../models/preparation_phase_model.dart';
 import '../services/preparation_service.dart';
+import '../../evidence/models/evidence_model.dart';
+import '../../evidence/providers/evidence_provider.dart';
+import '../../evidence/services/image_compression_service.dart';
+import '../../evidence/screens/preview_evidence_screen.dart';
+import '../../evidence/widgets/fullscreen_image_viewer.dart';
 
 /// Paleta del sheet (la misma que usa la pantalla de detalle de máquina).
 class _Ui {
@@ -20,17 +29,22 @@ class _Ui {
   static const errorBg = Color(0xFFFEF2F2);
   static const errorBorder = Color(0xFFFCA5A5);
 
+  static const locked = Color(0xFF64748B);
+  static const lockedBg = Color(0xFFF1F5F9);
+
   static const double radius = 10;
 }
 
 class PhaseActionModal extends StatefulWidget {
   final String machineId;
+  final String? machineSerial;
   final PreparationPhaseModel phase;
   final VoidCallback onPhaseUpdated;
 
   const PhaseActionModal({
     super.key,
     required this.machineId,
+    this.machineSerial,
     required this.phase,
     required this.onPhaseUpdated,
   });
@@ -38,6 +52,7 @@ class PhaseActionModal extends StatefulWidget {
   static Future<void> show({
     required BuildContext context,
     required String machineId,
+    String? machineSerial,
     required PreparationPhaseModel phase,
     required VoidCallback onPhaseUpdated,
   }) {
@@ -48,6 +63,7 @@ class PhaseActionModal extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => PhaseActionModal(
         machineId: machineId,
+        machineSerial: machineSerial,
         phase: phase,
         onPhaseUpdated: onPhaseUpdated,
       ),
@@ -78,6 +94,21 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
   void dispose() {
     _obsController.dispose();
     super.dispose();
+  }
+
+  List<EvidenceModel> _getPhaseEvidences(BuildContext context) {
+    final evidenceProvider = context.watch<EvidenceProvider>();
+    final allEvidences = evidenceProvider.getEvidencesForMachine(widget.machineId);
+    return allEvidences.where((e) {
+      if (e.phaseId != null && (e.phaseId == widget.phase.id || e.phaseId == widget.phase.name)) {
+        return true;
+      }
+      if (e.phaseName != null && e.phaseName!.toLowerCase().contains(widget.phase.name.toLowerCase())) {
+        return true;
+      }
+      final obs = (e.observations ?? '').toLowerCase();
+      return obs.contains(widget.phase.name.toLowerCase());
+    }).toList();
   }
 
   Future<void> _updateStatus(String newStatus) async {
@@ -112,7 +143,6 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
           ),
         );
       } else {
-        // Fallback local simulado para cuando el backend está fuera de línea
         widget.onPhaseUpdated();
         Navigator.pop(context);
       }
@@ -160,6 +190,199 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
     }
   }
 
+  /// Flujo para capturar y subir foto de evidencia vinculada a esta fase
+  Future<void> _pickAndUploadPhoto({bool completeAfter = false}) async {
+    final picker = ImagePicker();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Seleccionar origen de la foto',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.accentBlue),
+                title: const Text('Tomar foto con la cámara'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: AppColors.accentBlue),
+                title: const Text('Elegir de la galería'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 90,
+      maxWidth: 1920,
+      maxHeight: 1920,
+    );
+
+    if (picked == null || !mounted) return;
+
+    final rawFile = File(picked.path);
+    final phaseCleanName = widget.phase.name.toLowerCase().replaceAll(' ', '_');
+    final compressed = await ImageCompressionService.compressImage(
+      rawFile,
+      filenamePrefix: 'fase_$phaseCleanName',
+    );
+
+    if (!mounted) return;
+
+    final uploaded = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PreviewEvidenceScreen(
+          file: rawFile,
+          machineId: widget.machineId,
+          machineSerial: widget.machineSerial ?? 'S/N',
+          angleTitle: 'Fase ${widget.phase.displayName}',
+          phaseId: widget.phase.id,
+          phaseName: widget.phase.displayName,
+          compression: compressed,
+        ),
+      ),
+    );
+
+    if (uploaded == true && mounted) {
+      await context.read<EvidenceProvider>().fetchEvidences(widget.machineId);
+      widget.onPhaseUpdated();
+
+      if (completeAfter) {
+        _updateStatus('completada');
+      }
+    }
+  }
+
+  /// Confirmación inteligente antes de finalizar fase si aún no hay fotos
+  void _onPressCompletePhase(List<EvidenceModel> phaseEvidences) {
+    if (phaseEvidences.isNotEmpty) {
+      _updateStatus('completada');
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _Ui.handle,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.inProgressTint,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: AppColors.accentBlue,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      '¿Adjuntar foto de evidencia?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Se recomienda capturar una foto del trabajo terminado en esta fase como constancia y respaldo en Oracle Cloud.',
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndUploadPhoto(completeAfter: true);
+                },
+                icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                label: const Text('Tomar foto y finalizar'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accentBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(_Ui.radius),
+                  ),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _updateStatus('completada');
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: _Ui.handle),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(_Ui.radius),
+                  ),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                child: const Text('Finalizar sin foto'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   IconData _phaseIcon(PreparationPhaseModel phase) {
     final n = phase.name.toLowerCase();
     if (n.contains('lav')) return Icons.water_drop_rounded;
@@ -168,7 +391,6 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
     return Icons.settings_rounded;
   }
 
-  // Mismo indicador circular que la línea de tiempo de la pantalla.
   Widget _buildNode(PreparationPhaseModel phase) {
     const double size = 44;
     if (phase.isCompleted) {
@@ -302,7 +524,147 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
     );
   }
 
-  Widget _buildActions(PreparationPhaseModel phase) {
+  /// Sección de fotos de evidencia de esta fase
+  Widget _buildEvidenceSection(List<EvidenceModel> phaseEvidences) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _Ui.mutedSurface,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: _Ui.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.camera_alt_rounded, size: 18, color: AppColors.accentBlue),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Evidencia Fotográfica',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              if (phaseEvidences.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _Ui.successBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${phaseEvidences.length} registrada(s)',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _Ui.success,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          if (phaseEvidences.isNotEmpty) ...[
+            SizedBox(
+              height: 64,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: phaseEvidences.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final ev = phaseEvidences[index];
+                  return InkWell(
+                    onTap: () => FullscreenImageViewer.openFromModel(context, ev),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _Ui.border),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            ev.url,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: _Ui.lockedBg,
+                              child: const Icon(Icons.broken_image, size: 20, color: _Ui.locked),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.zoom_in, color: Colors.white, size: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _pickAndUploadPhoto(completeAfter: false),
+                icon: const Icon(Icons.add_a_photo_rounded, size: 16),
+                label: const Text('Añadir otra foto'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentBlue,
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ] else ...[
+            const Text(
+              'Aún no hay fotos registradas para esta fase. Puedes tomar una foto ahora como evidencia del avance.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => _pickAndUploadPhoto(completeAfter: false),
+              icon: const Icon(Icons.camera_alt_outlined, size: 18),
+              label: const Text('Tomar foto de la fase'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.accentBlue,
+                side: const BorderSide(color: AppColors.accentBlue),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActions(PreparationPhaseModel phase, List<EvidenceModel> phaseEvidences) {
     if (phase.isPending) {
       return _primaryButton(
         action: 'en_proceso',
@@ -324,7 +686,7 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
             loadingLabel: 'Finalizando...',
             icon: Icons.check_circle_rounded,
             color: _Ui.success,
-            onPressed: () => _updateStatus('completada'),
+            onPressed: () => _onPressCompletePhase(phaseEvidences),
           ),
           const SizedBox(height: 10),
           _secondaryButton(
@@ -351,6 +713,7 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final phase = widget.phase;
+    final phaseEvidences = _getPhaseEvidences(context);
 
     return Container(
       decoration: const BoxDecoration(
@@ -422,6 +785,10 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
               ),
               const SizedBox(height: 20),
 
+              // Sección de Evidencias de la Fase
+              _buildEvidenceSection(phaseEvidences),
+              const SizedBox(height: 20),
+
               // Observaciones
               const Text(
                 'Observaciones',
@@ -490,7 +857,7 @@ class _PhaseActionModalState extends State<PhaseActionModal> {
               ],
 
               const SizedBox(height: 20),
-              _buildActions(phase),
+              _buildActions(phase, phaseEvidences),
             ],
           ),
         ),

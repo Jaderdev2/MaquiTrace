@@ -42,13 +42,15 @@ class ImageCompressionService {
     int quality = 80,
     int minWidth = 1600,
     int minHeight = 1200,
+    String filenamePrefix = 'evidence',
   }) async {
     final originalBytes = await originalFile.length();
 
     try {
       final tempDir = await getTemporaryDirectory();
+      final cleanPrefix = filenamePrefix.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
       final targetPath =
-          '${tempDir.path}/evidence_compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          '${tempDir.path}/${cleanPrefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       final XFile? compressedXFile = await FlutterImageCompress.compressAndGetFile(
         originalFile.absolute.path,

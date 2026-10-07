@@ -116,14 +116,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ---------- Helpers de estado ----------
 
-  ({String label, Color fg, Color bg}) _stateStyle(OverallState state) {
-    switch (state) {
+  ({String label, Color fg, Color bg}) _stateStyle(MachineModel m) {
+    switch (m.overallState) {
       case OverallState.pending:
         return (label: 'Pendiente de inicio', fg: _Ui.warning, bg: _Ui.warningBg);
       case OverallState.inProgress:
         return (label: 'En alistamiento', fg: _Ui.info, bg: _Ui.infoBg);
       case OverallState.completed:
-        return (label: 'Lista para despacho', fg: _Ui.success, bg: _Ui.successBg);
+        if (m.hasAllMandatoryAngles) {
+          return (label: 'Lista para despacho', fg: _Ui.success, bg: _Ui.successBg);
+        }
+        return (
+          label: m.completedAnglesCount > 0
+              ? 'Pendiente fotos (${m.completedAnglesCount}/4)'
+              : 'Pendiente inspección',
+          fg: _Ui.warning,
+          bg: _Ui.warningBg,
+        );
       case OverallState.inTransit:
         return (label: 'En tránsito a obra', fg: _Ui.info, bg: _Ui.infoBg);
       case OverallState.delivered:
@@ -131,19 +140,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Lo que requiere atención va primero: en alistamiento, pendientes, listas.
-  int _priority(OverallState state) {
-    switch (state) {
+  // Lo que requiere atención va primero: en alistamiento, pendientes, pendientes de fotos, listas.
+  int _priority(MachineModel m) {
+    switch (m.overallState) {
       case OverallState.inProgress:
         return 0;
       case OverallState.pending:
         return 1;
       case OverallState.completed:
-        return 2;
+        return m.hasAllMandatoryAngles ? 3 : 2;
       case OverallState.inTransit:
-        return 3;
-      case OverallState.delivered:
         return 4;
+      case OverallState.delivered:
+        return 5;
     }
   }
 
@@ -191,8 +200,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final ordered = [
-      for (var p = 0; p <= 4; p++)
-        ...machines.where((m) => _priority(m.overallState) == p),
+      for (var p = 0; p <= 5; p++)
+        ...machines.where((m) => _priority(m) == p),
     ];
 
     return SafeArea(
@@ -648,7 +657,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMachineRow(MachineModel machine) {
-    final st = _stateStyle(machine.overallState);
+    final st = _stateStyle(machine);
     return InkWell(
       onTap: () => _openMachine(machine),
       child: Padding(
