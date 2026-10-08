@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -48,22 +49,69 @@ class _HomeScreenState extends State<HomeScreen> {
   final MachinesService _machinesService = MachinesService();
   List<MachineModel> _dashboardMachines = [];
   bool _isLoadingDashboard = true;
+  Timer? _retryTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadDashboardMachines();
+    _initDashboard();
   }
 
-  Future<void> _loadDashboardMachines() async {
-    setState(() => _isLoadingDashboard = true);
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initDashboard() async {
+    // 1. Mostrar de inmediato la caché de máquinas reales si existe en disco
+    final cached = await _machinesService.getCachedMachines();
+    if (cached.isNotEmpty && mounted) {
+      setState(() {
+        _dashboardMachines = cached;
+        _isLoadingDashboard = false;
+      });
+    }
+    // 2. Consultar al backend en vivo para sincronizar cambios
+    await _loadDashboardMachines();
+  }
+
+  Future<void> _loadDashboardMachines({bool isAutoRetry = false}) async {
+    if (_dashboardMachines.isEmpty && !isAutoRetry) {
+      setState(() => _isLoadingDashboard = true);
+    }
     try {
       final list = await _machinesService.search();
       if (list.isNotEmpty && mounted) {
-        setState(() => _dashboardMachines = list);
+        setState(() {
+          _dashboardMachines = list;
+          _isLoadingDashboard = false;
+        });
       }
-    } catch (_) {}
-    if (mounted) setState(() => _isLoadingDashboard = false);
+      // Si la respuesta provino en vivo del backend, cancelar reintentos
+      if (_machinesService.isLastFetchLive) {
+        _retryTimer?.cancel();
+        _retryTimer = null;
+      } else {
+        // El servidor aún está en frío/despertando: programar reintento automático
+        _scheduleAutoRetry();
+      }
+    } catch (_) {
+      _scheduleAutoRetry();
+    } finally {
+      if (mounted && _isLoadingDashboard) {
+        setState(() => _isLoadingDashboard = false);
+      }
+    }
+  }
+
+  void _scheduleAutoRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) {
+        _loadDashboardMachines(isAutoRetry: true);
+      }
+    });
   }
 
   @override
@@ -187,9 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ? _capitalize(user!.role.trim())
         : 'Operario de alistamiento';
 
-    final machines = _dashboardMachines.isNotEmpty
-        ? _dashboardMachines
-        : MachinesService.localCatalog;
+    final machines = _dashboardMachines;
 
     MachineModel? activeMachine;
     for (final m in machines) {

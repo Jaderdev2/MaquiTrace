@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -70,34 +71,64 @@ class _HistoryScreenState extends State<HistoryScreen>
     _skeletonAnimation = Tween<double>(begin: 0.45, end: 0.9).animate(
       CurvedAnimation(parent: _skeletonController, curve: Curves.easeInOut),
     );
-    _loadFromBackend();
+    _initHistory();
   }
+
+  Timer? _retryTimer;
 
   @override
   void dispose() {
+    _retryTimer?.cancel();
     _skeletonController.dispose();
     _pageController.dispose();
     _tabScrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadFromBackend() async {
-    setState(() => _isLoading = true);
+  Future<void> _initHistory() async {
+    final cached = await _machinesService.getCachedMachines();
+    if (cached.isNotEmpty && mounted) {
+      setState(() {
+        _apiMachines = cached;
+        _isLoading = false;
+      });
+    }
+    await _loadFromBackend();
+  }
+
+  Future<void> _loadFromBackend({bool isAutoRetry = false}) async {
+    if (_apiMachines.isEmpty && !isAutoRetry) {
+      setState(() => _isLoading = true);
+    }
     try {
       final backendList = await _machinesService.search();
       if (backendList.isNotEmpty && mounted) {
         setState(() {
           _apiMachines = backendList;
+          _isLoading = false;
         });
       }
+      if (_machinesService.isLastFetchLive) {
+        _retryTimer?.cancel();
+        _retryTimer = null;
+      } else {
+        _scheduleAutoRetry();
+      }
     } catch (_) {
-      // Si falla, el getter _allMachines recurre al localCatalog
+      _scheduleAutoRetry();
+    } finally {
+      if (mounted && _isLoading) setState(() => _isLoading = false);
     }
-    if (mounted) setState(() => _isLoading = false);
   }
 
-  List<MachineModel> get _allMachines =>
-      _apiMachines.isNotEmpty ? _apiMachines : MachinesService.localCatalog;
+  void _scheduleAutoRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) _loadFromBackend(isAutoRetry: true);
+    });
+  }
+
+  List<MachineModel> get _allMachines => _apiMachines;
 
   List<MachineModel> _getMachinesForTab(String tab) {
     switch (tab) {

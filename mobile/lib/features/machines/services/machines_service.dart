@@ -129,8 +129,48 @@ class MachinesService {
     return match.isNotEmpty ? match.first : null;
   }
 
+  static const String _cacheKey = 'cached_machines_json';
+  bool _isLastFetchLive = false;
+
+  /// Indica si la última consulta provino del backend en vivo (HTTP 200) o de caché/fallback
+  bool get isLastFetchLive => _isLastFetchLive;
+
+  Future<void> _saveCache(String jsonString) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cacheKey, jsonString);
+    } catch (_) {}
+  }
+
+  /// Obtiene las máquinas reales guardadas en la última sesión exitosa
+  Future<List<MachineModel>> getCachedMachines({String? serial, String? category}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedStr = prefs.getString(_cacheKey);
+      if (cachedStr != null && cachedStr.isNotEmpty) {
+        final List<dynamic> list = jsonDecode(cachedStr);
+        final machines = list
+            .map((item) => MachineModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+        if (machines.isNotEmpty) {
+          return machines.where((m) {
+            final matchesSerial = serial == null ||
+                serial.isEmpty ||
+                m.serial.toUpperCase().contains(serial.toUpperCase());
+            final matchesCat = category == null ||
+                category == 'Todas' ||
+                m.category.toLowerCase().contains(category.toLowerCase());
+            return matchesSerial && matchesCat;
+          }).toList();
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
   /// Búsqueda y listado de máquinas con filtro opcional de serial y categoría
   Future<List<MachineModel>> search({String? serial, String? category}) async {
+    _isLastFetchLive = false;
     final token = await _getToken();
     final headers = _buildHeaders(token);
     final queryParams = <String, String>{};
@@ -147,12 +187,22 @@ class MachinesService {
     for (final base in candidateUrls) {
       try {
         final uri = Uri.parse('$base/machines').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-        final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 4));
+        // En la nube (Render) damos 12 segundos para tolerar el arranque en frío (cold start)
+        final timeoutDuration = base.startsWith('https://')
+            ? const Duration(seconds: 12)
+            : const Duration(seconds: 4);
+
+        final res = await http.get(uri, headers: headers).timeout(timeoutDuration);
 
         if (res.statusCode == 200) {
           ApiConstants.setActiveBaseUrl(base);
           final List<dynamic> list = jsonDecode(res.body);
           if (list.isNotEmpty) {
+            _isLastFetchLive = true;
+            // Guardar en caché local si es la consulta general completa
+            if (queryParams.isEmpty) {
+              _saveCache(res.body);
+            }
             return list.map((item) => MachineModel.fromJson(item as Map<String, dynamic>)).toList();
           }
         }
@@ -163,7 +213,13 @@ class MachinesService {
       }
     }
 
-    // Fallback al catálogo local si no se pudo conectar al backend
+    // 1. Fallback a la caché local de máquinas reales antes de mostrar catálogo ficticio
+    final cached = await getCachedMachines(serial: serial, category: category);
+    if (cached.isNotEmpty) {
+      return cached;
+    }
+
+    // 2. Solo si es una instalación limpia sin internet ni historial previo
     return localCatalog.where((m) {
       final matchesSerial = serial == null || serial.isEmpty || m.serial.toUpperCase().contains(serial.toUpperCase());
       final matchesCat = category == null || category == 'Todas' || m.category.toLowerCase().contains(category.toLowerCase());

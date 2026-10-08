@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -39,37 +40,70 @@ class _MachinesScreenState extends State<MachinesScreen> {
   ];
 
   bool _isLoading = true;
+  Timer? _retryTimer;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
-    _loadFromBackend();
+    _initMachines();
   }
 
   @override
   void dispose() {
+    _retryTimer?.cancel();
     _searchController.dispose();
     _categoryScrollController.dispose();
     _pageController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadFromBackend() async {
-    setState(() => _isLoading = true);
+  Future<void> _initMachines() async {
+    // 1. Cargar caché inmediatamente si existe
+    final cached = await _machinesService.getCachedMachines();
+    if (cached.isNotEmpty && mounted) {
+      setState(() {
+        _apiMachines = cached;
+        _isLoading = false;
+      });
+    }
+    // 2. Consultar backend para sincronizar
+    await _loadFromBackend();
+  }
+
+  Future<void> _loadFromBackend({bool isAutoRetry = false}) async {
+    if (_apiMachines.isEmpty && !isAutoRetry) {
+      setState(() => _isLoading = true);
+    }
     try {
       final backendList = await _machinesService.search();
       if (backendList.isNotEmpty && mounted) {
         setState(() {
           _apiMachines = backendList;
+          _isLoading = false;
         });
       }
-    } catch (_) {}
-    if (mounted) setState(() => _isLoading = false);
+      if (_machinesService.isLastFetchLive) {
+        _retryTimer?.cancel();
+        _retryTimer = null;
+      } else {
+        _scheduleAutoRetry();
+      }
+    } catch (_) {
+      _scheduleAutoRetry();
+    } finally {
+      if (mounted && _isLoading) setState(() => _isLoading = false);
+    }
   }
 
-  List<MachineModel> get _allMachines =>
-      _apiMachines.isNotEmpty ? _apiMachines : MachinesService.localCatalog;
+  void _scheduleAutoRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) _loadFromBackend(isAutoRetry: true);
+    });
+  }
+
+  List<MachineModel> get _allMachines => _apiMachines;
 
   bool _matchesCategory(MachineModel m, String category) {
     if (category == 'Todas') return true;
