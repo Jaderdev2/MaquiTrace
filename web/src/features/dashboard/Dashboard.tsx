@@ -5,7 +5,7 @@ import type { Machine, PreparationPhase } from '../../types';
 import { Sidebar } from '../../components/Sidebar';
 import { Navbar } from '../../components/Navbar';
 import { MachineDetailModal } from '../../components/MachineDetailModal';
-import { getMachinePrimaryPhoto } from '../../utils/evidence';
+import { getMachineProfileImage } from '../../utils/evidence';
 import {
   Layers,
   Clock,
@@ -433,7 +433,7 @@ export const Dashboard: React.FC = () => {
                           })
                         : '';
 
-                      const machinePhoto = getMachinePrimaryPhoto(machine);
+                      const profilePhoto = getMachineProfileImage(machine);
 
                       return (
                         <tr key={machine.id}>
@@ -441,11 +441,11 @@ export const Dashboard: React.FC = () => {
                             <div className="machine-cell-visual">
                               <div
                                 className="machine-thumb-box"
-                                title={machinePhoto ? 'Foto de inspección cargada desde app móvil' : 'Sin foto cargada'}
+                                title={profilePhoto ? `Evidencia en OCI: ${machine.model}` : 'Sin foto cargada'}
                               >
-                                {machinePhoto ? (
+                                {profilePhoto ? (
                                   <img
-                                    src={machinePhoto}
+                                    src={profilePhoto}
                                     alt={machine.model}
                                     className="machine-thumb-img"
                                     loading="lazy"
@@ -460,7 +460,7 @@ export const Dashboard: React.FC = () => {
                                 <div
                                   className="machine-thumb-fallback"
                                   style={{
-                                    display: machinePhoto ? 'none' : 'flex',
+                                    display: profilePhoto ? 'none' : 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     width: '100%',

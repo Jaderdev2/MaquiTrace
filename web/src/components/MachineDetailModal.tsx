@@ -8,12 +8,15 @@ import {
   Camera,
   Calendar,
   Wrench,
-  Truck,
   ExternalLink,
   Maximize2,
   User,
+  Truck,
 } from 'lucide-react';
-import { getMachinePrimaryPhoto, getEvidenceAngleLabel } from '../utils/evidence';
+import {
+  getMachineProfileImage,
+  getEvidenceAngleLabel,
+} from '../utils/evidence';
 
 interface Props {
   machine: Machine | null;
@@ -25,7 +28,7 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
 
   if (!machine) return null;
 
-  const primaryPhoto = getMachinePrimaryPhoto(machine);
+  const profilePhoto = getMachineProfileImage(machine);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -58,41 +61,11 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        {/* Header con foto real de la máquina */}
+        {/* Cabecera del modal */}
         <div className="modal-header">
-          <div className="modal-title-box">
-            <div className="modal-machine-thumb">
-              {primaryPhoto ? (
-                <img
-                  src={primaryPhoto}
-                  alt={machine.model}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    const parent = e.currentTarget.parentElement;
-                    const fallback = parent?.querySelector('.modal-thumb-fallback');
-                    if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div
-                className="modal-thumb-fallback"
-                style={{
-                  display: primaryPhoto ? 'none' : 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '100%',
-                  height: '100%',
-                }}
-              >
-                <Truck size={22} />
-              </div>
-            </div>
-
-            <div className="serial-tag">{machine.serial}</div>
-            <div>
-              <h3>{machine.model}</h3>
-              <span className="modal-subtitle">Categoría: {machine.category}</span>
-            </div>
+          <div className="modal-header-title">
+            <h3>Ficha Técnica del Equipo</h3>
+            <span className="modal-header-sub">Detalle operativo e inspección de maquinaria</span>
           </div>
           <button className="btn-close" onClick={onClose} aria-label="Cerrar modal">
             <X size={20} />
@@ -100,7 +73,62 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
         </div>
 
         <div className="modal-body">
-          {/* Status summary */}
+          {/* FOTO GRANDE DEL EQUIPO CON SU NOMBRE ABAJO */}
+          <div className="machine-showcase-hero">
+            <div className="machine-showcase-media">
+              {profilePhoto ? (
+                <>
+                  <img
+                    src={profilePhoto}
+                    alt={machine.model}
+                    className="machine-showcase-image"
+                    onClick={() => setSelectedPhoto(profilePhoto)}
+                    title="Haz clic para ver imagen en alta resolución"
+                  />
+                  <div className="machine-showcase-badges-top">
+                    <span className="badge-photo-source">
+                      <Camera size={13} /> Foto de Inspección (Oracle Cloud)
+                    </span>
+                    <button
+                      className="btn-showcase-zoom"
+                      onClick={() => setSelectedPhoto(profilePhoto)}
+                      title="Ampliar imagen completa"
+                    >
+                      <Maximize2 size={16} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="machine-showcase-empty">
+                  <div className="empty-machine-icon-box">
+                    <Truck size={48} />
+                  </div>
+                  <span className="empty-machine-text">
+                    Sin foto de inspección registrada en Oracle Cloud
+                  </span>
+                  <span className="empty-machine-sub">
+                    Las fotos que los operarios tomen desde la app móvil se mostrarán aquí en gran tamaño.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Nombre y detalles de la máquina directamente abajo de la imagen grande */}
+            <div className="machine-showcase-footer">
+              <div className="showcase-titles-box">
+                <div className="showcase-serial-pill">{machine.serial}</div>
+                <div>
+                  <h2 className="showcase-machine-name">{machine.model}</h2>
+                  <span className="showcase-category-label">Categoría: {machine.category}</span>
+                </div>
+              </div>
+              <div className="showcase-status-box">
+                {getStatusBadge(machine.status)}
+              </div>
+            </div>
+          </div>
+
+          {/* Resumen de estados y métricas */}
           <div className="detail-status-bar">
             <div>
               <span className="detail-label">Estado actual:</span>
@@ -156,7 +184,7 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
             </div>
           </div>
 
-          {/* Galería de Evidencias Fotográficas vinculadas a la máquina */}
+          {/* Galería de Evidencias Fotográficas vinculadas en OCI */}
           <div className="section-block">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h4 className="section-title">
@@ -230,7 +258,7 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
                 <strong>Sin evidencias fotográficas aún</strong>
                 <p>
                   Cuando los operarios capturen los 4 ángulos de inspección (Vista Frontal, Vista Lateral,
-                  Cabina y Serial) desde la app móvil, se guardarán en Oracle Cloud y aparecerán aquí automáticamente.
+                  Cabina y Serial) desde la app móvil, se sincronizarán aquí automáticamente.
                 </p>
               </div>
             )}

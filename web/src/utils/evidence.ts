@@ -1,16 +1,13 @@
 import type { Machine, Evidence } from '../types';
 
 /**
- * Obtiene la imagen principal representativa de una máquina.
- * Prioriza:
- * 1. Evidencia con etiqueta o URL de 'frontal' (ángulo frontal requerido en app)
- * 2. Cualquier evidencia de tipo 'foto'
- * 3. Primera evidencia disponible
+ * Obtiene la imagen de evidencia principal tomada por operarios y almacenada en el backend / OCI.
+ * Retorna null si la máquina aún no tiene evidencias fotográficas registradas en el backend.
  */
 export function getMachinePrimaryPhoto(machine: Machine): string | null {
   if (!machine.evidence || machine.evidence.length === 0) return null;
 
-  // 1. Priorizar foto frontal
+  // 1. Priorizar foto frontal registrada desde la app móvil
   const frontal = machine.evidence.find((e) => {
     const isPhoto = e.type === 'foto' || !e.type;
     const urlMatches = e.url.toLowerCase().includes('frontal');
@@ -19,12 +16,20 @@ export function getMachinePrimaryPhoto(machine: Machine): string | null {
   });
   if (frontal) return frontal.url;
 
-  // 2. Cualquier foto
+  // 2. Cualquier otra foto registrada
   const anyPhoto = machine.evidence.find((e) => e.type === 'foto' || !e.type);
   if (anyPhoto) return anyPhoto.url;
 
-  // 3. Primer archivo multimedia registrado
+  // 3. Primer archivo multimedia registrado en backend
   return machine.evidence[0]?.url || null;
+}
+
+/**
+ * Obtiene la foto de perfil de la máquina 100% proveniente del backend (Oracle Cloud).
+ * Retorna null si no tiene fotos subidas por operarios.
+ */
+export function getMachineProfileImage(machine: Machine): string | null {
+  return getMachinePrimaryPhoto(machine);
 }
 
 /**

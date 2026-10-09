@@ -37,57 +37,184 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid #E2E8F0;
   background-color: #FAFAFA;
 }
 
-.modal-title-box {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.modal-machine-thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  background-color: #EFF6FF;
-  border: 1px solid #BFDBFE;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #0066FF;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.modal-machine-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.serial-tag {
-  font-family: inherit;
-  font-weight: 700;
-  font-size: 13.5px;
-  padding: 6px 12px;
-  background: #0066FF;
-  color: #FFFFFF;
-  border-radius: 8px;
-}
-
-.modal-header h3 {
-  font-size: 17px;
+.modal-header-title h3 {
+  font-size: 16px;
   font-weight: 700;
   color: #0F172A;
   margin: 0;
 }
 
-.modal-subtitle {
+.modal-header-sub {
   font-size: 12px;
   color: #64748B;
+  display: block;
+  margin-top: 2px;
+}
+
+/* Showcase Hero con Imagen Grande de Maquinaria */
+.machine-showcase-hero {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.machine-showcase-media {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  background: linear-gradient(180deg, #F8FAFC 0%, #EEF2F6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.machine-showcase-image {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  transition: transform 0.25s ease;
+  cursor: pointer;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.12));
+}
+
+.machine-showcase-image:hover {
+  transform: scale(1.03);
+}
+
+.machine-showcase-badges-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+
+.badge-photo-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+  pointer-events: auto;
+}
+
+.btn-showcase-zoom {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  pointer-events: auto;
+}
+
+.btn-showcase-zoom:hover {
+  background: #0066FF;
+  transform: scale(1.08);
+}
+
+.machine-showcase-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  text-align: center;
+  gap: 8px;
+}
+
+.empty-machine-icon-box {
+  width: 76px;
+  height: 76px;
+  border-radius: 16px;
+  background-color: #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  margin-bottom: 4px;
+}
+
+.empty-machine-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.empty-machine-sub {
+  font-size: 12px;
+  color: #64748B;
+  max-width: 380px;
+  line-height: 1.4;
+}
+
+.machine-showcase-footer {
+  padding: 16px 20px;
+  background: #FFFFFF;
+  border-top: 1px solid #F1F5F9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.showcase-titles-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.showcase-serial-pill {
+  font-size: 13.5px;
+  font-weight: 800;
+  background: #0066FF;
+  color: #FFFFFF;
+  padding: 6px 14px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.showcase-machine-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.showcase-category-label {
+  font-size: 13px;
+  color: #64748B;
+  font-weight: 500;
+  display: block;
+  margin-top: 3px;
+}
+
+.showcase-status-box {
+  flex-shrink: 0;
 }
 
 .btn-close {
