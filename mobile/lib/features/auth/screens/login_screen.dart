@@ -26,6 +26,14 @@ class _LoginScreenState extends State<LoginScreen> {
   int _welcomeTapCount = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().checkBiometricStatus();
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -51,41 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      final user = authProvider.currentUser;
-
-      if (user != null && user.isTransportador) {
-        // Redirección para Transportador
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const TransportHomeScreen()),
-        );
-      } else if (user != null && user.isAdmin) {
-        // Notificación para Administrador
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Cuenta de Administrador'),
-            content: const Text(
-              'Has iniciado sesión con el rol de Administrador. La gestión global y supervisión está disponible en la Plataforma Web.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  );
-                },
-                child: const Text('Continuar a la App Móvil'),
-              ),
-            ],
-          ),
-        );
-      } else {
-        // Redirección para Operario (predeterminado)
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
+      _navigateAfterLogin();
     } else {
       // Mostrar mensaje de error si las credenciales fallan
       final error = authProvider.errorMessage ?? 'Error al iniciar sesión';
@@ -109,6 +83,75 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(10),
           ),
         ),
+      );
+    }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.loginWithBiometrics();
+    if (!mounted) return;
+
+    if (success) {
+      _navigateAfterLogin();
+    } else if (authProvider.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  authProvider.errorMessage!,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.primaryNavy,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+
+  void _navigateAfterLogin() {
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.currentUser;
+
+    if (user != null && user.isTransportador) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const TransportHomeScreen()),
+      );
+    } else if (user != null && user.isAdmin) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Cuenta de Administrador'),
+          content: const Text(
+            'Has iniciado sesión con el rol de Administrador. La gestión global y supervisión está disponible en la Plataforma Web.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              },
+              child: const Text('Continuar a la App Móvil'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     }
   }
@@ -332,6 +375,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         ),
                       ),
+                      // Botón Ingresar con huella si el dispositivo la soporta, está activada y hay credenciales
+                      if (authProvider.canUseBiometric &&
+                          authProvider.isBiometricEnabled &&
+                          authProvider.hasSavedCredentials) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: OutlinedButton.icon(
+                            onPressed: authProvider.isLoading ? null : _handleBiometricLogin,
+                            icon: const Icon(Icons.fingerprint_rounded, size: 24, color: AppColors.primaryNavy),
+                            label: const Text(
+                              'Ingresar con huella dactilar',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryNavy,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
 
                       // Accesos rápidos para desarrollo y pruebas (ocultos por defecto para mantener la vista limpia)

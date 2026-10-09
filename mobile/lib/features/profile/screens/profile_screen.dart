@@ -36,8 +36,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _biometricAuth = true;
-
   String _capitalize(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
@@ -136,9 +134,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildSwitchRow(
                 icon: Icons.fingerprint_rounded,
                 title: 'Acceso biométrico',
-                subtitle: 'Ingreso rápido con huella o reconocimiento facial',
-                value: _biometricAuth,
-                onChanged: (val) => setState(() => _biometricAuth = val),
+                subtitle: authProvider.canUseBiometric
+                    ? (authProvider.isBiometricEnabled
+                        ? 'Activado: ingreso rápido con huella'
+                        : 'Desactivado: toca para activar')
+                    : 'No disponible en este dispositivo',
+                value: authProvider.canUseBiometric && authProvider.isBiometricEnabled,
+                onChanged: authProvider.canUseBiometric
+                    ? (val) => _handleToggleBiometric(val, authProvider)
+                    : null,
               ),
               _buildTile(
                 icon: Icons.support_agent_rounded,
@@ -387,12 +391,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _handleToggleBiometric(bool val, AuthProvider authProvider) async {
+    if (!val) {
+      await authProvider.toggleBiometric(false);
+      return;
+    }
+
+    String? password;
+    if (!authProvider.hasSavedCredentials) {
+      final user = authProvider.currentUser;
+      if (user == null) return;
+      password = await _showPasswordPromptDialog();
+      if (password == null || password.isEmpty) return;
+    }
+
+    final success = await authProvider.toggleBiometric(
+      true,
+      email: authProvider.currentUser?.email,
+      password: password,
+    );
+    if (!mounted) return;
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo verificar la huella dactilar'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _showPasswordPromptDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirmar contraseña', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ingresa tu contraseña actual para vincular tu huella dactilar.',
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              obscureText: true,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Contraseña',
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                prefixIcon: const Icon(Icons.lock_outline),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accentBlue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSwitchRow({
     required IconData icon,
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    ValueChanged<bool>? onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
