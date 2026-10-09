@@ -23,6 +23,8 @@ class AuthService {
       try {
         final url = Uri.parse('$base/auth/login');
         debugPrint('[AuthService] Intentando login en: $url');
+        final isCloud = base.contains('onrender.com') || base.startsWith('https://');
+        final timeoutDuration = isCloud ? const Duration(seconds: 28) : const Duration(seconds: 4);
         final response = await http
             .post(
               url,
@@ -32,7 +34,7 @@ class AuthService {
                 'password': password,
               }),
             )
-            .timeout(const Duration(seconds: 4));
+            .timeout(timeoutDuration);
 
         debugPrint('[AuthService] Respuesta de $base: HTTP ${response.statusCode}');
         // Si el servidor respondió (cualquier código HTTP), encontramos el backend activo
@@ -50,7 +52,7 @@ class AuthService {
 
     if (lastResponse == null) {
       throw AuthException(
-        'No se pudo conectar con el servidor backend.\nVerifica que esté corriendo en tu computador.',
+        'No se pudo conectar con el servidor.\nVerifica tu conexión a internet o intenta nuevamente.',
       );
     }
 
