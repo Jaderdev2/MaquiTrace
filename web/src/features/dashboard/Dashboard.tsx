@@ -5,6 +5,7 @@ import type { Machine, PreparationPhase } from '../../types';
 import { Sidebar } from '../../components/Sidebar';
 import { Navbar } from '../../components/Navbar';
 import { MachineDetailModal } from '../../components/MachineDetailModal';
+import { getMachinePrimaryPhoto } from '../../utils/evidence';
 import {
   Layers,
   Clock,
@@ -432,16 +433,66 @@ export const Dashboard: React.FC = () => {
                           })
                         : '';
 
+                      const machinePhoto = getMachinePrimaryPhoto(machine);
+
                       return (
                         <tr key={machine.id}>
                           <td>
                             <div className="machine-cell-visual">
-                              <div className="machine-thumb-box">
-                                <Truck size={20} />
+                              <div
+                                className="machine-thumb-box"
+                                title={machinePhoto ? 'Foto de inspección cargada desde app móvil' : 'Sin foto cargada'}
+                              >
+                                {machinePhoto ? (
+                                  <img
+                                    src={machinePhoto}
+                                    alt={machine.model}
+                                    className="machine-thumb-img"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      const parent = e.currentTarget.parentElement;
+                                      const fallback = parent?.querySelector('.machine-thumb-fallback');
+                                      if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                <div
+                                  className="machine-thumb-fallback"
+                                  style={{
+                                    display: machinePhoto ? 'none' : 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '100%',
+                                    height: '100%',
+                                  }}
+                                >
+                                  <Truck size={20} />
+                                </div>
                               </div>
                               <div className="machine-text-names">
                                 <span className="machine-model-name">{machine.model}</span>
-                                <span className="machine-tag-sub">{machine.category}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span className="machine-tag-sub">{machine.category}</span>
+                                  {machine.evidence && machine.evidence.length > 0 && (
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px',
+                                        fontSize: '10px',
+                                        color: '#0284C7',
+                                        backgroundColor: '#E0F2FE',
+                                        padding: '1px 5px',
+                                        borderRadius: '4px',
+                                        fontWeight: 600,
+                                      }}
+                                      title={`${machine.evidence.length} evidencia(s) registradas`}
+                                    >
+                                      <Camera size={10} /> {machine.evidence.length}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>
