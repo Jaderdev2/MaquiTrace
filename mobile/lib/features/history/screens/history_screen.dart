@@ -24,7 +24,6 @@ class _Ui {
   static const locked = Color(0xFF64748B);
   static const lockedBg = Color(0xFFF1F5F9);
 
-  static const double radius = 10;
   static const double pagePadding = 16;
 }
 
@@ -672,15 +671,20 @@ class _HistoryScreenState extends State<HistoryScreen>
                 ),
                 const SizedBox(height: 8),
 
-                // Datos de la máquina
+                // Datos reales de la máquina en MaquiTrace
                 const Divider(height: 1, color: _Ui.divider),
-                _buildMetricRow('Sede operativa', m.location.split('·').first.trim()),
+                _buildMetricRow('Categoría', m.category),
                 const Divider(height: 1, color: _Ui.divider),
-                _buildMetricRow('Horas de operación', m.operatingHours),
-                const Divider(height: 1, color: _Ui.divider),
-                _buildMetricRow('Nivel de combustible', '${m.fuelPercent}%'),
+                _buildMetricRow('Número de serial', m.serial),
                 const Divider(height: 1, color: _Ui.divider),
                 _buildMetricRow('Operario asignado', m.assignedOperator),
+                const Divider(height: 1, color: _Ui.divider),
+                _buildMetricRow(
+                  'Inspección fotográfica',
+                  m.completedAnglesCount >= 4
+                      ? '4/4 ángulos obligatorios'
+                      : '${m.completedAnglesCount}/4 ángulos capturados',
+                ),
                 const Divider(height: 1, color: _Ui.divider),
                 const SizedBox(height: 20),
 
@@ -725,10 +729,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                           .then((_) => _loadFromBackend());
                     },
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primaryNavy,
+                      backgroundColor: AppColors.accentBlue,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(_Ui.radius),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                     ),
