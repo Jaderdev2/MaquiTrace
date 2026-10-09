@@ -68,6 +68,13 @@ export interface Machine {
   createdAt?: string;
 }
 
+export interface CreateMachineDto {
+  category: string;
+  serial: string;
+  model: string;
+  status?: MachineStatus;
+}
+
 export interface LoginResponse {
   accessToken: string;
   user: User;

@@ -1,4 +1,4 @@
-import type { Evidence, LoginResponse, Machine } from '../types';
+import type { CreateMachineDto, Evidence, LoginResponse, Machine } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://maquitrace-backend.onrender.com/api/v1';
 
@@ -69,4 +69,32 @@ export async function fetchMachineEvidenceApi(machineId: string, token: string):
 
   const data = await response.json();
   return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Registro de nueva maquinaria en el backend NestJS (Neon PostgreSQL).
+ * Endpoint: POST /api/v1/machines (requiere Bearer Token)
+ */
+export async function createMachineApi(
+  payload: CreateMachineDto,
+  token: string
+): Promise<Machine> {
+  const response = await fetch(`${API_BASE_URL}/machines`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const message = Array.isArray(errorData.message)
+      ? errorData.message.join(', ')
+      : errorData.message || `Error ${response.status}: no se pudo registrar la máquina.`;
+    throw new Error(message);
+  }
+
+  return await response.json();
 }
