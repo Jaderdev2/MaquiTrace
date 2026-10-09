@@ -599,36 +599,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   tag: heroTag,
                   child: GestureDetector(
                     onTap: () => _openMachinePhotoViewer(context, machine, heroTag),
-                    child: Image.asset(
-                      machine.displayImage,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: _Ui.lockedBg,
-                          child: const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.precision_manufacturing_rounded,
-                                  size: 44,
-                                  color: _Ui.locked,
-                                ),
-                                SizedBox(height: 6),
-                                Text(
-                                  'Sin imagen disponible',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: _Ui.locked,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    child: machine.buildImage(fit: BoxFit.cover),
                   ),
                 ),
 
@@ -773,15 +744,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                         child: InteractiveViewer(
                           minScale: 0.8,
                           maxScale: 4,
-                          child: Image.asset(
-                            machine.displayImage,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) => const Icon(
-                              Icons.precision_manufacturing_rounded,
-                              size: 64,
-                              color: Colors.white54,
-                            ),
-                          ),
+                          child: machine.buildImage(fit: BoxFit.contain),
                         ),
                       ),
                     ),

@@ -7,6 +7,15 @@ export interface CreateMachineDto {
   serial: string;
   model: string;
   status?: MachineStatus;
+  imageUrl?: string;
+}
+
+export interface UpdateMachineDto {
+  category?: string;
+  serial?: string;
+  model?: string;
+  status?: MachineStatus;
+  imageUrl?: string;
 }
 
 @Injectable()
@@ -84,6 +93,21 @@ export class MachinesService {
         serial: dto.serial,
         model: dto.model,
         status: dto.status || MachineStatus.pendiente,
+        imageUrl: dto.imageUrl || null,
+      },
+    });
+  }
+
+  async update(id: string, dto: UpdateMachineDto) {
+    await this.findById(id);
+    return this.prisma.machine.update({
+      where: { id },
+      data: {
+        category: dto.category,
+        serial: dto.serial,
+        model: dto.model,
+        status: dto.status,
+        imageUrl: dto.imageUrl !== undefined ? dto.imageUrl : undefined,
       },
     });
   }

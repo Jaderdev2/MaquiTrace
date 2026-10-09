@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CreateMachineDto, MachinesService } from './machines.service';
+import { CreateMachineDto, MachinesService, UpdateMachineDto } from './machines.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MachineStatus } from '@prisma/client';
 
@@ -23,6 +23,11 @@ export class MachinesController {
   @Post()
   async create(@Body() dto: CreateMachineDto) {
     return this.machinesService.create(dto);
+  }
+
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() dto: UpdateMachineDto) {
+    return this.machinesService.update(id, dto);
   }
 
   @Get(':id')

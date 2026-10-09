@@ -250,17 +250,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       child: SizedBox(
         width: size,
         height: size,
-        child: Image.asset(
-          m.displayImage,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: _Ui.lockedBg,
-            child: const Icon(
-              Icons.precision_manufacturing_rounded,
-              color: _Ui.locked,
-            ),
-          ),
-        ),
+        child: m.buildImage(fit: BoxFit.cover),
       ),
     );
   }

@@ -438,19 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: SizedBox(
         width: size,
         height: size,
-        child: Image.asset(
-          machine.displayImage,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: _Ui.lockedBg,
-              child: const Icon(
-                Icons.precision_manufacturing_rounded,
-                color: _Ui.locked,
-              ),
-            );
-          },
-        ),
+        child: machine.buildImage(fit: BoxFit.cover),
       ),
     );
   }

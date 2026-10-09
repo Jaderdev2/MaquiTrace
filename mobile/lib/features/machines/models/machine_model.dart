@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 enum PhaseState { pending, inProgress, completed }
 
 enum OverallState { pending, inProgress, completed, inTransit, delivered }
@@ -9,6 +11,7 @@ class MachineModel {
   final String category;
   final OverallState overallState;
   final List<PhaseState> phases; // [Inspección, Lavado, Torque/Pruebas, Evidencias]
+  final String? imageUrl; // URL de la foto/avatar subida desde la Web
   final String? imageAsset;
   final String location;
   final String operatingHours;
@@ -26,6 +29,7 @@ class MachineModel {
     required this.category,
     required this.overallState,
     required this.phases,
+    this.imageUrl,
     this.imageAsset,
     this.location = 'Sede Buenaventura · Patio 2 (B-04)',
     this.operatingHours = '3,420 h',
@@ -43,10 +47,9 @@ class MachineModel {
   bool get isPendingPhotos =>
       overallState == OverallState.completed && !hasAllMandatoryAngles;
 
-  String get displayImage {
-    if (imageAsset != null && imageAsset!.isNotEmpty) {
-      return imageAsset!;
-    }
+  bool get hasCustomImage => imageUrl != null && imageUrl!.trim().isNotEmpty;
+
+  String get categoryAsset {
     final cat = category.toLowerCase();
     if (cat.contains('motoniveladora') || cat.contains('niveladora')) {
       return 'assets/images/categories/motoniveladora.webp';
@@ -60,6 +63,47 @@ class MachineModel {
       return 'assets/images/categories/Excavadoras.webp';
     }
     return 'assets/images/categories/Excavadoras.webp';
+  }
+
+  String get displayImage {
+    if (imageAsset != null && imageAsset!.isNotEmpty) {
+      return imageAsset!;
+    }
+    return categoryAsset;
+  }
+
+  /// Renderiza la imagen de la máquina:
+  /// 1. Si tiene foto/avatar personalizada (`imageUrl`), carga desde red con fallback.
+  /// 2. Si no tiene, usa la ilustración correspondiente a su categoría.
+  Widget buildImage({BoxFit fit = BoxFit.cover, Widget? placeholder}) {
+    if (hasCustomImage) {
+      return Image.network(
+        imageUrl!,
+        fit: fit,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return placeholder ??
+              Container(
+                color: const Color(0xFFF1F5F9),
+                child: const Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+        },
+        errorBuilder: (context, error, stackTrace) => Image.asset(
+          displayImage,
+          fit: fit,
+        ),
+      );
+    }
+    return Image.asset(
+      displayImage,
+      fit: fit,
+    );
   }
 
   factory MachineModel.fromJson(Map<String, dynamic> json) {
@@ -148,6 +192,7 @@ class MachineModel {
       operatingHours: json['operatingHours'] ?? '3,420 h',
       fuelPercent: json['fuelPercent'] ?? 75,
       modelYear: json['modelYear'] ?? '2023',
+      imageUrl: json['imageUrl'] as String?,
       notes: json['notes'],
       completedAnglesCount: completedAngles,
       hasAllMandatoryAngles: completedAngles >= mandatoryKeys.length,
@@ -162,6 +207,7 @@ class MachineModel {
       'category': category,
       'status': overallState.name,
       'assignedOperator': assignedOperator,
+      'imageUrl': imageUrl,
     };
   }
 }

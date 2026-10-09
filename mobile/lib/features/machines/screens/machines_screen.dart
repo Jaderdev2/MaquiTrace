@@ -729,18 +729,18 @@ class _MachinesScreenState extends State<MachinesScreen> {
                 width: 60,
                 height: 60,
                 color: const Color(0xFFEFF6FF),
-                child: Image.asset(
-                  machine.displayImage,
+                child: machine.buildImage(
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: const Color(0xFFEFF6FF),
-                      child: const Icon(
-                        Icons.precision_manufacturing_rounded,
-                        color: AppColors.accentBlue,
+                  placeholder: Container(
+                    color: const Color(0xFFEFF6FF),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentBlue),
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ),
             ),
