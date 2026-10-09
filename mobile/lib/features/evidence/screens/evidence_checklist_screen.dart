@@ -229,15 +229,7 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
     }
   }
 
-  // ───────────────────────────── UI ─────────────────────────────
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.cardBorder),
-    );
-  }
+  // ───────────────────────────── UI REDISEÑADA (UI/UX PRO MAX) ─────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +255,7 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceGrey,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
@@ -281,6 +273,7 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
                 color: AppColors.textPrimary,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(height: 2),
@@ -288,7 +281,8 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
               '${widget.machineSerial} · ${widget.machineModel}',
               style: const TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 13,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -297,15 +291,15 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary, size: 22),
             tooltip: 'Actualizar',
             onPressed: () => provider.fetchEvidences(widget.machineId),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
         ),
       ),
       body: provider.isLoading && allEvidences.isEmpty
@@ -317,255 +311,344 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
               color: AppColors.accentBlue,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 24 + bottomInset),
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 32 + bottomInset),
                 children: [
-                  _buildProgressCard(completedAngles, progress),
-                  const SizedBox(height: 24),
+                  // 1. Tarjeta resumen de inspección con barra segmentada
+                  _buildInspectionSummaryCard(completedAngles, progress, allEvidences),
+                  const SizedBox(height: 20),
 
-                  const Text(
-                    'Fotos obligatorias',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                      color: AppColors.textPrimary,
-                    ),
+                  // 2. Módulo unificado de checklist técnico (4 ángulos obligatorios)
+                  _buildSectionHeader(
+                    title: 'Inspección técnica obligatoria',
+                    subtitle: 'Los 4 ángulos son indispensables para certificar el activo',
                   ),
+                  const SizedBox(height: 10),
+                  _buildChecklistModule(allEvidences),
+                  const SizedBox(height: 28),
+
+                  // 3. Galería y archivo de evidencias registradas
+                  _buildGalleryHeader(allEvidences.length),
                   const SizedBox(height: 12),
-
-                  ..._angles.map(
-                    (angle) => _buildAngleCard(
-                      angle,
-                      _findEvidenceForAngle(allEvidences, angle),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Encabezado de la galería + acción de subir desde galería
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Evidencias registradas (${allEvidences.length})',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: _pickFromGallery,
-                        icon: const Icon(Icons.photo_library_outlined, size: 18),
-                        label: const Text(
-                          'Subir de galería',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.accentBlue,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Filtros horizontales
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterChip('todos', 'Todas'),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('ensamblaje', 'Ensamblaje'),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('lavado', 'Lavado'),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('pintura', 'Pintura'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  _buildPhaseFilterRow(),
+                  const SizedBox(height: 14),
 
                   if (evidences.isEmpty)
-                    _buildEmptyState()
+                    _buildEmptyGalleryState()
                   else
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.85,
-                      ),
-                      itemCount: evidences.length,
-                      itemBuilder: (context, index) {
-                        final item = evidences[index];
-                        return _buildEvidenceGridCard(item);
-                      },
-                    ),
+                    _buildEvidenceGrid(evidences),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildProgressCard(int completed, double progress) {
-    final isComplete = progress == 1.0;
-    final accent = isComplete ? AppColors.statusGreen : AppColors.accentBlue;
+  /// Encabezado de sección con estilo industrial sobrio
+  Widget _buildSectionHeader({required String title, required String subtitle}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Tarjeta de resumen de inspección con indicador segmentado de 4 pasos
+  Widget _buildInspectionSummaryCard(int completed, double progress, List<EvidenceModel> allEvidences) {
+    final isComplete = completed == _angles.length;
     final missing = _angles.length - completed;
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Progreso del checklist',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Text(
-                '$completed de ${_angles.length}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: accent,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: AppColors.surfaceVariant,
-              valueColor: AlwaysStoppedAnimation<Color>(accent),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            isComplete
-                ? 'Todos los ángulos obligatorios están registrados.'
-                : missing == 1
-                    ? 'Falta 1 foto para certificar el estado del activo.'
-                    : 'Faltan $missing fotos para certificar el estado del activo.',
-            style: TextStyle(
-              fontSize: 13,
-              color: isComplete ? AppColors.statusGreen : AppColors.textSecondary,
-            ),
-          ),
-        ],
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-    );
-  }
-
-  Widget _buildAngleCard(RequiredAngle angle, EvidenceModel? evidence) {
-    final ev = evidence;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildAngleThumb(angle, ev),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      angle.title,
-                      style: const TextStyle(
+                    const Text(
+                      'ESTADO DE CERTIFICACIÓN',
+                      style: TextStyle(
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: AppColors.textPrimary,
+                        letterSpacing: 0.8,
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
-                      angle.description,
+                      isComplete
+                          ? 'Listo para despacho'
+                          : 'Pendiente de fotos obligatorias',
                       style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.3,
-                        color: AppColors.textSecondary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (ev != null)
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => FullscreenImageViewer.openFromModel(context, ev),
-                    icon: const Icon(Icons.visibility_outlined, size: 18),
-                    label: const Text('Ver'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.accentBlue,
-                      side: BorderSide(color: AppColors.inputBorder),
-                      minimumSize: const Size.fromHeight(44),
-                      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isComplete ? const Color(0xFFE8F5EC) : const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  isComplete ? '4 de 4 completas' : '$completed de 4 completas',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isComplete ? const Color(0xFF15803D) : const Color(0xFFB45309),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _captureEvidence(angle: angle),
-                    icon: const Icon(Icons.cached_rounded, size: 18),
-                    label: const Text('Retomar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      side: BorderSide(color: AppColors.inputBorder),
-                      minimumSize: const Size.fromHeight(44),
-                      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Barra segmentada de 4 pasos visuales (1 por cada ángulo)
+          Row(
+            children: List.generate(_angles.length, (index) {
+              final angle = _angles[index];
+              final hasEvidence = _findEvidenceForAngle(allEvidences, angle) != null;
+              final isLast = index == _angles.length - 1;
+
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: isLast ? 0 : 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: hasEvidence ? const Color(0xFF15803D) : const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        angle.title.replaceFirst('Vista ', ''),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: hasEvidence ? FontWeight.w600 : FontWeight.w400,
+                          color: hasEvidence ? const Color(0xFF15803D) : AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isComplete
+                ? 'Todos los ángulos reglamentarios han sido registrados y validados.'
+                : missing == 1
+                    ? 'Falta 1 fotografía para completar el protocolo de alistamiento.'
+                    : 'Faltan $missing fotografías para completar el protocolo de alistamiento.',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Módulo unificado que contiene las 4 filas del checklist en un único bloque limpio
+  Widget _buildChecklistModule(List<EvidenceModel> allEvidences) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: List.generate(_angles.length, (index) {
+          final angle = _angles[index];
+          final evidence = _findEvidenceForAngle(allEvidences, angle);
+          final isLast = index == _angles.length - 1;
+
+          return Column(
+            children: [
+              _buildChecklistRow(angle, evidence),
+              if (!isLast)
+                const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9), indent: 76),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  /// Fila de cada ángulo obligatorio dentro del módulo unificado
+  Widget _buildChecklistRow(RequiredAngle angle, EvidenceModel? evidence) {
+    final isDone = evidence != null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Miniatura o placeholder del ángulo (área táctil accesible)
+          GestureDetector(
+            onTap: isDone ? () => FullscreenImageViewer.openFromModel(context, evidence) : () => _captureEvidence(angle: angle),
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: isDone ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDone ? const Color(0xFF15803D).withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
+                  width: 1,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: isDone
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          evidence.url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const Center(
+                            child: Icon(Icons.broken_image_rounded, size: 20, color: AppColors.textMuted),
+                          ),
+                        ),
+                        Positioned(
+                          right: 2,
+                          bottom: 2,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF15803D),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check, color: Colors.white, size: 10),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Icon(angle.icon, color: AppColors.textSecondary, size: 24),
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Textos informativos
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        angle.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
+                    if (isDone)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5EC),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Registrada',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF15803D),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  angle.description,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    height: 1.25,
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Botones de acción ergonómicos (mínimo 48dp de alto)
+          if (isDone)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Ver foto completa',
+                  onPressed: () => FullscreenImageViewer.openFromModel(context, evidence),
+                  icon: const Icon(Icons.visibility_outlined, size: 20, color: AppColors.textSecondary),
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 48),
+                ),
+                IconButton(
+                  tooltip: 'Tomar de nuevo',
+                  onPressed: () => _captureEvidence(angle: angle),
+                  icon: const Icon(Icons.restart_alt_rounded, size: 20, color: AppColors.accentBlue),
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 48),
                 ),
               ],
             )
           else
             SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
+              height: 38,
+              child: FilledButton.icon(
                 onPressed: () => _captureEvidence(angle: angle),
-                icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                label: const Text('Tomar foto'),
-                style: ElevatedButton.styleFrom(
+                icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                label: const Text('Tomar'),
+                style: FilledButton.styleFrom(
                   backgroundColor: AppColors.accentBlue,
                   foregroundColor: Colors.white,
-                  elevation: 0,
-                  minimumSize: const Size.fromHeight(44),
-                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -574,62 +657,126 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
     );
   }
 
-  Widget _buildAngleThumb(RequiredAngle angle, EvidenceModel? evidence) {
-    final ev = evidence;
-
-    return GestureDetector(
-      onTap: ev != null ? () => FullscreenImageViewer.openFromModel(context, ev) : null,
-      child: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(10),
+  /// Encabezado de galería con botón de subir desde galería
+  Widget _buildGalleryHeader(int count) {
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              const Text(
+                'Evidencias registradas',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: ev != null
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    ev.url,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Icon(Icons.image_outlined, color: AppColors.textMuted),
-                    ),
-                  ),
-                  Positioned(
-                    right: 4,
-                    bottom: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        color: AppColors.statusGreen,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.check, color: Colors.white, size: 12),
-                    ),
-                  ),
-                ],
-              )
-            : Icon(angle.icon, color: AppColors.textSecondary, size: 28),
+        OutlinedButton.icon(
+          onPressed: _pickFromGallery,
+          icon: const Icon(Icons.photo_library_outlined, size: 16),
+          label: const Text('Subir foto'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.accentBlue,
+            side: const BorderSide(color: Color(0xFFCBD5E1)),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Fila de filtros por fase con diseño sobrio y moderno
+  Widget _buildPhaseFilterRow() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildFilterChip('todos', 'Todas'),
+          const SizedBox(width: 8),
+          _buildFilterChip('ensamblaje', 'Ensamblaje'),
+          const SizedBox(width: 8),
+          _buildFilterChip('lavado', 'Lavado'),
+          const SizedBox(width: 8),
+          _buildFilterChip('pintura', 'Pintura'),
+        ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildFilterChip(String key, String label) {
+    final isSelected = _selectedPhaseFilter == key;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedPhaseFilter = key),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accentBlue : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppColors.accentBlue : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Estado vacío limpio y técnico
+  Widget _buildEmptyGalleryState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
       child: Column(
         children: [
-          const Icon(Icons.photo_camera_outlined, size: 36, color: AppColors.textMuted),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.photo_camera_outlined, size: 28, color: AppColors.textSecondary),
+          ),
           const SizedBox(height: 12),
           Text(
             _selectedPhaseFilter == 'todos'
-                ? 'Aún no hay evidencias'
-                : 'No hay evidencias en esta fase',
+                ? 'Sin evidencias capturadas'
+                : 'Sin evidencias en fase de $_selectedPhaseFilter',
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 15,
@@ -638,8 +785,8 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Toma una foto desde el checklist o súbela desde la galería.',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            'Usa el checklist de arriba o el botón "Subir foto" para adjuntar imágenes.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -647,29 +794,22 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
     );
   }
 
-  Widget _buildFilterChip(String key, String label) {
-    final isSelected = _selectedPhaseFilter == key;
-    return ChoiceChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          color: isSelected ? Colors.white : AppColors.textSecondary,
-        ),
+  /// Grid de evidencias fotográficas registradas
+  Widget _buildEvidenceGrid(List<EvidenceModel> evidences) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.84,
       ),
-      selected: isSelected,
-      onSelected: (_) => setState(() => _selectedPhaseFilter = key),
-      selectedColor: AppColors.accentBlue,
-      backgroundColor: Colors.white,
-      showCheckmark: false,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isSelected ? AppColors.accentBlue : AppColors.inputBorder,
-        ),
-      ),
+      itemCount: evidences.length,
+      itemBuilder: (context, index) {
+        final item = evidences[index];
+        return _buildEvidenceGridCard(item);
+      },
     );
   }
 
@@ -681,7 +821,11 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
     return GestureDetector(
       onTap: () => FullscreenImageViewer.openFromModel(context, item),
       child: Container(
-        decoration: _cardDecoration(),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -696,11 +840,11 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
                       return Container(
-                        color: AppColors.surfaceVariant,
+                        color: const Color(0xFFF1F5F9),
                         child: const Center(
                           child: SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                               color: AppColors.accentBlue,
                               strokeWidth: 2,
@@ -711,14 +855,13 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
                     },
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        color: AppColors.surfaceVariant,
+                        color: const Color(0xFFF1F5F9),
                         child: const Center(
                           child: Icon(Icons.broken_image_outlined, color: AppColors.textMuted),
                         ),
                       );
                     },
                   ),
-                  // Solo se marca cuando es video; las fotos no necesitan etiqueta
                   if (item.isVideo)
                     Positioned(
                       top: 8,
@@ -726,19 +869,19 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.65),
+                          color: Colors.black.withValues(alpha: 0.7),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.videocam, color: Colors.white, size: 13),
+                            Icon(Icons.videocam_rounded, color: Colors.white, size: 12),
                             SizedBox(width: 4),
                             Text(
                               'Video',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -770,12 +913,12 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
                       Text(
                         dateText,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: AppColors.textSecondary,
                         ),
                       ),
                       if (item.phaseName != null) ...[
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             item.phaseName!,
@@ -783,7 +926,7 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.accentBlue,
                             ),
