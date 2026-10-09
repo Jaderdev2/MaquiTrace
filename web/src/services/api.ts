@@ -1,4 +1,4 @@
-import type { LoginResponse, Machine } from '../types';
+import type { Evidence, LoginResponse, Machine } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://maquitrace-backend.onrender.com/api/v1';
 
@@ -48,4 +48,25 @@ export async function fetchMachinesApi(token: string): Promise<Machine[]> {
 
   const data = await response.json();
   return Array.isArray(data) ? data : data.data || [];
+}
+
+/**
+ * Consulta de evidencias multimedia de una máquina en OCI.
+ * Endpoint: GET /api/v1/machines/:machineId/evidence (requiere Bearer Token)
+ */
+export async function fetchMachineEvidenceApi(machineId: string, token: string): Promise<Evidence[]> {
+  const response = await fetch(`${API_BASE_URL}/machines/${machineId}/evidence`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
 }

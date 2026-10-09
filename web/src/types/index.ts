@@ -32,6 +32,16 @@ export interface Evidence {
   type: 'foto' | 'video';
   url: string;
   createdAt: string;
+  machineId?: string;
+  phaseId?: string;
+  uploadedBy?: string;
+  uploader?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  };
+  observations?: string;
 }
 
 export interface TransportTrip {
