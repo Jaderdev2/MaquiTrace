@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './features/auth/Login';
 import { Dashboard } from './features/dashboard/Dashboard';
+import { MachinesPage } from './features/machines';
 import { Loader2 } from 'lucide-react';
 import './App.css';
 
@@ -73,6 +74,16 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ruta protegida: Parque y Gestión de Maquinaria */}
+          <Route
+            path="/maquinas"
+            element={
+              <ProtectedRoute>
+                <MachinesPage />
               </ProtectedRoute>
             }
           />

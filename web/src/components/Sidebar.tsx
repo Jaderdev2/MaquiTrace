@@ -30,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const mainNavItems = [
     { id: 'inicio', label: 'Inicio', icon: LayoutDashboard, path: '/dashboard' },
-    { id: 'maquinas', label: 'Máquinas', icon: Truck, path: '/dashboard' },
+    { id: 'maquinas', label: 'Máquinas', icon: Truck, path: '/maquinas' },
     { id: 'alistamientos', label: 'Alistamientos', icon: ClipboardCheck, path: '/dashboard' },
     { id: 'seguimiento', label: 'Seguimiento', icon: Navigation, path: '/dashboard' },
     { id: 'usuarios', label: 'Usuarios', icon: Users, path: '/dashboard' },
@@ -62,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="sidebar-nav">
           {mainNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentTab === item.id;
+            const isActive = location.pathname === item.path;
             return (
               <button
                 key={item.id}

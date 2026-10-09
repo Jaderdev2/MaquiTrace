@@ -1,2 +1,2 @@
 // Módulo de inventario y fichas técnicas de maquinaria
-export {};
+export { MachinesPage } from './MachinesPage';
