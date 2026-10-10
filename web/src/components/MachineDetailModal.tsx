@@ -12,11 +12,14 @@ import {
   Maximize2,
   User,
   Truck,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import {
   getMachineProfileImage,
   getEvidenceAngleLabel,
 } from '../utils/evidence';
+import '../styles/modal.css';
 
 interface Props {
   machine: Machine | null;
@@ -30,50 +33,103 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
 
   const profilePhoto = getMachineProfileImage(machine);
 
+  // Filtrar evidencias operativas excluyendo fotos de avatar para evitar duplicados o confusiones
+  const operationalEvidences = (machine.evidence || []).filter((ev) => {
+    const isAvatar =
+      ev.url?.toLowerCase().includes('avatar') ||
+      ev.observations?.toLowerCase().includes('avatar');
+    return !isAvatar;
+  });
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pendiente':
-        return <span className="badge badge-amber"><Clock size={12} /> Pendiente</span>;
+        return (
+          <span className="detail-status-pill status-pending">
+            <Clock size={13} /> Pendiente
+          </span>
+        );
       case 'en_proceso':
-        return <span className="badge badge-blue"><Wrench size={12} /> En Alistamiento</span>;
+        return (
+          <span className="detail-status-pill status-process">
+            <span className="status-pulse-dot" /> En Alistamiento
+          </span>
+        );
       case 'completada':
-        return <span className="badge badge-emerald"><CheckCircle2 size={12} /> Lista / Completada</span>;
+        return (
+          <span className="detail-status-pill status-completed">
+            <CheckCircle2 size={13} /> Lista / Completada
+          </span>
+        );
       case 'en_transito':
-        return <span className="badge badge-purple"><Clock size={12} /> En Tránsito (GPS)</span>;
+        return (
+          <span className="detail-status-pill status-transit">
+            <Clock size={13} /> En Tránsito (GPS)
+          </span>
+        );
       case 'entregada':
-        return <span className="badge badge-teal"><CheckCircle2 size={12} /> Entregada</span>;
+        return (
+          <span className="detail-status-pill status-delivered">
+            <CheckCircle2 size={13} /> Entregada a Cliente
+          </span>
+        );
       default:
-        return <span className="badge">{status}</span>;
+        return <span className="detail-status-pill status-pending">{status}</span>;
     }
   };
 
   const getPhaseStatusBadge = (status: string) => {
     switch (status) {
       case 'completada':
-        return <span className="phase-pill completed"><CheckCircle2 size={12} /> Completada</span>;
+        return (
+          <span className="phase-pill completed">
+            <CheckCircle2 size={12} /> Completada
+          </span>
+        );
       case 'en_proceso':
-        return <span className="phase-pill in-progress"><Clock size={12} /> En Proceso</span>;
+        return (
+          <span className="phase-pill in-progress">
+            <span className="status-pulse-dot small" /> En Proceso
+          </span>
+        );
       default:
-        return <span className="phase-pill pending"><Clock size={12} /> Pendiente</span>;
+        return (
+          <span className="phase-pill pending">
+            <Clock size={12} /> Pendiente
+          </span>
+        );
     }
   };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        {/* Cabecera del modal */}
+      <div
+        className="modal-content machine-detail-modal-content"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Cabecera del modal (Fija / Sticky) */}
         <div className="modal-header">
           <div className="modal-header-title">
-            <h3>Ficha Técnica del Equipo</h3>
-            <span className="modal-header-sub">Detalle operativo e inspección de maquinaria</span>
+            <div className="detail-header-badge">
+              <div className="header-icon-box">
+                <Truck size={18} />
+              </div>
+              <div>
+                <h3>Ficha Técnica e Inspección</h3>
+                <span className="modal-header-sub">
+                  Equipo {machine.serial} &bull; {machine.category}
+                </span>
+              </div>
+            </div>
           </div>
           <button className="btn-close" onClick={onClose} aria-label="Cerrar modal">
             <X size={20} />
           </button>
         </div>
 
-        <div className="modal-body">
-          {/* FOTO GRANDE DEL EQUIPO CON SU NOMBRE ABAJO */}
+        {/* Cuerpo del modal (Scrollable y siempre accesible) */}
+        <div className="modal-body detail-modal-body">
+          {/* FOTO GRANDE DEL EQUIPO (HERO SHOWCASE) */}
           <div className="machine-showcase-hero">
             <div className="machine-showcase-media">
               {profilePhoto ? (
@@ -87,12 +143,13 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
                   />
                   <div className="machine-showcase-badges-top">
                     <span className="badge-photo-source">
-                      <Camera size={13} /> Foto de Inspección (Oracle Cloud)
+                      <Sparkles size={13} /> Foto Oficial (Oracle Cloud)
                     </span>
                     <button
                       className="btn-showcase-zoom"
                       onClick={() => setSelectedPhoto(profilePhoto)}
-                      title="Ampliar imagen completa"
+                      title="Ampliar imagen en pantalla completa"
+                      type="button"
                     >
                       <Maximize2 size={16} />
                     </button>
@@ -101,25 +158,27 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
               ) : (
                 <div className="machine-showcase-empty">
                   <div className="empty-machine-icon-box">
-                    <Truck size={48} />
+                    <Truck size={42} />
                   </div>
                   <span className="empty-machine-text">
-                    Sin foto de inspección registrada en Oracle Cloud
+                    Sin foto oficial registrada en Oracle Cloud
                   </span>
                   <span className="empty-machine-sub">
-                    Las fotos que los operarios tomen desde la app móvil se mostrarán aquí en gran tamaño.
+                    Las fotos registradas desde la app móvil o el administrador se desplegarán aquí en alta definición.
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Nombre y detalles de la máquina directamente abajo de la imagen grande */}
+            {/* Ficha descriptiva directamente abajo de la imagen grande */}
             <div className="machine-showcase-footer">
               <div className="showcase-titles-box">
                 <div className="showcase-serial-pill">{machine.serial}</div>
                 <div>
                   <h2 className="showcase-machine-name">{machine.model}</h2>
-                  <span className="showcase-category-label">Categoría: {machine.category}</span>
+                  <span className="showcase-category-label">
+                    <Layers size={13} /> {machine.category}
+                  </span>
                 </div>
               </div>
               <div className="showcase-status-box">
@@ -128,81 +187,121 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
             </div>
           </div>
 
-          {/* Resumen de estados y métricas */}
-          <div className="detail-status-bar">
-            <div>
-              <span className="detail-label">Estado actual:</span>
-              <div className="mt-1">{getStatusBadge(machine.status)}</div>
-            </div>
-            <div>
-              <span className="detail-label">Fecha de Registro:</span>
-              <div className="detail-val">
-                <Calendar size={14} />{' '}
-                {machine.createdAt ? new Date(machine.createdAt).toLocaleDateString('es-CO') : 'Reciente'}
+          {/* Grid de Métricas y Especificaciones */}
+          <div className="detail-specs-grid">
+            <div className="spec-item-card">
+              <span className="spec-item-label">Estado Operativo</span>
+              <div className="spec-item-value-pill">
+                {getStatusBadge(machine.status)}
               </div>
             </div>
-            <div>
-              <span className="detail-label">Evidencias en OCI:</span>
-              <div className="detail-val">
-                <Camera size={14} /> {machine.evidence?.length || 0} archivo(s)
+
+            <div className="spec-item-card">
+              <span className="spec-item-label">Fecha de Ingreso</span>
+              <div className="spec-item-value">
+                <Calendar size={15} className="spec-icon" />
+                <span>
+                  {machine.createdAt
+                    ? new Date(machine.createdAt).toLocaleDateString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : 'Reciente'}
+                </span>
+              </div>
+            </div>
+
+            <div className="spec-item-card">
+              <span className="spec-item-label">Categoría Técnica</span>
+              <div className="spec-item-value">
+                <Truck size={15} className="spec-icon" />
+                <span>{machine.category}</span>
+              </div>
+            </div>
+
+            <div className="spec-item-card">
+              <span className="spec-item-label">Evidencias Operativas</span>
+              <div className="spec-item-value">
+                <Camera size={15} className="spec-icon" />
+                <span>{operationalEvidences.length} archivo(s)</span>
               </div>
             </div>
           </div>
 
-          {/* Fases de Alistamiento */}
+          {/* Fases del Ciclo de Alistamiento */}
           <div className="section-block">
-            <h4 className="section-title">
-              <Wrench size={16} /> Fases de Alistamiento y Preparación
-            </h4>
+            <div className="section-title-wrap">
+              <h4 className="section-title">
+                <Wrench size={16} /> Fases del Ciclo de Alistamiento
+              </h4>
+              <span className="section-subtitle">
+                3 estaciones obligatorias: Ensamblaje, Pintura y Lavado
+              </span>
+            </div>
+
             <div className="phases-list">
               {machine.phases && machine.phases.length > 0 ? (
                 machine.phases.map((phase, idx) => (
-                  <div key={phase.id || idx} className="phase-card">
+                  <div key={phase.id || idx} className={`phase-card phase-${phase.status}`}>
                     <div className="phase-card-header">
-                      <span className="phase-name">
-                        {idx + 1}. {phase.name.toUpperCase()}
-                      </span>
+                      <div className="phase-title-group">
+                        <span className="phase-number">{idx + 1}</span>
+                        <span className="phase-name">{phase.name.toUpperCase()}</span>
+                      </div>
                       {getPhaseStatusBadge(phase.status)}
                     </div>
+
                     {phase.operator && (
-                      <p className="phase-operator" style={{ fontSize: '11.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', margin: '4px 0 0 0' }}>
-                        <User size={12} /> Operario: <strong>{phase.operator.name}</strong>
-                      </p>
+                      <div className="phase-operator-pill">
+                        <User size={13} />
+                        <span>
+                          Operario: <strong>{phase.operator.name}</strong>
+                        </span>
+                      </div>
                     )}
+
                     {phase.observations ? (
-                      <p className="phase-obs">
-                        <FileText size={12} /> {phase.observations}
-                      </p>
+                      <div className="phase-obs-box">
+                        <FileText size={13} className="obs-icon" />
+                        <span className="phase-obs-text">{phase.observations}</span>
+                      </div>
                     ) : (
-                      <p className="phase-obs empty">Sin observaciones adicionales.</p>
+                      <div className="phase-obs-box empty">
+                        <span>Sin observaciones técnicas registradas en esta fase.</span>
+                      </div>
                     )}
                   </div>
                 ))
               ) : (
-                <div className="empty-notice">No hay fases de alistamiento registradas aún.</div>
+                <div className="empty-notice-card">
+                  <Clock size={20} />
+                  <span>No hay fases de alistamiento registradas en el backend aún.</span>
+                </div>
               )}
             </div>
           </div>
 
           {/* Galería de Evidencias Fotográficas vinculadas en OCI */}
           <div className="section-block">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="section-title-wrap">
               <h4 className="section-title">
-                <Camera size={16} /> Evidencias Fotográficas ({machine.evidence?.length || 0})
+                <Camera size={16} /> Evidencias Operativas en la Nube ({operationalEvidences.length})
               </h4>
-              <span style={{ fontSize: '11px', color: '#64748B' }}>
-                Almacenamiento: Oracle Cloud Infrastructure (OCI)
+              <span className="section-subtitle">
+                Almacenamiento: Oracle Cloud Infrastructure (OCI) Object Storage
               </span>
             </div>
 
-            {machine.evidence && machine.evidence.length > 0 ? (
+            {operationalEvidences.length > 0 ? (
               <div className="evidence-grid">
-                {machine.evidence.map((ev) => {
+                {operationalEvidences.map((ev) => {
                   const angleLabel = getEvidenceAngleLabel(ev);
                   const formattedDate = ev.createdAt
                     ? new Date(ev.createdAt).toLocaleDateString('es-CO', {
                         day: '2-digit',
                         month: 'short',
+                        year: 'numeric',
                       })
                     : 'Reciente';
 
@@ -232,9 +331,9 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
                       </div>
                       <div className="evidence-card-info">
                         <span className="evidence-tag-title">{angleLabel}</span>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="evidence-meta-row">
                           <span className="evidence-meta-date">
-                            <Clock size={10} /> {formattedDate}
+                            <Clock size={11} /> {formattedDate}
                           </span>
                           <a
                             href={ev.url}
@@ -253,21 +352,22 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
                 })}
               </div>
             ) : (
-              <div className="evidence-placeholder">
-                <Camera size={32} className="placeholder-icon" />
-                <strong>Sin evidencias fotográficas aún</strong>
+              <div className="evidence-placeholder-card">
+                <Camera size={36} className="placeholder-icon" />
+                <strong>Sin evidencias fotográficas operativas</strong>
                 <p>
-                  Cuando los operarios capturen los 4 ángulos de inspección (Vista Frontal, Vista Lateral,
-                  Cabina y Serial) desde la app móvil, se sincronizarán aquí automáticamente.
+                  Cuando los operarios capturen los 4 ángulos de inspección desde la app móvil en patio,
+                  se sincronizarán de forma segura en esta sección.
                 </p>
               </div>
             )}
           </div>
         </div>
 
+        {/* Pie del modal (Sticky / Fijo con botones de acción siempre visibles) */}
         <div className="modal-footer">
-          <button className="btn-secondary" onClick={onClose}>
-            Cerrar Detalle
+          <button className="btn-secondary" onClick={onClose} type="button">
+            Cerrar Ficha Técnica
           </button>
         </div>
       </div>
@@ -292,6 +392,7 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
               <button
                 className="btn-lightbox-close"
                 onClick={() => setSelectedPhoto(null)}
+                type="button"
               >
                 <X size={16} /> Cerrar
               </button>
