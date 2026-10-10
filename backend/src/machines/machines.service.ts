@@ -112,6 +112,46 @@ export class MachinesService {
     });
   }
 
+  async remove(id: string) {
+    await this.findById(id);
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Encontrar viajes asociados
+      const trips = await tx.transportTrip.findMany({
+        where: { machineId: id },
+        select: { id: true },
+      });
+      const tripIds = trips.map((t) => t.id);
+
+      if (tripIds.length > 0) {
+        await tx.gpsRecord.deleteMany({
+          where: { tripId: { in: tripIds } },
+        });
+        await tx.incident.deleteMany({
+          where: { tripId: { in: tripIds } },
+        });
+        await tx.transportTrip.deleteMany({
+          where: { id: { in: tripIds } },
+        });
+      }
+
+      // 2. Eliminar evidencias vinculadas a la máquina
+      await tx.evidence.deleteMany({
+        where: { machineId: id },
+      });
+
+      // 3. Eliminar fases de alistamiento
+      await tx.preparationPhase.deleteMany({
+        where: { machineId: id },
+      });
+
+      // 4. Eliminar la maquinaria
+      return tx.machine.delete({
+        where: { id },
+      });
+    });
+  }
+
   async getHistory(id: string) {
     const machine = await this.findById(id);
     return {
