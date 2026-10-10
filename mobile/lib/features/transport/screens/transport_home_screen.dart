@@ -25,7 +25,6 @@ class _Ui {
 
   static const success = Color(0xFF15803D);
   static const successBg = Color(0xFFE8F5EC);
-  static const info = Color(0xFF1D4ED8);
   static const infoBg = Color(0xFFE6EFFE);
   static const locked = Color(0xFF64748B);
   static const lockedBg = Color(0xFFF1F5F9);
@@ -266,28 +265,14 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: _Ui.info,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'TRANSPORTADOR OFICIAL',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: _Ui.info,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ],
+              const Text(
+                'Transportador',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
