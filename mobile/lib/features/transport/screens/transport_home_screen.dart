@@ -278,18 +278,8 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
           ),
         ),
         IconButton(
-          tooltip: 'Escanear QR de maquinaria',
-          icon: const Icon(Icons.qr_code_scanner_rounded, size: 22, color: AppColors.textPrimary),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-            );
-          },
-        ),
-        IconButton(
           tooltip: 'Notificaciones',
-          icon: const Icon(Icons.notifications_none_rounded, size: 22, color: AppColors.textPrimary),
+          icon: const Icon(Icons.notifications_none_rounded, size: 24, color: AppColors.textPrimary),
           onPressed: () => _showNotificationsModal(context),
         ),
       ],
