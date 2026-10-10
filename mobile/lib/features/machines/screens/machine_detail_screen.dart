@@ -86,8 +86,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   // Estado general en tiempo real según fases y evidencias obligatorias
   ({String label, Color fg, Color bg, bool isPhotosPending, int completedAngles}) _effectiveStatus(
     BuildContext context,
-    MachineModel m,
-  ) {
+    MachineModel m, {
+    bool isTransportador = false,
+  }) {
     if (m.overallState == OverallState.inTransit) {
       return (
         label: 'En tránsito a obra',
@@ -104,6 +105,26 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         bg: _Ui.successBg,
         isPhotosPending: false,
         completedAngles: 4,
+      );
+    }
+
+    if (isTransportador) {
+      final isReady = m.isReadyForDispatch || m.overallState == OverallState.completed;
+      if (isReady) {
+        return (
+          label: 'Lista para despacho',
+          fg: _Ui.success,
+          bg: _Ui.successBg,
+          isPhotosPending: false,
+          completedAngles: 4,
+        );
+      }
+      return (
+        label: 'En alistamiento de taller',
+        fg: _Ui.info,
+        bg: _Ui.infoBg,
+        isPhotosPending: false,
+        completedAngles: 0,
       );
     }
 
@@ -232,7 +253,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final m = widget.machine;
-    final status = _effectiveStatus(context, m);
+    final isTransportador = context.watch<AuthProvider>().currentUser?.isTransportador == true;
+    final status = _effectiveStatus(context, m, isTransportador: isTransportador);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -258,15 +280,18 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildSummaryCard(context, m, status),
-                      if (context.watch<AuthProvider>().currentUser?.isTransportador == true) ...[
+                      _buildSummaryCard(context, m, status, isTransportador: isTransportador),
+                      if (isTransportador) ...[
                         const SizedBox(height: 16),
                         _buildTransporterSection(context, m),
+                        const SizedBox(height: 16),
+                        _buildTransporterSpecsCard(context, m),
+                      ] else ...[
+                        const SizedBox(height: 16),
+                        _buildEvidenceButtonCard(context, m),
+                        const SizedBox(height: 16),
+                        _buildProcessCard(m),
                       ],
-                      const SizedBox(height: 16),
-                      _buildEvidenceButtonCard(context, m),
-                      const SizedBox(height: 16),
-                      _buildProcessCard(m),
                     ],
                   ),
                 ),
@@ -339,71 +364,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     );
     final activeTrip = matches.isNotEmpty ? matches.first : null;
 
-    if (machine.overallState == OverallState.completed) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _Ui.infoBg,
-          borderRadius: BorderRadius.circular(_Ui.radius),
-          border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.accentBlue,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Equipo Listo para Despacho',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'Alistamiento finalizado. Asigna vehículo de remolque para iniciar ruta.',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accentBlue,
-                foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
-              ),
-              icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
-              label: const Text('Recibir y Asignar Ruta de Despacho', style: TextStyle(fontWeight: FontWeight.w600)),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => ReceiveMachineModal(machine: machine),
-                );
-              },
-            ),
-          ],
-        ),
-      );
-    } else if (activeTrip != null) {
+    // Caso 1: En viaje asignado al transportador
+    if (activeTrip != null) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -447,7 +409,242 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       );
     }
 
-    return const SizedBox();
+    // Caso 2: Alistamiento de taller finalizado -> Lista para despacho
+    if (machine.overallState == OverallState.completed || machine.isReadyForDispatch) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _Ui.successBg,
+          borderRadius: BorderRadius.circular(_Ui.radius),
+          border: Border.all(color: _Ui.success.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _Ui.success,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Equipo Listo para Despacho',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Alistamiento finalizado por taller. Asigna vehículo de remolque para iniciar ruta.',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _Ui.success,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
+              ),
+              icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
+              label: const Text('Recibir y Asignar Ruta de Despacho', style: TextStyle(fontWeight: FontWeight.w600)),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => ReceiveMachineModal(machine: machine),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Caso 3: Maquinaria ya entregada
+    if (machine.overallState == OverallState.delivered) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _Ui.successBg,
+          borderRadius: BorderRadius.circular(_Ui.radius),
+          border: Border.all(color: _Ui.success.withValues(alpha: 0.2)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: _Ui.success, size: 22),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Esta maquinaria ya fue entregada a conformidad en su destino.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Caso 4: En preparación / alistamiento por operarios de taller
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _Ui.lockedBg,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: _Ui.border),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.engineering_outlined, color: _Ui.locked, size: 24),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'En Preparación por Taller',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Esta máquina está siendo alistada técnicamente por los operarios de taller. Estará disponible para despacho una vez se culminen las pruebas e inspección.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Ficha técnica y custodia en modo lectura para Transportadores ---
+  Widget _buildTransporterSpecsCard(BuildContext context, MachineModel machine) {
+    final phases = _orderedPhases(machine);
+    final completedPhases = phases.where((p) => p.isCompleted).length;
+    final totalPhases = phases.length;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _Ui.surface,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: _Ui.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: _Ui.infoBg,
+                  borderRadius: BorderRadius.circular(_Ui.radiusSmall),
+                ),
+                child: const Icon(Icons.info_outline_rounded, color: AppColors.accentBlue, size: 18),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Ficha Técnica y Custodia',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: _Ui.divider),
+          _buildTransporterSpecRow('Serial de chasis', machine.serial),
+          const Divider(height: 1, color: _Ui.divider),
+          _buildTransporterSpecRow('Categoría técnica', machine.category),
+          const Divider(height: 1, color: _Ui.divider),
+          _buildTransporterSpecRow(
+            'Operario de taller',
+            machine.assignedOperator.isNotEmpty ? machine.assignedOperator : 'Equipo de Taller MaquiTrace',
+          ),
+          const Divider(height: 1, color: _Ui.divider),
+          _buildTransporterSpecRow(
+            'Estado en taller',
+            machine.overallState == OverallState.completed || machine.overallState == OverallState.delivered
+                ? 'Alistamiento completado ($totalPhases fases)'
+                : 'En preparación ($completedPhases de $totalPhases fases completadas)',
+          ),
+          const Divider(height: 1, color: _Ui.divider),
+          _buildTransporterSpecRow(
+            'Ubicación actual',
+            machine.overallState == OverallState.inTransit
+                ? 'En ruta hacia destino'
+                : (machine.overallState == OverallState.delivered ? 'En sitio del cliente' : 'Patio de taller MaquiTrace'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransporterSpecRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 5,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // --- Tarjeta de checklist fotográfico ---
@@ -697,8 +894,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   Widget _buildSummaryCard(
     BuildContext context,
     MachineModel machine,
-    ({String label, Color fg, Color bg, bool isPhotosPending, int completedAngles}) status,
-  ) {
+    ({String label, Color fg, Color bg, bool isPhotosPending, int completedAngles}) status, {
+    bool isTransportador = false,
+  }) {
     if (_isLoadingPhases) {
       return const SkeletonGroup(
         child: MachineDetailSummarySkeleton(),
@@ -814,7 +1012,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                 ),
                 const SizedBox(height: 8),
                 _buildChip(status.label, status.fg, status.bg, large: true),
-                if (status.isPhotosPending) ...[
+                if (!isTransportador && status.isPhotosPending) ...[
                   const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.all(12),
