@@ -108,40 +108,25 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       );
     }
 
-    if (isTransportador) {
-      final isReady = m.isReadyForDispatch || m.overallState == OverallState.completed;
-      if (isReady) {
-        return (
-          label: 'Lista para despacho',
-          fg: _Ui.success,
-          bg: _Ui.successBg,
-          isPhotosPending: false,
-          completedAngles: 4,
-        );
-      }
-      return (
-        label: 'En alistamiento de taller',
-        fg: _Ui.info,
-        bg: _Ui.infoBg,
-        isPhotosPending: false,
-        completedAngles: 0,
-      );
-    }
-
-    final allPhasesCompleted = _phases.isNotEmpty && _phases.every((p) => p.isCompleted);
-    final anyPhaseStarted = _phases.any((p) => p.isInProgress || p.isCompleted);
+    final allPhasesCompleted = _phases.isNotEmpty
+        ? _phases.every((p) => p.isCompleted)
+        : m.overallState == OverallState.completed;
+    final anyPhaseStarted = _phases.isNotEmpty
+        ? _phases.any((p) => p.isInProgress || p.isCompleted)
+        : (m.overallState == OverallState.inProgress || m.overallState == OverallState.completed);
 
     // Conteo de los 4 ángulos obligatorios
     final evidenceProvider = context.watch<EvidenceProvider>();
     final evidences = evidenceProvider.getEvidencesForMachine(m.id);
     const mandatoryKeys = ['frontal', 'lateral', 'cabina', 'serial'];
-    final completedAngles = mandatoryKeys.where((key) {
+    final evidenceAngles = mandatoryKeys.where((key) {
       return evidences.any((e) {
         final lowerUrl = e.url.toLowerCase();
         final lowerObs = (e.observations ?? '').toLowerCase();
         return lowerUrl.contains(key) || lowerObs.contains(key);
       });
     }).length;
+    final completedAngles = evidenceAngles > 0 ? evidenceAngles : m.completedAnglesCount;
     final allAnglesCompleted = completedAngles >= mandatoryKeys.length;
 
     // Regla MaquiTrace: Solo está Lista para despacho si terminó fases Y tiene los 4 ángulos
@@ -158,7 +143,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     // Fases mecánicas terminadas pero faltan fotos -> Pendiente de inspección fotográfica
     if (allPhasesCompleted && !allAnglesCompleted) {
       return (
-        label: 'Pendiente inspección ($completedAngles/4 fotos)',
+        label: isTransportador
+            ? 'En taller (Pendiente inspección)'
+            : 'Pendiente inspección ($completedAngles/4 fotos)',
         fg: _Ui.warning,
         bg: _Ui.warningBg,
         isPhotosPending: true,
@@ -168,7 +155,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
 
     if (anyPhaseStarted) {
       return (
-        label: 'En alistamiento',
+        label: isTransportador ? 'En alistamiento de taller' : 'En alistamiento',
         fg: _Ui.info,
         bg: _Ui.infoBg,
         isPhotosPending: false,
@@ -176,33 +163,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       );
     }
 
-    // Fallback inteligente según el estado global de la máquina si _phases aún no está cargada
-    if (_phases.isEmpty) {
-      if (m.overallState == OverallState.completed) {
-        final isReady = m.isReadyForDispatch || allAnglesCompleted;
-        return (
-          label: isReady
-              ? 'Lista para despacho'
-              : 'Pendiente inspección ($completedAngles/4 fotos)',
-          fg: isReady ? _Ui.success : _Ui.warning,
-          bg: isReady ? _Ui.successBg : _Ui.warningBg,
-          isPhotosPending: !isReady,
-          completedAngles: completedAngles,
-        );
-      }
-      if (m.overallState == OverallState.inProgress) {
-        return (
-          label: 'En alistamiento',
-          fg: _Ui.info,
-          bg: _Ui.infoBg,
-          isPhotosPending: false,
-          completedAngles: completedAngles,
-        );
-      }
-    }
-
     return (
-      label: 'Pendiente de inicio',
+      label: isTransportador ? 'Pendiente en taller' : 'Pendiente de inicio',
       fg: _Ui.warning,
       bg: _Ui.warningBg,
       isPhotosPending: false,
@@ -409,8 +371,28 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       );
     }
 
-    // Caso 2: Alistamiento de taller finalizado -> Lista para despacho
-    if (machine.overallState == OverallState.completed || machine.isReadyForDispatch) {
+    // Caso 2: Evaluación de inspección técnica obligatoria (4 ángulos) y despacho
+    final evidenceProvider = context.watch<EvidenceProvider>();
+    final evidences = evidenceProvider.getEvidencesForMachine(machine.id);
+    const mandatoryKeys = ['frontal', 'lateral', 'cabina', 'serial'];
+    final evidenceAngles = mandatoryKeys.where((key) {
+      return evidences.any((e) {
+        final lowerUrl = e.url.toLowerCase();
+        final lowerObs = (e.observations ?? '').toLowerCase();
+        return lowerUrl.contains(key) || lowerObs.contains(key);
+      });
+    }).length;
+    final completedAngles = evidenceAngles > 0 ? evidenceAngles : machine.completedAnglesCount;
+    final allAnglesCompleted = completedAngles >= mandatoryKeys.length;
+    final allPhasesCompleted = _phases.isNotEmpty
+        ? _phases.every((p) => p.isCompleted)
+        : machine.overallState == OverallState.completed;
+
+    final isTrulyReady = allPhasesCompleted && allAnglesCompleted;
+    final isPendingInspection = allPhasesCompleted && !allAnglesCompleted;
+
+    // Caso 2A: Equipo 100% autorizado para despacho
+    if (isTrulyReady) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -470,6 +452,83 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   builder: (_) => ReceiveMachineModal(machine: machine),
                 );
               },
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Caso 2B: Taller terminó fases mecánicas pero la inspección fotográfica está incompleta
+    if (isPendingInspection) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _Ui.warningBg,
+          borderRadius: BorderRadius.circular(_Ui.radius),
+          border: Border.all(color: _Ui.warning.withValues(alpha: 0.35)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _Ui.warning,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.fact_check_outlined, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pendiente de Inspección Técnica ($completedAngles/4 fotos)',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Las fases mecánicas de taller concluyeron, pero el equipo aún tiene pendiente la inspección obligatoria de los 4 ángulos por parte del taller.\n\nEstará disponible para despacho en cuanto el taller apruebe la inspección.',
+                        style: TextStyle(fontSize: 12, height: 1.35, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: _Ui.warning.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.lock_clock_outlined, size: 16, color: _Ui.warning),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Recepción y asignación bloqueadas hasta visto bueno técnico.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _Ui.warning,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

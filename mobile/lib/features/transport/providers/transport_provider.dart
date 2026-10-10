@@ -14,7 +14,10 @@ class TransportProvider extends ChangeNotifier {
   String? _successMessage;
 
   List<TripModel> get myTrips => _trips;
-  List<MachineModel> get readyMachines => _readyMachines;
+
+  /// Maquinarias 100% autorizadas para despacho (fases mecánicas + 4 ángulos de inspección completos)
+  List<MachineModel> get readyMachines =>
+      _readyMachines.where((m) => m.isReadyForDispatch).toList();
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;

@@ -32,6 +32,16 @@ class _ReceiveMachineModalState extends State<ReceiveMachineModal> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (!widget.machine.isReadyForDispatch) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFDC2626),
+          content: Text('Este equipo aún tiene inspección técnica pendiente y no puede ser despachado.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     final provider = context.read<TransportProvider>();
 
