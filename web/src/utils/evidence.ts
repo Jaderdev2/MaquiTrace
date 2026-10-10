@@ -5,9 +5,23 @@ import type { Machine, Evidence } from '../types';
  * Retorna null si la máquina aún no tiene evidencias fotográficas registradas en el backend.
  */
 export function getMachinePrimaryPhoto(machine: Machine): string | null {
+  // 1. Priorizar URL oficial de avatar/foto configurada en la máquina
+  if (machine.imageUrl && machine.imageUrl.trim().length > 0) {
+    return machine.imageUrl;
+  }
+
   if (!machine.evidence || machine.evidence.length === 0) return null;
 
-  // 1. Priorizar foto frontal registrada desde la app móvil
+  // 2. Priorizar foto de avatar guardada en evidencias
+  const avatar = machine.evidence.find((e) => {
+    const isPhoto = e.type === 'foto' || !e.type;
+    const urlMatches = e.url.toLowerCase().includes('avatar');
+    const obsMatches = e.observations?.toLowerCase().includes('avatar');
+    return isPhoto && (urlMatches || obsMatches);
+  });
+  if (avatar) return avatar.url;
+
+  // 3. Priorizar foto frontal registrada desde la app móvil
   const frontal = machine.evidence.find((e) => {
     const isPhoto = e.type === 'foto' || !e.type;
     const urlMatches = e.url.toLowerCase().includes('frontal');
@@ -16,11 +30,11 @@ export function getMachinePrimaryPhoto(machine: Machine): string | null {
   });
   if (frontal) return frontal.url;
 
-  // 2. Cualquier otra foto registrada
+  // 3. Cualquier otra foto registrada
   const anyPhoto = machine.evidence.find((e) => e.type === 'foto' || !e.type);
   if (anyPhoto) return anyPhoto.url;
 
-  // 3. Primer archivo multimedia registrado en backend
+  // 4. Primer archivo multimedia registrado en backend
   return machine.evidence[0]?.url || null;
 }
 

@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
-import { X, Plus, AlertCircle, CheckCircle2, Loader2, Truck, Camera, Upload, Trash2 } from 'lucide-react';
-import { createMachineApi, updateMachineApi, uploadMachineAvatarApi } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { X, Check, AlertCircle, CheckCircle2, Loader2, Truck, Camera, Upload, Trash2, Edit } from 'lucide-react';
+import { updateMachineApi, uploadMachineAvatarApi } from '../services/api';
 import type { CreateMachineDto, Machine, MachineStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { getMachineProfileImage } from '../utils/evidence';
 
 interface Props {
   isOpen: boolean;
+  machine: Machine | null;
   onClose: () => void;
-  onMachineCreated: (machine: Machine) => void;
+  onMachineUpdated: (machine: Machine) => void;
 }
 
 const CATEGORY_OPTIONS = [
@@ -19,10 +21,11 @@ const CATEGORY_OPTIONS = [
   'Otra...',
 ];
 
-export const RegisterMachineModal: React.FC<Props> = ({
+export const EditMachineModal: React.FC<Props> = ({
   isOpen,
+  machine,
   onClose,
-  onMachineCreated,
+  onMachineUpdated,
 }) => {
   const { token } = useAuth();
   const [serial, setSerial] = useState('');
@@ -32,11 +35,35 @@ export const RegisterMachineModal: React.FC<Props> = ({
   const [status, setStatus] = useState<MachineStatus>('pendiente');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (machine) {
+      setSerial(machine.serial || '');
+      setModel(machine.model || '');
+      setStatus(machine.status || 'pendiente');
+
+      if (CATEGORY_OPTIONS.includes(machine.category)) {
+        setCategorySelect(machine.category);
+        setCustomCategory('');
+      } else {
+        setCategorySelect('Otra...');
+        setCustomCategory(machine.category || '');
+      }
+
+      const existingPhoto = getMachineProfileImage(machine);
+      setCurrentAvatarUrl(existingPhoto);
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      setError(null);
+      setSuccess(false);
+    }
+  }, [machine, isOpen]);
+
+  if (!isOpen || !machine) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -46,7 +73,7 @@ export const RegisterMachineModal: React.FC<Props> = ({
     }
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveNewAvatar = () => {
     setAvatarFile(null);
     if (avatarPreview) {
       URL.revokeObjectURL(avatarPreview);
@@ -64,7 +91,7 @@ export const RegisterMachineModal: React.FC<Props> = ({
       categorySelect === 'Otra...' ? customCategory.trim() : categorySelect;
 
     if (!cleanSerial) {
-      setError('El número de serie o placa es obligatorio.');
+      setError('El serial o placa es obligatorio.');
       return;
     }
     if (!cleanModel) {
@@ -81,7 +108,7 @@ export const RegisterMachineModal: React.FC<Props> = ({
       return;
     }
 
-    const payload: CreateMachineDto = {
+    const payload: Partial<CreateMachineDto> = {
       serial: cleanSerial,
       model: cleanModel,
       category: finalCategory,
@@ -90,45 +117,47 @@ export const RegisterMachineModal: React.FC<Props> = ({
 
     try {
       setLoading(true);
-      const newMachine = await createMachineApi(payload, token);
+      let updated = await updateMachineApi(machine.id, payload, token);
 
-      // Si el administrador seleccionó una foto de avatar, subirla a Oracle Cloud y guardarla en imageUrl
+      // Si se seleccionó una nueva foto de avatar, subirla a Oracle Cloud y actualizar imageUrl
       if (avatarFile) {
         try {
-          const evidence = await uploadMachineAvatarApi(newMachine.id, avatarFile, token);
+          const evidence = await uploadMachineAvatarApi(machine.id, avatarFile, token);
           if (evidence) {
-            newMachine.imageUrl = evidence.url;
-            await updateMachineApi(newMachine.id, { imageUrl: evidence.url }, token);
-            newMachine.evidence = [evidence, ...(newMachine.evidence || [])];
+            updated = await updateMachineApi(machine.id, { imageUrl: evidence.url }, token);
+            updated.imageUrl = evidence.url;
+            updated.evidence = [evidence, ...(updated.evidence || machine.evidence || [])];
           }
         } catch (uploadErr) {
-          console.warn('La máquina fue registrada, pero hubo un detalle al subir la foto a OCI:', uploadErr);
+          console.warn('Datos guardados, pero hubo un detalle al subir la foto a OCI:', uploadErr);
+        }
+      } else {
+        // Mantener las evidencias previas si la respuesta no las incluye
+        if (!updated.evidence && machine.evidence) {
+          updated.evidence = machine.evidence;
         }
       }
 
       setSuccess(true);
       setTimeout(() => {
-        onMachineCreated(newMachine);
+        onMachineUpdated(updated);
         handleClose();
-      }, 900);
+      }, 800);
     } catch (err: any) {
-      setError(err.message || 'Error al registrar la maquinaria en el backend.');
+      setError(err.message || 'Error al actualizar la maquinaria en el backend.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleClose = () => {
-    setSerial('');
-    setModel('');
-    setCategorySelect('Excavadoras');
-    setCustomCategory('');
-    setStatus('pendiente');
-    handleRemoveAvatar();
+    handleRemoveNewAvatar();
     setError(null);
     setSuccess(false);
     onClose();
   };
+
+  const displayAvatar = avatarPreview || currentAvatarUrl;
 
   return (
     <div className="modal-backdrop" onClick={handleClose}>
@@ -140,12 +169,12 @@ export const RegisterMachineModal: React.FC<Props> = ({
           <div className="modal-header-title">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div className="register-modal-icon-badge">
-                <Truck size={20} />
+                <Edit size={20} />
               </div>
               <div>
-                <h3>Registrar Nueva Maquinaria</h3>
+                <h3>Editar Maquinaria</h3>
                 <span className="modal-header-sub">
-                  Ingreso oficial de equipo y asignación de foto de perfil
+                  Actualización de ficha y foto de perfil del equipo {machine.serial}
                 </span>
               </div>
             </div>
@@ -167,21 +196,21 @@ export const RegisterMachineModal: React.FC<Props> = ({
             {success && (
               <div className="register-alert success">
                 <CheckCircle2 size={18} />
-                <span>¡Maquinaria registrada exitosamente en el sistema!</span>
+                <span>¡Maquinaria actualizada con éxito!</span>
               </div>
             )}
 
-            {/* SECCIÓN DE AVATAR / FOTO DE PERFIL DE LA MÁQUINA */}
+            {/* SECCIÓN DE AVATAR / FOTO DE PERFIL */}
             <div className="avatar-picker-section">
               <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>
                 <Camera size={14} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'middle' }} />
-                Foto de Perfil / Avatar del Equipo (Opcional)
+                Foto de Perfil / Avatar del Equipo
               </label>
 
               <div className="avatar-picker-wrapper">
                 <div className="avatar-preview-box">
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Preview avatar" className="avatar-preview-image" />
+                  {displayAvatar ? (
+                    <img src={displayAvatar} alt="Avatar de maquinaria" className="avatar-preview-image" />
                   ) : (
                     <div className="avatar-preview-empty">
                       <Truck size={32} />
@@ -193,7 +222,7 @@ export const RegisterMachineModal: React.FC<Props> = ({
                 <div className="avatar-picker-controls">
                   <label className="btn-upload-avatar">
                     <Upload size={14} />
-                    <span>{avatarPreview ? 'Cambiar imagen...' : 'Seleccionar foto...'}</span>
+                    <span>{avatarPreview ? 'Cambiar imagen...' : currentAvatarUrl ? 'Reemplazar foto...' : 'Seleccionar foto...'}</span>
                     <input
                       type="file"
                       accept="image/png, image/jpeg, image/jpg, image/webp"
@@ -207,15 +236,14 @@ export const RegisterMachineModal: React.FC<Props> = ({
                     <button
                       type="button"
                       className="btn-remove-avatar"
-                      onClick={handleRemoveAvatar}
+                      onClick={handleRemoveNewAvatar}
                       disabled={loading || success}
-                      title="Quitar imagen seleccionada"
                     >
-                      <Trash2 size={14} /> Quitar
+                      <Trash2 size={14} /> Deshacer cambio
                     </button>
                   )}
                   <span className="avatar-helper-text">
-                    La imagen se guardará en Oracle Cloud y servirá como el avatar principal del equipo.
+                    La fotografía se almacenará en Oracle Cloud y servirá como el avatar principal del equipo.
                   </span>
                 </div>
               </div>
@@ -224,51 +252,43 @@ export const RegisterMachineModal: React.FC<Props> = ({
             <div className="form-grid" style={{ marginTop: '16px' }}>
               {/* Serial / Placa */}
               <div className="form-group">
-                <label htmlFor="reg-serial" className="form-label">
-                  Serial / Placa de Identificación <span className="req-star">*</span>
+                <label htmlFor="edit-serial" className="form-label">
+                  Serial / Placa <span className="req-star">*</span>
                 </label>
                 <input
-                  id="reg-serial"
+                  id="edit-serial"
                   type="text"
                   className="form-input"
-                  placeholder="Ej: ABC123, CAT-EX-200"
                   value={serial}
                   onChange={(e) => setSerial(e.target.value)}
                   disabled={loading || success}
                   required
                 />
-                <span className="form-help-text">
-                  Identificador único del equipo según la placa del fabricante.
-                </span>
               </div>
 
               {/* Modelo */}
               <div className="form-group">
-                <label htmlFor="reg-model" className="form-label">
+                <label htmlFor="edit-model" className="form-label">
                   Modelo del Equipo <span className="req-star">*</span>
                 </label>
                 <input
-                  id="reg-model"
+                  id="edit-model"
                   type="text"
                   className="form-input"
-                  placeholder="Ej: CAT 320D, Komatsu PC200"
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                   disabled={loading || success}
                   required
                 />
-                <span className="form-help-text">
-                  Marca y especificación técnica comercial.
-                </span>
               </div>
 
               {/* Categoría */}
               <div className="form-group">
-                <label htmlFor="reg-category" className="form-label">
-                  Categoría de Maquinaria <span className="req-star">*</span>
+                <label htmlFor="edit-category" className="form-label">
+                  Categoría <span className="req-star">*</span>
                 </label>
                 <select
-                  id="reg-category"
+                  id="edit-category"
                   className="form-select"
                   value={categorySelect}
                   onChange={(e) => setCategorySelect(e.target.value)}
@@ -285,7 +305,7 @@ export const RegisterMachineModal: React.FC<Props> = ({
                   <input
                     type="text"
                     className="form-input mt-2"
-                    placeholder="Escriba la categoría personalizada"
+                    placeholder="Categoría personalizada"
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
                     disabled={loading || success}
@@ -294,21 +314,23 @@ export const RegisterMachineModal: React.FC<Props> = ({
                 )}
               </div>
 
-              {/* Estado Inicial */}
+              {/* Estado */}
               <div className="form-group">
-                <label htmlFor="reg-status" className="form-label">
-                  Estado Operativo Inicial
+                <label htmlFor="edit-status" className="form-label">
+                  Estado Operativo
                 </label>
                 <select
-                  id="reg-status"
+                  id="edit-status"
                   className="form-select"
                   value={status}
                   onChange={(e) => setStatus(e.target.value as MachineStatus)}
                   disabled={loading || success}
                 >
-                  <option value="pendiente">Pendiente (Sin iniciar alistamiento)</option>
-                  <option value="en_proceso">En proceso (Alistamiento en curso)</option>
-                  <option value="completada">Completada (Lista para despacho)</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="en_proceso">En proceso</option>
+                  <option value="completada">Completada</option>
+                  <option value="en_transito">En tránsito</option>
+                  <option value="entregada">Entregada</option>
                 </select>
               </div>
             </div>
@@ -331,12 +353,12 @@ export const RegisterMachineModal: React.FC<Props> = ({
               {loading ? (
                 <>
                   <Loader2 size={16} className="spinner" />
-                  <span>Guardando en Servidor...</span>
+                  <span>Guardando Cambios...</span>
                 </>
               ) : (
                 <>
-                  <Plus size={16} />
-                  <span>Registrar Maquinaria</span>
+                  <Check size={16} />
+                  <span>Actualizar Maquinaria</span>
                 </>
               )}
             </button>
