@@ -31,15 +31,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const mainNavItems = [
     { id: 'inicio', label: 'Inicio', icon: LayoutDashboard, path: '/dashboard' },
     { id: 'maquinas', label: 'Máquinas', icon: Truck, path: '/maquinas' },
-    { id: 'alistamientos', label: 'Alistamientos', icon: ClipboardCheck, path: '/dashboard' },
-    { id: 'seguimiento', label: 'Seguimiento', icon: Navigation, path: '/dashboard' },
-    { id: 'usuarios', label: 'Usuarios', icon: Users, path: '/dashboard' },
-    { id: 'evidencias', label: 'Evidencias e informes', icon: FileText, path: '/dashboard' },
+    { id: 'alistamientos', label: 'Alistamientos', icon: ClipboardCheck, path: '/alistamientos' },
+    { id: 'seguimiento', label: 'Seguimiento', icon: Navigation, path: '/seguimiento' },
+    { id: 'usuarios', label: 'Usuarios', icon: Users, path: '/usuarios' },
+    { id: 'evidencias', label: 'Evidencias e informes', icon: FileText, path: '/evidencias' },
   ];
 
   const secondaryNavItems = [
-    { id: 'configuracion', label: 'Configuración', icon: Settings, path: '/dashboard' },
-    { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, path: '/dashboard' },
+    { id: 'configuracion', label: 'Configuración', icon: Settings, path: '/configuracion' },
+    { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, path: '/ayuda' },
   ];
 
   const handleItemClick = (id: string, path: string) => {
@@ -62,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="sidebar-nav">
           {mainNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = currentTab === item.id;
             return (
               <button
                 key={item.id}

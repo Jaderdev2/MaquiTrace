@@ -4,6 +4,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './features/auth/Login';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { MachinesPage } from './features/machines';
+import { PreparationPage } from './features/preparation/PreparationPage';
+import { TrackingPage } from './features/tracking/TrackingPage';
+import { UsersPage } from './features/users/UsersPage';
 import { Loader2 } from 'lucide-react';
 import './App.css';
 
@@ -84,6 +87,36 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <MachinesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ruta protegida: Fases de Alistamiento */}
+          <Route
+            path="/alistamientos"
+            element={
+              <ProtectedRoute>
+                <PreparationPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ruta protegida: Seguimiento y Rutas de Transporte */}
+          <Route
+            path="/seguimiento"
+            element={
+              <ProtectedRoute>
+                <TrackingPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ruta protegida: Gestión de Usuarios y Roles */}
+          <Route
+            path="/usuarios"
+            element={
+              <ProtectedRoute>
+                <UsersPage />
               </ProtectedRoute>
             }
           />
