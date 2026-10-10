@@ -1,11 +1,16 @@
-export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'OPERATOR' | 'administrador' | 'supervisor' | 'operario' | 'transportador';
+export interface Role {
+  id: string;
+  name: string;
+}
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: UserRole | { name: string };
+  role?: string | { id?: string; name: string };
+  roleId?: string;
   phone?: string;
+  createdAt?: string;
 }
 
 export type MachineStatus = 'pendiente' | 'en_proceso' | 'completada' | 'en_transito' | 'entregada';
@@ -44,16 +49,40 @@ export interface Evidence {
   observations?: string;
 }
 
+export interface GpsRecord {
+  id: string;
+  tripId: string;
+  latitude: number;
+  longitude: number;
+  recordedAt: string;
+}
+
+export interface Incident {
+  id: string;
+  tripId: string;
+  description: string;
+  photoUrl?: string;
+  reportedAt: string;
+}
+
 export interface TransportTrip {
   id: string;
+  machineId?: string;
+  machine?: Machine;
+  transporterId?: string;
   vehicle: string;
   destination: string;
   status: 'pendiente' | 'en_transito' | 'entregado';
   departureAt?: string;
   arrivalAt?: string;
   transporter?: {
+    id?: string;
     name: string;
+    email?: string;
+    phone?: string;
   };
+  gpsRecords?: GpsRecord[];
+  incidents?: Incident[];
 }
 
 export interface Machine {
@@ -62,6 +91,7 @@ export interface Machine {
   serial: string;
   model: string;
   status: MachineStatus;
+  imageUrl?: string | null;
   phases?: PreparationPhase[];
   evidence?: Evidence[];
   trips?: TransportTrip[];
@@ -73,6 +103,23 @@ export interface CreateMachineDto {
   serial: string;
   model: string;
   status?: MachineStatus;
+  imageUrl?: string | null;
+}
+
+export interface CreateUserDto {
+  name: string;
+  email: string;
+  roleId: string;
+  password?: string;
+  phone?: string;
+}
+
+export interface UpdateUserDto {
+  name?: string;
+  email?: string;
+  roleId?: string;
+  password?: string;
+  phone?: string;
 }
 
 export interface LoginResponse {
