@@ -20,20 +20,43 @@ class TransportService {
 
   /// Obtiene los viajes asignados al transportador autenticado
   Future<List<TripModel>> fetchMyTrips({String? token}) async {
-    final url = Uri.parse(ApiConstants.myTripsUrl);
-    final response = await http
-        .get(url, headers: _buildHeaders(token: token))
-        .timeout(const Duration(seconds: 15));
+    try {
+      final url = Uri.parse(ApiConstants.myTripsUrl);
+      final response = await http
+          .get(url, headers: _buildHeaders(token: token))
+          .timeout(const Duration(seconds: 15));
 
-    if (response.statusCode == 200) {
-      final dynamic decoded = jsonDecode(response.body);
-      if (decoded is List) {
-        return decoded
-            .map((item) => TripModel.fromJson(item as Map<String, dynamic>))
-            .toList();
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded
+              .map((item) => TripModel.fromJson(item as Map<String, dynamic>))
+              .toList();
+        }
       }
+    } catch (_) {
+      // Si falla o la nube aún no tiene my-trips, continúa con el fallback
     }
-    throw HttpException('Error al obtener viajes asignados (${response.statusCode})');
+
+    // Fallback de contingencia: si la nube de Render aún no tiene desplegado /my-trips,
+    // consulta /transport/active que sí existe en el servidor remoto actual.
+    try {
+      final fallbackUrl = Uri.parse(ApiConstants.activeTripsUrl);
+      final fallbackResponse = await http
+          .get(fallbackUrl, headers: _buildHeaders(token: token))
+          .timeout(const Duration(seconds: 15));
+
+      if (fallbackResponse.statusCode == 200) {
+        final dynamic decoded = jsonDecode(fallbackResponse.body);
+        if (decoded is List) {
+          return decoded
+              .map((item) => TripModel.fromJson(item as Map<String, dynamic>))
+              .toList();
+        }
+      }
+    } catch (_) {}
+
+    return <TripModel>[];
   }
 
   /// Obtiene las maquinarias que están alistadas y listas para despacho (status == completada)
