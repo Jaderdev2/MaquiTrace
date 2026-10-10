@@ -83,5 +83,18 @@ export class UsersService {
       include: { role: true },
     });
   }
+
+  async findRoles() {
+    return this.prisma.role.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async remove(id: string) {
+    await this.findById(id);
+    return this.prisma.user.delete({
+      where: { id },
+    });
+  }
 }
 

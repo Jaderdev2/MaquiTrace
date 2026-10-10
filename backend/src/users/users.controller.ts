@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateUserDto, UpdateUserDto, UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,6 +14,12 @@ export class UsersController {
   @ApiOperation({ summary: 'Obtener lista de usuarios' })
   async getAll(@Query('role') role?: string) {
     return this.usersService.findAll(role);
+  }
+
+  @Get('roles')
+  @ApiOperation({ summary: 'Obtener lista de roles disponibles' })
+  async getRoles() {
+    return this.usersService.findRoles();
   }
 
   @Post()
@@ -44,6 +50,12 @@ export class UsersController {
   @ApiOperation({ summary: 'Actualizar datos de un usuario por ID' })
   async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar usuario por ID' })
+  async remove(@Param('id') id: string) {
+    return this.usersService.remove(id);
   }
 }
 
