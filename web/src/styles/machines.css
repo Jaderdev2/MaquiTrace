@@ -478,13 +478,17 @@
    ========================================================================== */
 
 .register-machine-modal-content {
-  max-width: 580px;
+  max-width: 640px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .register-modal-icon-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   background-color: #EFF6FF;
   color: #0066FF;
   display: flex;
@@ -496,6 +500,10 @@
 .register-machine-form {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
 }
 
 .register-alert {
@@ -616,5 +624,217 @@
 
 .btn-primary-register:disabled {
   opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Selector de Avatar / Foto de Perfil */
+.avatar-picker-section {
+  background-color: #F8FAFC;
+  border: 1px dashed #CBD5E1;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.avatar-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar-preview-box {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  background-color: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #94A3B8;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.avatar-picker-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.btn-upload-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #1E293B;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.15s ease;
+}
+
+.btn-upload-avatar:hover {
+  background-color: #F1F5F9;
+  border-color: #94A3B8;
+}
+
+.btn-remove-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #DC2626;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  width: fit-content;
+}
+
+.btn-remove-avatar:hover {
+  text-decoration: underline;
+}
+
+.avatar-helper-text {
+  font-size: 11px;
+  color: #64748B;
+  line-height: 1.3;
+}
+
+/* Botones de Acción en Tarjeta / Fila (CRUD) */
+.card-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-card-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-card-edit:hover {
+  background-color: #EFF6FF;
+  border-color: #93C5FD;
+  color: #0066FF;
+}
+
+.btn-card-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-card-delete:hover {
+  background-color: #FEF2F2;
+  border-color: #FECACA;
+  color: #DC2626;
+}
+
+/* Modal de Confirmación de Eliminación */
+.delete-modal-content {
+  max-width: 440px;
+}
+
+.delete-modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.delete-modal-icon-box {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #FEE2E2;
+  color: #DC2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+}
+
+.delete-modal-desc {
+  font-size: 13px;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.delete-modal-machine-tag {
+  background-color: #F1F5F9;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.btn-danger-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #DC2626;
+  border: none;
+  color: #FFFFFF;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-danger-confirm:hover:not(:disabled) {
+  background-color: #B91C1C;
+}
+
+.btn-danger-confirm:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { fetchMachinesApi } from '../../services/api';
+import { fetchMachinesApi, deleteMachineApi } from '../../services/api';
 import type { Machine } from '../../types';
 import { Sidebar } from '../../components/Sidebar';
 import { Navbar } from '../../components/Navbar';
 import { RegisterMachineModal } from '../../components/RegisterMachineModal';
+import { EditMachineModal } from '../../components/EditMachineModal';
 import { MachineDetailModal } from '../../components/MachineDetailModal';
 import { getMachineProfileImage } from '../../utils/evidence';
 import {
@@ -21,6 +22,9 @@ import {
   Clock,
   Layers,
   Wrench,
+  Edit,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import '../../styles/machines.css';
 
@@ -34,8 +38,13 @@ export const MachinesPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('todas');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
+  // Modales
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
   const [registerModalOpen, setRegisterModalOpen] = useState<boolean>(false);
+  const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
+  const [deletingMachine, setDeletingMachine] = useState<Machine | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
   // Carga de maquinaria desde el backend
@@ -57,11 +66,44 @@ export const MachinesPage: React.FC = () => {
     loadMachines();
   }, [loadMachines]);
 
-  // Manejo de nueva máquina registrada por el Admin
+  // Manejo de creación (Create)
   const handleMachineCreated = (newMachine: Machine) => {
     setMachines((prev) => [newMachine, ...prev]);
     setSuccessBanner(`¡La maquinaria ${newMachine.model} (${newMachine.serial}) fue registrada con éxito!`);
     setTimeout(() => setSuccessBanner(null), 5000);
+  };
+
+  // Manejo de actualización (Update)
+  const handleMachineUpdated = (updatedMachine: Machine) => {
+    setMachines((prev) =>
+      prev.map((m) => (m.id === updatedMachine.id ? updatedMachine : m))
+    );
+    // Si la máquina editada está abierta en el visor de detalle, actualizarla también
+    if (selectedMachine?.id === updatedMachine.id) {
+      setSelectedMachine(updatedMachine);
+    }
+    setSuccessBanner(`¡La maquinaria ${updatedMachine.model} (${updatedMachine.serial}) fue actualizada con éxito!`);
+    setTimeout(() => setSuccessBanner(null), 5000);
+  };
+
+  // Manejo de eliminación (Delete)
+  const handleConfirmDelete = async () => {
+    if (!deletingMachine || !token) return;
+    try {
+      setDeleteLoading(true);
+      await deleteMachineApi(deletingMachine.id, token);
+      setMachines((prev) => prev.filter((m) => m.id !== deletingMachine.id));
+      if (selectedMachine?.id === deletingMachine.id) {
+        setSelectedMachine(null);
+      }
+      setSuccessBanner(`La maquinaria ${deletingMachine.model} (${deletingMachine.serial}) ha sido eliminada.`);
+      setTimeout(() => setSuccessBanner(null), 5000);
+      setDeletingMachine(null);
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar la maquinaria.');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   // Listado de categorías únicas para el filtro
@@ -161,7 +203,7 @@ export const MachinesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Banner de éxito al registrar */}
+          {/* Banner de éxito */}
           {successBanner && (
             <div className="register-alert success">
               <CheckCircle2 size={18} />
@@ -312,7 +354,7 @@ export const MachinesPage: React.FC = () => {
               </button>
             </div>
           ) : viewMode === 'grid' ? (
-            /* Vista Cuadrícula */
+            /* Vista Cuadrícula (Cards) */
             <div className="machines-card-grid">
               {filteredMachines.map((machine) => {
                 const photo = getMachineProfileImage(machine);
@@ -377,14 +419,35 @@ export const MachinesPage: React.FC = () => {
                       </div>
 
                       <div className="card-action-footer">
-                        <button
-                          type="button"
-                          className="btn-card-details"
-                          onClick={() => setSelectedMachine(machine)}
-                        >
-                          <Eye size={15} />
-                          <span>Ver Ficha Técnica Completa</span>
-                        </button>
+                        <div className="card-actions-row">
+                          <button
+                            type="button"
+                            className="btn-card-details"
+                            onClick={() => setSelectedMachine(machine)}
+                            title="Ver ficha técnica completa y fotos grandes"
+                          >
+                            <Eye size={15} />
+                            <span>Ver Ficha</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-card-edit"
+                            onClick={() => setEditingMachine(machine)}
+                            title="Editar datos o cambiar avatar"
+                          >
+                            <Edit size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-card-delete"
+                            onClick={() => setDeletingMachine(machine)}
+                            title="Eliminar maquinaria"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -392,7 +455,7 @@ export const MachinesPage: React.FC = () => {
               })}
             </div>
           ) : (
-            /* Vista Tabla */
+            /* Vista Tabla (Data Table) */
             <div className="card-section" style={{ padding: '0', overflow: 'hidden' }}>
               <div className="table-scroll-wrapper">
                 <table className="modern-data-table">
@@ -404,7 +467,7 @@ export const MachinesPage: React.FC = () => {
                       <th>Estado</th>
                       <th>Alistamiento</th>
                       <th>Evidencias</th>
-                      <th>Acción</th>
+                      <th style={{ textAlign: 'right' }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -464,15 +527,37 @@ export const MachinesPage: React.FC = () => {
                             </span>
                           </td>
                           <td>
-                            <button
-                              type="button"
-                              className="btn-table-action"
-                              onClick={() => setSelectedMachine(machine)}
-                              title="Ver ficha técnica de la máquina"
-                            >
-                              <Eye size={14} />
-                              <span style={{ fontSize: '11px', marginLeft: '4px', fontWeight: 600 }}>Detalle</span>
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                              <button
+                                type="button"
+                                className="btn-table-action"
+                                onClick={() => setSelectedMachine(machine)}
+                                title="Ver ficha técnica"
+                              >
+                                <Eye size={14} />
+                                <span style={{ fontSize: '11px', marginLeft: '4px', fontWeight: 600 }}>Ver</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn-card-edit"
+                                onClick={() => setEditingMachine(machine)}
+                                title="Editar datos o foto"
+                                style={{ padding: '6px 8px' }}
+                              >
+                                <Edit size={14} />
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn-card-delete"
+                                onClick={() => setDeletingMachine(machine)}
+                                title="Eliminar maquinaria"
+                                style={{ padding: '6px 8px' }}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -485,12 +570,68 @@ export const MachinesPage: React.FC = () => {
         </main>
       </div>
 
-      {/* Modal de Registro de Maquinaria */}
+      {/* Modal de Registro de Maquinaria (Create con avatar) */}
       <RegisterMachineModal
         isOpen={registerModalOpen}
         onClose={() => setRegisterModalOpen(false)}
         onMachineCreated={handleMachineCreated}
       />
+
+      {/* Modal de Edición de Maquinaria (Update con cambio de avatar) */}
+      <EditMachineModal
+        isOpen={Boolean(editingMachine)}
+        machine={editingMachine}
+        onClose={() => setEditingMachine(null)}
+        onMachineUpdated={handleMachineUpdated}
+      />
+
+      {/* Modal de Confirmación para Eliminar (Delete) */}
+      {deletingMachine && (
+        <div className="modal-backdrop" onClick={() => !deleteLoading && setDeletingMachine(null)}>
+          <div className="modal-content delete-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-modal-body">
+              <div className="delete-modal-icon-box">
+                <Trash2 size={28} />
+              </div>
+              <h3 className="delete-modal-title">¿Eliminar Maquinaria?</h3>
+              <p className="delete-modal-desc">
+                Esta acción eliminará de forma permanente el equipo del inventario de MaquiTrace.
+              </p>
+              <div className="delete-modal-machine-tag">
+                {deletingMachine.model} · {deletingMachine.serial}
+              </div>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'center', gap: '12px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setDeletingMachine(null)}
+                disabled={deleteLoading}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-danger-confirm"
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? (
+                  <>
+                    <Loader2 size={15} className="spinner" />
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={15} />
+                    <span>Sí, Eliminar Equipo</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Ficha Técnica Completa con foto grande y galería */}
       <MachineDetailModal
