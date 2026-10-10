@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_bottom_nav.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../history/screens/history_screen.dart';
+import 'transport_history_screen.dart';
 import '../../machines/screens/machines_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../qr_scanner/screens/qr_scanner_screen.dart';
@@ -119,7 +119,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
       case 2:
         return const QrScannerScreen();
       case 3:
-        return const HistoryScreen(showScaffold: false);
+        return const TransportHistoryScreen(showScaffold: false);
       case 4:
         return ProfileScreen(
           showScaffold: false,
