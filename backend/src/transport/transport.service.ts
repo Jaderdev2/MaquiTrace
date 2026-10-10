@@ -117,6 +117,41 @@ export class TransportService {
     });
   }
 
+  async getTransporterTrips(transporterId: string) {
+    return this.prisma.transportTrip.findMany({
+      where: { transporterId },
+      include: {
+        machine: true,
+        transporter: true,
+        gpsRecords: {
+          take: 1,
+          orderBy: { recordedAt: 'desc' },
+        },
+        incidents: true,
+      },
+      orderBy: { id: 'desc' },
+    });
+  }
+
+  async getActiveTripByMachine(machineId: string) {
+    return this.prisma.transportTrip.findFirst({
+      where: {
+        machineId,
+        status: { in: [TripStatus.pendiente, TripStatus.en_transito] },
+      },
+      include: {
+        machine: true,
+        transporter: true,
+        gpsRecords: {
+          take: 1,
+          orderBy: { recordedAt: 'desc' },
+        },
+        incidents: true,
+      },
+      orderBy: { id: 'desc' },
+    });
+  }
+
   async getTripById(id: string) {
     const trip = await this.prisma.transportTrip.findUnique({
       where: { id },

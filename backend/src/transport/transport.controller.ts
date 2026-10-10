@@ -51,6 +51,19 @@ export class TransportController {
     return this.transportService.getActiveTrips();
   }
 
+  @Get('my-trips')
+  @ApiOperation({ summary: 'Listar viajes asignados al transportador autenticado' })
+  async getMyTrips(@Request() req: any) {
+    const userId = req.user?.sub || req.user?.id;
+    return this.transportService.getTransporterTrips(userId);
+  }
+
+  @Get('by-machine/:machineId')
+  @ApiOperation({ summary: 'Consultar viaje activo asociado a una maquinaria' })
+  async getActiveByMachine(@Param('machineId') machineId: string) {
+    return this.transportService.getActiveTripByMachine(machineId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener detalle de un viaje específico por ID' })
   async getById(@Param('id') id: string) {
