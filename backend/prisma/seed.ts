@@ -32,7 +32,7 @@ async function main() {
   const saltRounds = 10;
   const adminPasswordHash = await bcrypt.hash('Admin1234!', saltRounds);
   const operarioPasswordHash = await bcrypt.hash('Operario1234!', saltRounds);
-  const transportadorPasswordHash = await bcrypt.hash('Transporte1234!', saltRounds);
+  const transportadorPasswordHash = await bcrypt.hash('Transportador1234!', saltRounds);
 
   // 3. Usuarios iniciales (Admin, Operario 1: Itadori, Operario 2: Charly, Transportador)
   console.log('[Seed] Registrando usuarios iniciales...');
