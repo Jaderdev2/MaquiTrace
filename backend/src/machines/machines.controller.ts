@@ -1,8 +1,22 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateMachineDto, MachinesService, UpdateMachineDto } from './machines.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MachineStatus } from '@prisma/client';
+import { UploadedFileDto } from '../evidence/evidence.types';
 
 @ApiTags('Machines')
 @ApiBearerAuth('JWT-auth')
@@ -23,6 +37,34 @@ export class MachinesController {
   @Post()
   async create(@Body() dto: CreateMachineDto) {
     return this.machinesService.create(dto);
+  }
+
+  @Post(':id/avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary: 'Subir avatar / foto de perfil del equipo a Oracle Cloud',
+    description:
+      'Sube la imagen a OCI y actualiza el campo imageUrl de la máquina sin generar registros en la tabla Evidence.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Foto de perfil o avatar de la máquina',
+        },
+      },
+    },
+  })
+  async uploadAvatar(
+    @Param('id') id: string,
+    @UploadedFile() file: UploadedFileDto,
+  ) {
+    return this.machinesService.updateAvatar(id, file);
   }
 
   @Patch(':id')

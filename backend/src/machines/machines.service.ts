@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MachineStatus } from '@prisma/client';
+import { OciStorageService } from '../evidence/oci-storage.service';
+import { UploadedFileDto } from '../evidence/evidence.types';
 
 export interface CreateMachineDto {
   category: string;
@@ -20,7 +22,10 @@ export interface UpdateMachineDto {
 
 @Injectable()
 export class MachinesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ociStorage: OciStorageService,
+  ) {}
 
   async findAll(category?: string, status?: MachineStatus, serial?: string) {
     return this.prisma.machine.findMany({
@@ -110,6 +115,35 @@ export class MachinesService {
         imageUrl: dto.imageUrl !== undefined ? dto.imageUrl : undefined,
       },
     });
+  }
+
+  /**
+   * Sube o actualiza la foto de avatar de la maquinaria directamente a Oracle Cloud.
+   * Actualiza el campo `imageUrl` de la máquina SIN insertar ningún registro en la tabla Evidence.
+   */
+  async updateAvatar(id: string, file: UploadedFileDto) {
+    if (!file) {
+      throw new BadRequestException('Se requiere adjuntar un archivo de imagen para el avatar.');
+    }
+    await this.findById(id);
+
+    const { key, url } = await this.ociStorage.uploadFile(file, `avatars/${id}`);
+
+    const machine = await this.prisma.machine.update({
+      where: { id },
+      data: { imageUrl: url },
+      include: {
+        phases: { include: { operator: true } },
+        evidence: { include: { uploader: true } },
+      },
+    });
+
+    return {
+      message: 'Avatar de maquinaria actualizado exitosamente',
+      imageUrl: url,
+      storageKey: key,
+      machine,
+    };
   }
 
   async remove(id: string) {
