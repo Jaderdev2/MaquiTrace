@@ -1,0 +1,60 @@
+/* ==========================================================================
+   MAQUITRACE - GESTIÓN DE USUARIOS Y ROLES
+   ========================================================================== */
+
+.user-avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0F172A, #334155);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.user-avatar-circle.role-admin {
+  background: linear-gradient(135deg, #1E293B, #0F172A);
+  border: 2px solid #E2E8F0;
+}
+
+.user-avatar-circle.role-operario {
+  background: linear-gradient(135deg, #D97706, #B45309);
+}
+
+.user-avatar-circle.role-transportador {
+  background: linear-gradient(135deg, #0284C7, #0369A1);
+}
+
+.user-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.user-role-badge.admin {
+  background-color: #F1F5F9;
+  color: #0F172A;
+  border: 1px solid #CBD5E1;
+}
+
+.user-role-badge.operario {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.user-role-badge.transportador {
+  background-color: #E0F2FE;
+  color: #075985;
+  border: 1px solid #BAE6FD;
+}
