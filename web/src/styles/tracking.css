@@ -1,0 +1,141 @@
+/* ==========================================================================
+   MAQUITRACE - SEGUIMIENTO Y MONITOREO GPS DE TRANSPORTE
+   ========================================================================== */
+
+.tracking-trip-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.tracking-trip-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  border-color: #CBD5E1;
+}
+
+.tracking-trip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  background-color: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.tracking-trip-badge-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tracking-trip-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.tracking-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  background-color: #F8FAFC;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #F1F5F9;
+}
+
+.tracking-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tracking-info-label {
+  font-size: 11px;
+  color: #64748B;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tracking-info-val {
+  font-size: 13px;
+  color: #1E293B;
+  font-weight: 700;
+}
+
+/* Modal de Historial GPS */
+.gps-history-modal-content {
+  max-width: 680px;
+}
+
+.gps-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  position: relative;
+  padding-left: 24px;
+}
+
+.gps-timeline::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 9px;
+  width: 2px;
+  background-color: #CBD5E1;
+}
+
+.gps-timeline-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+}
+
+.gps-timeline-point {
+  position: absolute;
+  left: -20px;
+  top: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #0284C7;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 2px #BAE6FD;
+}
+
+.gps-timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.gps-coords-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #0369A1;
+  background-color: #E0F2FE;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
