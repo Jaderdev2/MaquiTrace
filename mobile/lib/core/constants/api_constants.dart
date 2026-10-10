@@ -77,6 +77,14 @@ class ApiConstants {
   static String get profileUrl => '$baseUrl/auth/profile';
   static String get machinesUrl => '$baseUrl/machines';
   static String get transportUrl => '$baseUrl/transport';
+  static String get myTripsUrl => '$baseUrl/transport/my-trips';
+  static String get activeTripsUrl => '$baseUrl/transport/active';
+  static String tripDetailUrl(String id) => '$baseUrl/transport/$id';
+  static String receiveTransportUrl(String machineId) => '$baseUrl/transport/receive/$machineId';
+  static String departTransportUrl(String machineId) => '$baseUrl/transport/depart/$machineId';
+  static String deliverTransportUrl(String machineId) => '$baseUrl/transport/deliver/$machineId';
+  static String recordGpsUrl(String tripId) => '$baseUrl/tracking/$tripId/location';
+  static String tripIncidentsUrl(String tripId) => '$baseUrl/transport/$tripId/incidents';
   static String machineEvidenceUrl(String machineId) => '$baseUrl/machines/$machineId/evidence';
   static String machinePhaseEvidenceUrl(String machineId, String phaseId) =>
       '$baseUrl/machines/$machineId/phases/$phaseId/evidence';

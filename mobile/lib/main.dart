@@ -8,6 +8,7 @@ import 'features/home/screens/home_screen.dart';
 import 'features/transport/screens/transport_home_screen.dart';
 
 import 'features/evidence/providers/evidence_provider.dart';
+import 'features/transport/providers/transport_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => EvidenceProvider()),
+        ChangeNotifierProvider(create: (_) => TransportProvider()),
       ],
       child: const MaquiTraceApp(),
     ),

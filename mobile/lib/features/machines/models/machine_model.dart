@@ -49,6 +49,9 @@ class MachineModel {
 
   bool get hasCustomImage => imageUrl != null && imageUrl!.trim().isNotEmpty;
 
+  /// Alias de modelo para compatibilidad con backend
+  String get model => name;
+
   String get categoryAsset {
     final cat = category.toLowerCase();
     if (cat.contains('motoniveladora') || cat.contains('niveladora')) {
