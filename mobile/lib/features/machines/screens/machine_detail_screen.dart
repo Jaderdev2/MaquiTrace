@@ -12,6 +12,10 @@ import '../models/machine_model.dart';
 import '../../evidence/screens/evidence_checklist_screen.dart';
 import '../../evidence/providers/evidence_provider.dart';
 import '../../evidence/widgets/fullscreen_image_viewer.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../transport/providers/transport_provider.dart';
+import '../../transport/screens/active_trip_screen.dart';
+import '../../transport/widgets/receive_machine_modal.dart';
 
 /// Colores y medidas propias de esta pantalla.
 /// Un solo radio para tarjetas y botones, uno menor para chips y miniaturas,
@@ -255,6 +259,10 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildSummaryCard(context, m, status),
+                      if (context.watch<AuthProvider>().currentUser?.isTransportador == true) ...[
+                        const SizedBox(height: 16),
+                        _buildTransporterSection(context, m),
+                      ],
                       const SizedBox(height: 16),
                       _buildEvidenceButtonCard(context, m),
                       const SizedBox(height: 16),
@@ -321,6 +329,125 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     if (context.mounted) {
       context.read<EvidenceProvider>().fetchEvidences(machine.id);
     }
+  }
+
+  // --- Sección específica para Transportadores ---
+  Widget _buildTransporterSection(BuildContext context, MachineModel machine) {
+    final transport = context.watch<TransportProvider>();
+    final matches = transport.myTrips.where(
+      (t) => t.machineId == machine.id && (t.isPending || t.isInTransit),
+    );
+    final activeTrip = matches.isNotEmpty ? matches.first : null;
+
+    if (machine.overallState == OverallState.completed) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _Ui.infoBg,
+          borderRadius: BorderRadius.circular(_Ui.radius),
+          border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.accentBlue,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Equipo Listo para Despacho',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Alistamiento finalizado. Asigna vehículo de remolque para iniciar ruta.',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accentBlue,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
+              ),
+              icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
+              label: const Text('Recibir y Asignar Ruta de Despacho', style: TextStyle(fontWeight: FontWeight.w600)),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => ReceiveMachineModal(machine: machine),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    } else if (activeTrip != null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _Ui.infoBg,
+          borderRadius: BorderRadius.circular(_Ui.radius),
+          border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.navigation_rounded, color: AppColors.accentBlue, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Asignada a tu remolque: ${activeTrip.vehicle}',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accentBlue,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(42),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
+              ),
+              icon: const Icon(Icons.speed, size: 18),
+              label: const Text('Abrir Cabina de Control de Ruta'),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => ActiveTripScreen(trip: activeTrip)),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox();
   }
 
   // --- Tarjeta de checklist fotográfico ---

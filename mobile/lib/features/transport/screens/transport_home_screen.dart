@@ -1,11 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_bottom_nav.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/screens/login_screen.dart';
+import '../../history/screens/history_screen.dart';
+import '../../machines/screens/machines_screen.dart';
+import '../../profile/screens/profile_screen.dart';
+import '../../qr_scanner/screens/qr_scanner_screen.dart';
+import '../models/trip_model.dart';
 import '../providers/transport_provider.dart';
 import '../widgets/receive_machine_modal.dart';
 import 'active_trip_screen.dart';
+
+/// Colores y medidas compartidas con el resto de pantallas del flujo.
+/// Un solo radio para tarjetas y botones, uno menor para chips y miniaturas,
+/// bordes de 1 px, sin sombras y color solo cuando comunica estado.
+class _Ui {
+  static const background = Color(0xFFF5F7FA);
+  static const surface = Colors.white;
+  static const border = Color(0xFFE2E8F0);
+  static const divider = Color(0xFFEDF1F5);
+
+  static const success = Color(0xFF15803D);
+  static const successBg = Color(0xFFE8F5EC);
+  static const info = Color(0xFF1D4ED8);
+  static const infoBg = Color(0xFFE6EFFE);
+  static const warning = Color(0xFFB45309);
+  static const locked = Color(0xFF64748B);
+  static const lockedBg = Color(0xFFF1F5F9);
+
+  static const double radius = 10;
+  static const double radiusSmall = 6;
+  static const double pagePadding = 16;
+}
 
 class TransportHomeScreen extends StatefulWidget {
   const TransportHomeScreen({super.key});
@@ -14,7 +43,9 @@ class TransportHomeScreen extends StatefulWidget {
   State<TransportHomeScreen> createState() => _TransportHomeScreenState();
 }
 
-class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTickerProviderStateMixin {
+class _TransportHomeScreenState extends State<TransportHomeScreen>
+    with SingleTickerProviderStateMixin {
+  int _currentNavIndex = 0;
   late TabController _tabController;
 
   @override
@@ -32,256 +63,178 @@ class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTi
     super.dispose();
   }
 
-  Future<void> _handleLogout(BuildContext context, AuthProvider auth) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar Sesión'),
-        content: const Text('¿Estás seguro de que deseas salir del módulo de transporte?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Cerrar Sesión'),
-          ),
-        ],
-      ),
-    );
+  String _two(int n) => n.toString().padLeft(2, '0');
 
-    if (confirm == true && context.mounted) {
-      await auth.logout();
-      if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      }
-    }
-  }
+  // ───────────────────────────── ESTRUCTURA DEL SHELL ─────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: _currentNavIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_currentNavIndex != 0) {
+          setState(() {
+            _currentNavIndex = 0;
+          });
+        }
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
+        child: Scaffold(
+          extendBody: true,
+          backgroundColor: _Ui.background,
+          bottomNavigationBar: _buildBottomNav(),
+          body: _buildBody(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return AppBottomNav(
+      currentIndex: _currentNavIndex,
+      onTap: (index) {
+        setState(() {
+          _currentNavIndex = index;
+        });
+      },
+      onScanTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const QrScannerScreen(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    switch (_currentNavIndex) {
+      case 1:
+        return const MachinesScreen(showScaffold: false);
+      case 2:
+        return const QrScannerScreen();
+      case 3:
+        return const HistoryScreen(showScaffold: false);
+      case 4:
+        return ProfileScreen(
+          showScaffold: false,
+          onNavigateToTab: (index) {
+            setState(() => _currentNavIndex = index);
+          },
+        );
+      default:
+        return _buildTransportHomeTab(context);
+    }
+  }
+
+  // ───────────────────────────── PESTAÑA PRINCIPAL: INICIO DE TRANSPORTE ─────────────────────────────
+
+  Widget _buildTransportHomeTab(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final transportProvider = context.watch<TransportProvider>();
     final user = authProvider.currentUser;
 
     final inTransitTrip = transportProvider.currentTripInTransit;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryNavy,
-        elevation: 0,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.accentBlue.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 10),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'MaquiTrace Transporte',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  'Módulo de Despacho y Conducción',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            tooltip: 'Sincronizar datos',
-            onPressed: () => transportProvider.loadDashboardData(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70),
-            tooltip: 'Cerrar sesión',
-            onPressed: () => _handleLogout(context, authProvider),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            color: Colors.white,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppColors.accentBlue,
-              unselectedLabelColor: AppColors.textSecondary,
-              indicatorColor: AppColors.accentBlue,
-              indicatorWeight: 3,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-              tabs: [
-                Tab(
-                  text: 'Mis Despachos (${transportProvider.activeTrips.length})',
-                ),
-                Tab(
-                  text: 'Por Recibir (${transportProvider.readyMachines.length})',
-                ),
-                Tab(
-                  text: 'Entregados (${transportProvider.deliveredTrips.length})',
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      body: RefreshIndicator(
+    final name = (user?.name.trim().isNotEmpty ?? false) ? user!.name.trim() : 'Transportador';
+    final firstName = name.split(' ').first;
+    final initials = name
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part[0].toUpperCase())
+        .join();
+
+    return SafeArea(
+      bottom: false,
+      child: RefreshIndicator(
         onRefresh: () => transportProvider.loadDashboardData(),
         color: AppColors.accentBlue,
         child: transportProvider.isLoading && transportProvider.myTrips.isEmpty
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.accentBlue),
               )
-            : Column(
-                children: [
-                  // Banner del Conductor
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    color: Colors.white,
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: AppColors.primaryNavy.withValues(alpha: 0.08),
-                          child: Text(
-                            user?.name.isNotEmpty == true
-                                ? user!.name.substring(0, 1).toUpperCase()
-                                : 'T',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryNavy,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user?.name ?? 'Conductor Asignado',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              const Text(
-                                'ROL: TRANSPORTADOR / OPERADOR DE CARRETERA',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+            : CustomScrollView(
+                slivers: [
+                  // 1. Cabecera idéntica a la vista de operario con iniciales y rol
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        _Ui.pagePadding,
+                        16,
+                        _Ui.pagePadding,
+                        12,
+                      ),
+                      child: _buildHeader(firstName, initials),
                     ),
                   ),
 
-                  // Alerta destacada si tiene un viaje en curso
-                  if (inTransitTrip != null) ...[
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.all(14),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.3)),
+                  // 2. Banner de Viaje en Marcha (si hay uno activo)
+                  if (inTransitTrip != null)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          _Ui.pagePadding,
+                          0,
+                          _Ui.pagePadding,
+                          12,
+                        ),
+                        child: _buildInTransitBanner(inTransitTrip),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentBlue,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 20),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  '¡Viaje actualmente en marcha!',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  'Hacia: ${inTransitTrip.destination}',
-                                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accentBlue,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ActiveTripScreen(trip: inTransitTrip),
-                                ),
-                              );
-                            },
-                            child: const Text('Ir a Cabina', style: TextStyle(fontSize: 12)),
-                          ),
+                    ),
+
+                  // 3. Tarjeta de Métricas Rápidas de Despacho
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        _Ui.pagePadding,
+                        0,
+                        _Ui.pagePadding,
+                        16,
+                      ),
+                      child: _buildDispatchMetricsCard(transportProvider),
+                    ),
+                  ),
+
+                  // 4. Barra de pestañas operativas (Despachos, Por recibir, Entregados)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      color: Colors.white,
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: AppColors.accentBlue,
+                        unselectedLabelColor: AppColors.textSecondary,
+                        indicatorColor: AppColors.accentBlue,
+                        indicatorWeight: 2,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        dividerColor: _Ui.border,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                        tabs: [
+                          _buildTab('Despachos', transportProvider.activeTrips.length),
+                          _buildTab('Por recibir', transportProvider.readyMachines.length),
+                          _buildTab('Entregados', transportProvider.deliveredTrips.length),
                         ],
                       ),
                     ),
-                  ],
+                  ),
 
-                  // Contenido de las pestañas
-                  Expanded(
+                  // 5. Contenido de las sub-pestañas
+                  SliverFillRemaining(
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildActiveTripsTab(transportProvider),
-                        _buildReadyMachinesTab(transportProvider),
-                        _buildDeliveredTripsTab(transportProvider),
+                        _buildActiveTripsSubTab(transportProvider),
+                        _buildReadyMachinesSubTab(transportProvider),
+                        _buildDeliveredTripsSubTab(transportProvider),
                       ],
                     ),
                   ),
@@ -291,68 +244,301 @@ class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTi
     );
   }
 
-  Widget _buildActiveTripsTab(TransportProvider provider) {
-    final trips = provider.activeTrips;
-
-    if (trips.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
+  // --- Cabecera de usuario ---
+  Widget _buildHeader(String firstName, String initials) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.primaryNavy,
+            borderRadius: BorderRadius.circular(_Ui.radiusSmall),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            initials.isNotEmpty ? initials : 'T',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.assignment_outlined, size: 54, color: Colors.grey.shade400),
-              const SizedBox(height: 14),
-              const Text(
-                'No tienes despachos activos asignados',
-                style: TextStyle(
-                  fontSize: 15,
+              Text(
+                'Hola, $firstName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Revisa la pestaña "Por Recibir" para tomar una maquinaria alistada y asignarle tu vehículo.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: _Ui.info,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'TRANSPORTADOR OFICIAL',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _Ui.info,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+        IconButton(
+          tooltip: 'Escanear QR de maquinaria',
+          icon: const Icon(Icons.qr_code_scanner_rounded, size: 22, color: AppColors.textPrimary),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+            );
+          },
+        ),
+        IconButton(
+          tooltip: 'Notificaciones',
+          icon: const Icon(Icons.notifications_none_rounded, size: 22, color: AppColors.textPrimary),
+          onPressed: () => _showNotificationsModal(context),
+        ),
+      ],
+    );
+  }
+
+  // --- Banner de viaje en curso ---
+  Widget _buildInTransitBanner(TripModel trip) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _Ui.infoBg,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.accentBlue,
+              borderRadius: BorderRadius.circular(_Ui.radius),
+            ),
+            child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Viaje actualmente en marcha',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  'Hacia ${trip.destination}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accentBlue,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 38),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(_Ui.radius),
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ActiveTripScreen(trip: trip),
+                ),
+              );
+            },
+            child: const Text('Ir a cabina'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Métricas resumidas de transporte ---
+  Widget _buildDispatchMetricsCard(TransportProvider provider) {
+    final activeCount = provider.activeTrips.length;
+    final readyCount = provider.readyMachines.length;
+    final deliveredCount = provider.deliveredTrips.length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _Ui.surface,
+        borderRadius: BorderRadius.circular(_Ui.radius),
+        border: Border.all(color: _Ui.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildMetricItem(
+              label: 'En despacho',
+              count: '$activeCount',
+              icon: Icons.local_shipping_outlined,
+              color: _Ui.info,
+            ),
+          ),
+          Container(width: 1, height: 36, color: _Ui.divider),
+          Expanded(
+            child: _buildMetricItem(
+              label: 'Por recibir',
+              count: '$readyCount',
+              icon: Icons.move_to_inbox_outlined,
+              color: _Ui.warning,
+            ),
+          ),
+          Container(width: 1, height: 36, color: _Ui.divider),
+          Expanded(
+            child: _buildMetricItem(
+              label: 'Entregadas',
+              count: '$deliveredCount',
+              icon: Icons.check_circle_outline_rounded,
+              color: _Ui.success,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricItem({
+    required String label,
+    required String count,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              count,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ───────────────────────────── SUB-PESTAÑAS ─────────────────────────────
+
+  Widget _buildTab(String label, int count) {
+    return Tab(
+      height: 48,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+              decoration: BoxDecoration(
+                color: _Ui.lockedBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _Ui.locked,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveTripsSubTab(TransportProvider provider) {
+    final trips = provider.activeTrips;
+
+    if (trips.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.assignment_outlined,
+        title: 'No tienes despachos activos',
+        message: 'Ve a "Por recibir" para tomar una máquina alistada y asignarle tu vehículo.',
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(14),
+    return ListView.separated(
+      padding: EdgeInsets.fromLTRB(
+        _Ui.pagePadding,
+        _Ui.pagePadding,
+        _Ui.pagePadding,
+        96 + MediaQuery.of(context).padding.bottom,
+      ),
       itemCount: trips.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final trip = trips[index];
         final machine = trip.machine;
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: trip.isInTransit
-                  ? AppColors.accentBlue.withValues(alpha: 0.4)
-                  : const Color(0xFFE2E8F0),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+          decoration: _cardDecoration(),
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(_Ui.radius),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => ActiveTripScreen(trip: trip)),
@@ -366,18 +552,15 @@ class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTi
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: machine != null
-                                ? machine.buildImage(fit: BoxFit.cover)
-                                : Container(
-                                    color: const Color(0xFFEFF6FF),
-                                    child: const Icon(Icons.precision_manufacturing, color: AppColors.accentBlue),
+                        _buildThumb(
+                          child: machine != null
+                              ? machine.buildImage(fit: BoxFit.cover)
+                              : const Center(
+                                  child: Icon(
+                                    Icons.precision_manufacturing_rounded,
+                                    color: _Ui.locked,
                                   ),
-                          ),
+                                ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -385,13 +568,12 @@ class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTi
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
                                       machine?.model ?? 'Maquinaria',
                                       style: const TextStyle(
-                                        fontSize: 15,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.textPrimary,
                                       ),
@@ -399,52 +581,40 @@ class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTi
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: trip.statusBgColor,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      trip.statusLabel.toUpperCase(),
-                                      style: TextStyle(
-                                        color: trip.statusColor,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
+                                  const SizedBox(width: 8),
+                                  _buildChip(
+                                    trip.statusLabel,
+                                    trip.statusColor,
+                                    trip.statusBgColor,
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 2),
                               Text(
-                                'Serial: ${machine?.serial ?? "N/A"} • ${machine?.category ?? "General"}',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                'Serial ${machine?.serial ?? "N/A"} · ${machine?.category ?? "General"}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Remolque: ${trip.vehicle}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
+                              const SizedBox(height: 2),
+                              _buildLabelValue('Remolque', trip.vehicle),
                             ],
                           ),
                         ),
                       ],
                     ),
-                    const Divider(height: 20),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: _Ui.divider),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(Icons.place_outlined, size: 16, color: AppColors.accentBlue),
-                        const SizedBox(width: 6),
+                        const Icon(Icons.place_outlined, size: 18, color: AppColors.textSecondary),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             trip.destination,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
@@ -452,7 +622,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTi
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+                        const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
                       ],
                     ),
                   ],
@@ -465,129 +635,183 @@ class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTi
     );
   }
 
-  Widget _buildReadyMachinesTab(TransportProvider provider) {
+  Widget _buildReadyMachinesSubTab(TransportProvider provider) {
     final machines = provider.readyMachines;
 
     if (machines.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle_outline, size: 54, color: Colors.grey.shade400),
-              const SizedBox(height: 14),
-              const Text(
-                'No hay maquinaria pendiente por despachar',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Cuando los operarios finalicen las 3 fases de alistamiento en taller, los equipos aparecerán aquí para ser recibidos.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-        ),
+      return _buildEmptyState(
+        icon: Icons.check_circle_outline_rounded,
+        title: 'No hay maquinaria por despachar',
+        message: 'Cuando el taller termine las 3 fases de alistamiento, los equipos aparecerán aquí para recibirlos.',
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(14),
+    return ListView.separated(
+      padding: EdgeInsets.fromLTRB(
+        _Ui.pagePadding,
+        _Ui.pagePadding,
+        _Ui.pagePadding,
+        96 + MediaQuery.of(context).padding.bottom,
+      ),
       itemCount: machines.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final m = machines[index];
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+          decoration: _cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildThumb(child: m.buildImage(fit: BoxFit.cover)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                m.model,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildChip('Alistada', _Ui.success, _Ui.successBg),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Serial ${m.serial} · ${m.category}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accentBlue,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(44),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(_Ui.radius),
+                  ),
+                ),
+                icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
+                label: const Text('Recibir y asignar ruta'),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => ReceiveMachineModal(machine: m),
+                  );
+                },
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDeliveredTripsSubTab(TransportProvider provider) {
+    final trips = provider.deliveredTrips;
+
+    if (trips.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.history_rounded,
+        title: 'Aún no hay entregas',
+        message: 'Los viajes finalizados y entregados en destino quedarán archivados aquí.',
+      );
+    }
+
+    return ListView.separated(
+      padding: EdgeInsets.fromLTRB(
+        _Ui.pagePadding,
+        _Ui.pagePadding,
+        _Ui.pagePadding,
+        96 + MediaQuery.of(context).padding.bottom,
+      ),
+      itemCount: trips.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final trip = trips[index];
+        final machine = trip.machine;
+        final arrival = trip.arrivalAt;
+
+        final deliveredText = arrival != null
+            ? 'Entregado el ${_two(arrival.day)}/${_two(arrival.month)}/${arrival.year} a las ${_two(arrival.hour)}:${_two(arrival.minute)}'
+            : 'Entregado en destino';
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: _cardDecoration(),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: m.buildImage(fit: BoxFit.cover),
-                ),
+              _buildThumb(
+                child: machine != null
+                    ? machine.buildImage(fit: BoxFit.cover)
+                    : const Center(
+                        child: Icon(Icons.check_rounded, color: _Ui.success),
+                      ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      machine?.model ?? 'Maquinaria',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Destino: ${trip.destination}',
+                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
+                        const Icon(Icons.check_circle_rounded, size: 14, color: _Ui.success),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            m.model,
+                            deliveredText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5EC),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'ALISTADA',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF15803D),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Serial: ${m.serial} • ${m.category}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 36,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accentBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        icon: const Icon(Icons.add_shopping_cart, size: 16),
-                        label: const Text('Recibir y Asignar Ruta', style: TextStyle(fontSize: 12)),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => ReceiveMachineModal(machine: m),
-                          );
-                        },
-                      ),
                     ),
                   ],
                 ),
@@ -599,103 +823,191 @@ class _TransportHomeScreenState extends State<TransportHomeScreen> with SingleTi
     );
   }
 
-  Widget _buildDeliveredTripsTab(TransportProvider provider) {
-    final trips = provider.deliveredTrips;
+  // ───────────────────────────── UTILIDADES VISUALES ─────────────────────────────
 
-    if (trips.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.history, size: 54, color: Colors.grey.shade400),
-              const SizedBox(height: 14),
-              const Text(
-                'Sin entregas completadas aún',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Los viajes finalizados y entregados en destino quedarán archivados aquí con su historial.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: _Ui.surface,
+      borderRadius: BorderRadius.circular(_Ui.radius),
+      border: Border.all(color: _Ui.border),
+    );
+  }
+
+  Widget _buildChip(String label, Color fg, Color bg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(_Ui.radiusSmall),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: fg,
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(14),
-      itemCount: trips.length,
-      itemBuilder: (context, index) {
-        final trip = trips[index];
-        final machine = trip.machine;
+  Widget _buildThumb({required Widget child}) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: _Ui.lockedBg,
+        borderRadius: BorderRadius.circular(_Ui.radiusSmall),
+        border: Border.all(color: _Ui.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+  Widget _buildLabelValue(String label, String value) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '$label: '),
+          TextSpan(
+            text: value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: SizedBox(
-                  width: 52,
-                  height: 52,
-                  child: machine != null
-                      ? machine.buildImage(fit: BoxFit.cover)
-                      : Container(
-                          color: const Color(0xFFF1F5F9),
-                          child: const Icon(Icons.check, color: Color(0xFF15803D)),
-                        ),
-                ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 40, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNotificationsModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    Text(
-                      machine?.model ?? 'Maquinaria',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                    const Expanded(
+                      child: Text(
+                        'Notificaciones de Despacho',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Destino: ${trip.destination}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      trip.arrivalAt != null
-                          ? 'Entregado: ${trip.arrivalAt!.day}/${trip.arrivalAt!.month}/${trip.arrivalAt!.year} a las ${trip.arrivalAt!.hour.toString().padLeft(2, "0")}:${trip.arrivalAt!.minute.toString().padLeft(2, "0")}'
-                          : 'Entregado en destino',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF15803D),
-                      ),
+                    IconButton(
+                      tooltip: 'Cerrar',
+                      icon: const Icon(Icons.close_rounded, size: 22, color: AppColors.textSecondary),
+                      onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                const Center(
+                  child: Icon(Icons.check_circle_outline_rounded, size: 40, color: _Ui.success),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Todo en orden en carretera',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'No hay alertas viales ni cierres de ruta reportados en este momento.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.4,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primaryNavy,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
+                    ),
+                    child: const Text('Entendido'),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
