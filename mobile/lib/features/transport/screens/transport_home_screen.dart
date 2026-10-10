@@ -27,7 +27,6 @@ class _Ui {
   static const successBg = Color(0xFFE8F5EC);
   static const info = Color(0xFF1D4ED8);
   static const infoBg = Color(0xFFE6EFFE);
-  static const warning = Color(0xFFB45309);
   static const locked = Color(0xFF64748B);
   static const lockedBg = Color(0xFFF1F5F9);
 
@@ -190,20 +189,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                       ),
                     ),
 
-                  // 3. Tarjeta de Métricas Rápidas de Despacho
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        _Ui.pagePadding,
-                        0,
-                        _Ui.pagePadding,
-                        16,
-                      ),
-                      child: _buildDispatchMetricsCard(transportProvider),
-                    ),
-                  ),
-
-                  // 4. Barra de pestañas operativas (Despachos, Por recibir, Entregados)
+                  // 3. Barra de pestañas operativas (Despachos, Por recibir, Entregados)
                   SliverToBoxAdapter(
                     child: Container(
                       color: Colors.white,
@@ -391,88 +377,6 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
           ),
         ],
       ),
-    );
-  }
-
-  // --- Métricas resumidas de transporte ---
-  Widget _buildDispatchMetricsCard(TransportProvider provider) {
-    final activeCount = provider.activeTrips.length;
-    final readyCount = provider.readyMachines.length;
-    final deliveredCount = provider.deliveredTrips.length;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _Ui.surface,
-        borderRadius: BorderRadius.circular(_Ui.radius),
-        border: Border.all(color: _Ui.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildMetricItem(
-              label: 'En despacho',
-              count: '$activeCount',
-              icon: Icons.local_shipping_outlined,
-              color: _Ui.info,
-            ),
-          ),
-          Container(width: 1, height: 36, color: _Ui.divider),
-          Expanded(
-            child: _buildMetricItem(
-              label: 'Por recibir',
-              count: '$readyCount',
-              icon: Icons.move_to_inbox_outlined,
-              color: _Ui.warning,
-            ),
-          ),
-          Container(width: 1, height: 36, color: _Ui.divider),
-          Expanded(
-            child: _buildMetricItem(
-              label: 'Entregadas',
-              count: '$deliveredCount',
-              icon: Icons.check_circle_outline_rounded,
-              color: _Ui.success,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricItem({
-    required String label,
-    required String count,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              count,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 
