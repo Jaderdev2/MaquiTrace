@@ -14,6 +14,8 @@ import {
   Truck,
   Layers,
   Sparkles,
+  Hash,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   getMachineProfileImage,
@@ -31,15 +33,21 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
 
   if (!machine) return null;
 
+  // Foto de avatar oficial / perfil del equipo (prioriza imageUrl de OCI)
   const profilePhoto = getMachineProfileImage(machine);
 
-  // Filtrar evidencias operativas excluyendo fotos de avatar para evitar duplicados o confusiones
+  // Filtrar evidencias operativas excluyendo fotos de avatar para la galería técnica
   const operationalEvidences = (machine.evidence || []).filter((ev) => {
     const isAvatar =
       ev.url?.toLowerCase().includes('avatar') ||
       ev.observations?.toLowerCase().includes('avatar');
     return !isAvatar;
   });
+
+  // Cálculo de progreso de fases
+  const totalPhases = machine.phases?.length || 0;
+  const completedPhases = (machine.phases || []).filter((p) => p.status === 'completada').length;
+  const progressPercent = totalPhases > 0 ? Math.round((completedPhases / totalPhases) * 100) : 0;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -107,17 +115,30 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
         className="modal-content machine-detail-modal-content"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Cabecera del modal (Fija / Sticky) */}
+        {/* Cabecera del modal: con avatar del equipo integrado */}
         <div className="modal-header">
           <div className="modal-header-title">
             <div className="detail-header-badge">
-              <div className="header-icon-box">
-                <Truck size={18} />
+              {/* Avatar miniatura del equipo en el header */}
+              <div className="header-avatar-frame">
+                {profilePhoto ? (
+                  <img
+                    src={profilePhoto}
+                    alt={machine.model}
+                    className="header-avatar-img"
+                  />
+                ) : (
+                  <div className="header-icon-box">
+                    <Truck size={18} />
+                  </div>
+                )}
+                <span className="header-avatar-dot" />
               </div>
+
               <div>
                 <h3>Ficha Técnica e Inspección</h3>
                 <span className="modal-header-sub">
-                  Equipo {machine.serial} &bull; {machine.category}
+                  Equipo <strong>{machine.serial}</strong> &bull; {machine.category}
                 </span>
               </div>
             </div>
@@ -127,28 +148,30 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
           </button>
         </div>
 
-        {/* Cuerpo del modal (Scrollable y siempre accesible) */}
+        {/* Cuerpo del modal */}
         <div className="modal-body detail-modal-body">
-          {/* FOTO GRANDE DEL EQUIPO (HERO SHOWCASE) */}
+          {/* APARTADO DESTACADO: AVATAR Y SHOWCASE DEL EQUIPO */}
           <div className="machine-showcase-hero">
             <div className="machine-showcase-media">
               {profilePhoto ? (
                 <>
-                  <img
-                    src={profilePhoto}
-                    alt={machine.model}
-                    className="machine-showcase-image"
-                    onClick={() => setSelectedPhoto(profilePhoto)}
-                    title="Haz clic para ver imagen en alta resolución"
-                  />
+                  <div className="machine-avatar-spotlight">
+                    <img
+                      src={profilePhoto}
+                      alt={machine.model}
+                      className="machine-showcase-image"
+                      onClick={() => setSelectedPhoto(profilePhoto)}
+                      title="Haz clic para ver avatar en alta definición"
+                    />
+                  </div>
                   <div className="machine-showcase-badges-top">
                     <span className="badge-photo-source">
-                      <Sparkles size={13} /> Foto Oficial (Oracle Cloud)
+                      <Sparkles size={13} /> Avatar Oficial · Oracle Cloud
                     </span>
                     <button
                       className="btn-showcase-zoom"
                       onClick={() => setSelectedPhoto(profilePhoto)}
-                      title="Ampliar imagen en pantalla completa"
+                      title="Ampliar avatar en pantalla completa"
                       type="button"
                     >
                       <Maximize2 size={16} />
@@ -158,22 +181,25 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
               ) : (
                 <div className="machine-showcase-empty">
                   <div className="empty-machine-icon-box">
-                    <Truck size={42} />
+                    <Truck size={40} />
                   </div>
                   <span className="empty-machine-text">
-                    Sin foto oficial registrada en Oracle Cloud
+                    Sin avatar oficial registrado en Oracle Cloud
                   </span>
                   <span className="empty-machine-sub">
-                    Las fotos registradas desde la app móvil o el administrador se desplegarán aquí en alta definición.
+                    Puedes subir la foto de perfil del equipo desde la opción de editar máquina o sincronizarla desde la app móvil.
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Ficha descriptiva directamente abajo de la imagen grande */}
+            {/* Ficha descriptiva abajo del avatar */}
             <div className="machine-showcase-footer">
               <div className="showcase-titles-box">
-                <div className="showcase-serial-pill">{machine.serial}</div>
+                <div className="showcase-serial-pill">
+                  <Hash size={13} />
+                  <span>{machine.serial}</span>
+                </div>
                 <div>
                   <h2 className="showcase-machine-name">{machine.model}</h2>
                   <span className="showcase-category-label">
@@ -187,12 +213,28 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
             </div>
           </div>
 
-          {/* Grid de Métricas y Especificaciones */}
+          {/* Grid de Métricas y Especificaciones Técnicas */}
           <div className="detail-specs-grid">
             <div className="spec-item-card">
               <span className="spec-item-label">Estado Operativo</span>
               <div className="spec-item-value-pill">
                 {getStatusBadge(machine.status)}
+              </div>
+            </div>
+
+            <div className="spec-item-card">
+              <span className="spec-item-label">Serial del Fabricante</span>
+              <div className="spec-item-value">
+                <Hash size={15} className="spec-icon" />
+                <span className="spec-serial-text">{machine.serial}</span>
+              </div>
+            </div>
+
+            <div className="spec-item-card">
+              <span className="spec-item-label">Categoría Técnica</span>
+              <div className="spec-item-value">
+                <Truck size={15} className="spec-icon" />
+                <span>{machine.category}</span>
               </div>
             </div>
 
@@ -213,31 +255,44 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
             </div>
 
             <div className="spec-item-card">
-              <span className="spec-item-label">Categoría Técnica</span>
+              <span className="spec-item-label">Progreso de Alistamiento</span>
               <div className="spec-item-value">
-                <Truck size={15} className="spec-icon" />
-                <span>{machine.category}</span>
+                <ShieldCheck size={15} className="spec-icon" />
+                <span>{completedPhases} de {totalPhases} fases</span>
               </div>
             </div>
 
             <div className="spec-item-card">
-              <span className="spec-item-label">Evidencias Operativas</span>
+              <span className="spec-item-label">Evidencias en OCI</span>
               <div className="spec-item-value">
                 <Camera size={15} className="spec-icon" />
-                <span>{operationalEvidences.length} archivo(s)</span>
+                <span>{operationalEvidences.length} foto(s)</span>
               </div>
             </div>
           </div>
 
-          {/* Fases del Ciclo de Alistamiento */}
+          {/* Fases del Ciclo de Alistamiento con Barra de Progreso Fluida */}
           <div className="section-block">
             <div className="section-title-wrap">
-              <h4 className="section-title">
-                <Wrench size={16} /> Fases del Ciclo de Alistamiento
-              </h4>
-              <span className="section-subtitle">
-                3 estaciones obligatorias: Ensamblaje, Pintura y Lavado
-              </span>
+              <div className="section-title-left">
+                <h4 className="section-title">
+                  <Wrench size={16} /> Fases del Ciclo de Alistamiento
+                </h4>
+                <span className="section-subtitle">
+                  Ensamblaje, Pintura y Lavado
+                </span>
+              </div>
+              <div className="progress-percent-badge">
+                <span>{progressPercent}% completado</span>
+              </div>
+            </div>
+
+            {/* Barra de progreso fluida */}
+            <div className="phase-progress-bar-track">
+              <div
+                className="phase-progress-bar-fill"
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
 
             <div className="phases-list">
@@ -282,14 +337,14 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
             </div>
           </div>
 
-          {/* Galería de Evidencias Fotográficas vinculadas en OCI */}
+          {/* Galería de Evidencias Fotográficas de Inspección OCI */}
           <div className="section-block">
             <div className="section-title-wrap">
               <h4 className="section-title">
                 <Camera size={16} /> Evidencias Operativas en la Nube ({operationalEvidences.length})
               </h4>
               <span className="section-subtitle">
-                Almacenamiento: Oracle Cloud Infrastructure (OCI) Object Storage
+                Oracle Cloud Infrastructure (OCI) Object Storage
               </span>
             </div>
 
@@ -364,7 +419,7 @@ export const MachineDetailModal: React.FC<Props> = ({ machine, onClose }) => {
           </div>
         </div>
 
-        {/* Pie del modal (Sticky / Fijo con botones de acción siempre visibles) */}
+        {/* Pie del modal */}
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose} type="button">
             Cerrar Ficha Técnica
