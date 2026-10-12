@@ -72,19 +72,21 @@
   width: 100%;
   cursor: pointer;
   text-align: left;
-  transition: all 0.18s ease;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar-item:hover {
   background-color: #14233C;
   color: #E2E8F0;
+  transform: translateX(2px);
 }
 
 .sidebar-item.active {
-  background-color: #1D4ED8;
+  background: linear-gradient(90deg, #1D4ED8 0%, #2563EB 100%);
   color: #FFFFFF;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35);
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.4);
+  transform: translateX(3px);
 }
 
 .sidebar-item-icon {

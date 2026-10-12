@@ -8,6 +8,7 @@ import { PreparationPage } from './features/preparation/PreparationPage';
 import { TrackingPage } from './features/tracking/TrackingPage';
 import { UsersPage } from './features/users/UsersPage';
 import { Loader2 } from 'lucide-react';
+import { RouteProgressBar } from './components/RouteProgressBar';
 import './App.css';
 
 /**
@@ -60,6 +61,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <RouteProgressBar />
         <Routes>
           {/* Ruta pública: Inicio de sesión */}
           <Route
