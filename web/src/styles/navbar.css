@@ -1,6 +1,6 @@
 /* ==========================================================================
    MAQUITRACE - NAVBAR SUPERIOR (src/styles/navbar.css)
-   Barra superior blanca limpia según diseño en PDF.
+   Barra superior limpia, moderna, fluida y con micro-animaciones.
    ========================================================================== */
 
 .top-navbar {
@@ -14,6 +14,7 @@
   position: sticky;
   top: 0;
   z-index: 30;
+  transition: box-shadow 0.25s ease;
 }
 
 .navbar-left {
@@ -33,6 +34,14 @@
   padding: 6px;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-toggle-sidebar:hover {
+  background-color: #F8FAFC;
+  color: #0066FF;
+  border-color: #CBD5E1;
+  transform: scale(1.05);
 }
 
 @media (max-width: 1024px) {
@@ -41,13 +50,68 @@
   }
 }
 
-/* Buscador superior */
+/* Indicador de Estado del Sistema (En línea / OCI) */
+.navbar-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #15803D;
+  letter-spacing: 0.2px;
+  transition: all 0.25s ease;
+  user-select: none;
+}
+
+.navbar-status-pill:hover {
+  background: #DCFCE7;
+  border-color: #86EFAC;
+  transform: translateY(-1px);
+}
+
+.navbar-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #22C55E;
+  position: relative;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+  animation: radarPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes radarPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar-status-pill {
+    display: none;
+  }
+}
+
+/* Buscador superior con micro-animaciones fluidas */
 .navbar-search-box {
   position: relative;
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .search-field-icon {
@@ -55,68 +119,71 @@
   left: 14px;
   color: #94A3B8;
   pointer-events: none;
+  transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .navbar-search-input {
   width: 100%;
   height: 40px;
-  padding: 0 16px 0 42px;
+  padding: 0 38px 0 42px;
   background-color: #F8FAFC;
   border: 1px solid #E2E8F0;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 13.5px;
   color: #0F172A;
   font-family: inherit;
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .navbar-search-input:focus {
   background-color: #FFFFFF;
   border-color: #0066FF;
-  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+  box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.12), 0 2px 8px rgba(0, 102, 255, 0.06);
+  transform: translateY(-0.5px);
+}
+
+.navbar-search-box:focus-within .search-field-icon {
+  color: #0066FF;
+  transform: scale(1.1);
 }
 
 .navbar-search-input::placeholder {
   color: #94A3B8;
+  transition: opacity 0.2s ease;
+}
+
+.navbar-search-input:focus::placeholder {
+  opacity: 0.7;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  background: #E2E8F0;
+  border: none;
+  color: #64748B;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.search-clear-btn:hover {
+  background: #CBD5E1;
+  color: #0F172A;
+  transform: scale(1.1);
 }
 
 /* Lado Derecho */
 .navbar-right {
   display: flex;
   align-items: center;
-  gap: 18px;
-}
-
-.btn-nav-icon {
-  position: relative;
-  background: #F8FAFC;
-  border: 1px solid #E2E8F0;
-  border-radius: 10px;
-  color: #475569;
-  cursor: pointer;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.btn-nav-icon:hover {
-  background: #F1F5F9;
-  color: #0066FF;
-}
-
-.nav-icon-badge {
-  position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 8px;
-  height: 8px;
-  background-color: #EF4444;
-  border-radius: 50%;
-  border: 1.5px solid #FFFFFF;
+  gap: 16px;
 }
 
 /* Perfil de Usuario */
@@ -125,43 +192,66 @@
   align-items: center;
   gap: 12px;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 12px;
-  transition: background-color 0.15s ease;
+  padding: 5px 12px 5px 6px;
+  border-radius: 14px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
 }
 
-.user-menu-trigger:hover {
+.user-menu-trigger:hover,
+.user-menu-trigger.active {
   background-color: #F8FAFC;
+  border-color: #E2E8F0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .user-avatar-circle {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: #EFF6FF;
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
   color: #0066FF;
-  border: 1px solid #DBEAFE;
+  border: 1.5px solid #BFDBFE;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 14px;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 102, 255, 0.12);
+}
+
+.user-menu-trigger:hover .user-avatar-circle {
+  transform: scale(1.05);
+}
+
+.user-online-badge {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 9px;
+  height: 9px;
+  background-color: #22C55E;
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(34, 197, 94, 0.5);
 }
 
 .user-text-info {
   display: flex;
   flex-direction: column;
   text-align: left;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .user-name-title {
   font-size: 13.5px;
   font-weight: 700;
   color: #0F172A;
+  letter-spacing: -0.2px;
 }
 
 .user-role-subtitle {
@@ -173,31 +263,45 @@
 .caret-icon {
   color: #94A3B8;
   margin-left: 2px;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
 }
 
-/* Dropdown flotante de sesión */
+.caret-icon.open {
+  transform: rotate(180deg);
+  color: #0066FF;
+}
+
+/* Dropdown flotante de sesión con animación fluida */
 .user-dropdown-card {
   position: absolute;
-  top: 56px;
+  top: calc(100% + 8px);
   right: 0;
-  width: 210px;
+  width: 230px;
   background-color: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  border-radius: 14px;
+  box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.05);
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   z-index: 50;
-  animation: fadeIn 0.15s ease;
+  animation: dropdownSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top right;
 }
 
 .dropdown-user-header {
   padding: 8px 10px 10px 10px;
-  border-bottom: 1px solid #F1F5F9;
   display: flex;
   flex-direction: column;
+  gap: 3px;
+}
+
+.dropdown-user-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .dropdown-user-name {
@@ -206,10 +310,29 @@
   color: #0F172A;
 }
 
+.dropdown-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  background: #EFF6FF;
+  border: 1px solid #DBEAFE;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #0066FF;
+}
+
 .dropdown-user-email {
   font-size: 11px;
   color: #64748B;
   word-break: break-all;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #F1F5F9;
+  margin: 4px 0;
 }
 
 .dropdown-item-btn {
@@ -217,22 +340,30 @@
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: none;
   background: transparent;
   color: #DC2626;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   text-align: left;
-  transition: background-color 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dropdown-item-btn:hover {
   background-color: #FEF2F2;
+  color: #B91C1C;
+  transform: translateX(2px);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
