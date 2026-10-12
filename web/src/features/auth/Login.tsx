@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { loginApi } from '../../services/api';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import heroImg from '../../assets/branding/login_present.png';
+import heroImg from '../../assets/media/auth/login_present.png';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();

@@ -10,7 +10,7 @@ import {
   Settings,
   HelpCircle,
 } from 'lucide-react';
-import logoImg from '../assets/branding/logo.png';
+import logoImg from '../assets/media/logos/logo.png';
 
 interface SidebarProps {
   currentTab: string;
