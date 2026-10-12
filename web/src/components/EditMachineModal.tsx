@@ -119,23 +119,22 @@ export const EditMachineModal: React.FC<Props> = ({
       setLoading(true);
       let updated = await updateMachineApi(machine.id, payload, token);
 
-      // Si se seleccionó una nueva foto de avatar, subirla a Oracle Cloud y actualizar imageUrl
+      // Si se seleccionó una nueva foto de avatar, subirla a Oracle Cloud mediante el nuevo endpoint dedicado
       if (avatarFile) {
         try {
-          const evidence = await uploadMachineAvatarApi(machine.id, avatarFile, token);
-          if (evidence) {
-            updated = await updateMachineApi(machine.id, { imageUrl: evidence.url }, token);
-            updated.imageUrl = evidence.url;
-            updated.evidence = [evidence, ...(updated.evidence || machine.evidence || [])];
+          const res = await uploadMachineAvatarApi(machine.id, avatarFile, token);
+          if (res?.imageUrl) {
+            machine.imageUrl = res.imageUrl;
+            updated.imageUrl = res.imageUrl;
           }
         } catch (uploadErr) {
-          console.warn('Datos guardados, pero hubo un detalle al subir la foto a OCI:', uploadErr);
+          console.warn('Detalle al actualizar avatar en OCI:', uploadErr);
         }
-      } else {
-        // Mantener las evidencias previas si la respuesta no las incluye
-        if (!updated.evidence && machine.evidence) {
-          updated.evidence = machine.evidence;
-        }
+      }
+
+      // Mantener las evidencias previas si la respuesta no las incluye
+      if (!updated.evidence && machine.evidence) {
+        updated.evidence = machine.evidence;
       }
 
       setSuccess(true);

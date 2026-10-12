@@ -165,19 +165,17 @@ export async function deleteMachineApi(id: string, token: string): Promise<boole
 
 /**
  * Subida de foto de avatar / perfil hacia Oracle Cloud Infrastructure (OCI) a través del backend.
- * Endpoint: POST /api/v1/machines/:machineId/evidence (requiere Bearer Token)
+ * Endpoint: POST /api/v1/machines/:machineId/avatar (requiere Bearer Token)
  */
 export async function uploadMachineAvatarApi(
   machineId: string,
   file: File,
   token: string
-): Promise<Evidence | null> {
+): Promise<{ imageUrl: string } | null> {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('type', 'foto');
-  formData.append('observations', '[Avatar] Foto de perfil oficial de la máquina');
 
-  const response = await fetch(`${API_BASE_URL}/machines/${machineId}/evidence`, {
+  const response = await fetch(`${API_BASE_URL}/machines/${machineId}/avatar`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -193,8 +191,7 @@ export async function uploadMachineAvatarApi(
     throw new Error(message);
   }
 
-  const result = await response.json();
-  return result.evidence || result;
+  return await response.json();
 }
 
 /**

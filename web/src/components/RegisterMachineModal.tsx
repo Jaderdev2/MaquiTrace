@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Plus, AlertCircle, CheckCircle2, Loader2, Truck, Camera, Upload, Trash2 } from 'lucide-react';
-import { createMachineApi, updateMachineApi, uploadMachineAvatarApi } from '../services/api';
+import { createMachineApi, uploadMachineAvatarApi } from '../services/api';
 import type { CreateMachineDto, Machine, MachineStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -92,17 +92,15 @@ export const RegisterMachineModal: React.FC<Props> = ({
       setLoading(true);
       const newMachine = await createMachineApi(payload, token);
 
-      // Si el administrador seleccionó una foto de avatar, subirla a Oracle Cloud y guardarla en imageUrl
+      // Si el administrador seleccionó una foto de avatar, subirla a Oracle Cloud mediante el nuevo endpoint dedicado
       if (avatarFile) {
         try {
-          const evidence = await uploadMachineAvatarApi(newMachine.id, avatarFile, token);
-          if (evidence) {
-            newMachine.imageUrl = evidence.url;
-            await updateMachineApi(newMachine.id, { imageUrl: evidence.url }, token);
-            newMachine.evidence = [evidence, ...(newMachine.evidence || [])];
+          const res = await uploadMachineAvatarApi(newMachine.id, avatarFile, token);
+          if (res?.imageUrl) {
+            newMachine.imageUrl = res.imageUrl;
           }
         } catch (uploadErr) {
-          console.warn('La máquina fue registrada, pero hubo un detalle al subir la foto a OCI:', uploadErr);
+          console.warn('Detalle al subir avatar a OCI:', uploadErr);
         }
       }
 
