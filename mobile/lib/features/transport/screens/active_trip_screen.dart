@@ -203,10 +203,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   Future<void> _handleConfirmDelivery() async {
-    // Abre el Acta Oficial de Entrega Digital (POD) con firma con el dedo y datos de receptor
-    final delivered = await showDialog<bool>(
+    // Abre el Acta Oficial de Entrega Digital (POD) como modal bottom sheet
+    final delivered = await showModalBottomSheet<bool>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
       builder: (_) => DeliveryConfirmationModal(trip: _currentTrip),
     );
 

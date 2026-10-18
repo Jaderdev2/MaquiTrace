@@ -123,4 +123,46 @@ export class OciStorageService {
       return `${this.bucketPublicUrl}/${key}`;
     }
   }
+
+  /**
+   * Verifica y regenera automáticamente una URL firmada si tiene más de 3 días de emitida
+   * evitando que imágenes en web y móvil den 403 por vencimiento.
+   */
+  async ensureFreshUrl(url: string | null | undefined): Promise<string | null> {
+    if (!url) return null;
+    const match = url.match(/maquitrace-evidencias\/([^?]+)/);
+    if (!match || !this.s3Client) {
+      return url;
+    }
+    const key = decodeURIComponent(match[1]);
+
+    const dateMatch = url.match(/X-Amz-Date=(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/);
+    if (dateMatch) {
+      const year = parseInt(dateMatch[1], 10);
+      const month = parseInt(dateMatch[2], 10) - 1;
+      const day = parseInt(dateMatch[3], 10);
+      const hour = parseInt(dateMatch[4], 10);
+      const min = parseInt(dateMatch[5], 10);
+      const sec = parseInt(dateMatch[6], 10);
+      const signedAt = Date.UTC(year, month, day, hour, min, sec);
+      const ageMs = Date.now() - signedAt;
+      // Si fue firmada hace menos de 3 días (259200000 ms), sigue fresca y vigente
+      if (ageMs < 259200000 && ageMs >= 0) {
+        return url;
+      }
+    }
+
+    try {
+      return await getSignedUrl(
+        this.s3Client,
+        new GetObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+        }),
+        { expiresIn: 604800 },
+      );
+    } catch {
+      return url;
+    }
+  }
 }

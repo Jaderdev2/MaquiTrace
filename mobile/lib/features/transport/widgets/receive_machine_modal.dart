@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../machines/models/machine_model.dart';
 import '../providers/transport_provider.dart';
+import 'location_map_picker.dart';
 
 class ReceiveMachineModal extends StatefulWidget {
   final MachineModel machine;
@@ -214,13 +215,39 @@ class _ReceiveMachineModalState extends State<ReceiveMachineModal> {
                 const SizedBox(height: 16),
 
                 // Input de destino
-                const Text(
-                  'Lugar de Destino / Obra *',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Lugar de Destino / Obra *',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.accentBlue,
+                        minimumSize: const Size(0, 30),
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                      ),
+                      icon: const Icon(Icons.map_outlined, size: 16),
+                      label: const Text('Elegir en el mapa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      onPressed: () async {
+                        final picked = await Navigator.of(context).push<String>(
+                          MaterialPageRoute(
+                            builder: (_) => LocationMapPicker(initialDestination: _destinationController.text),
+                          ),
+                        );
+                        if (picked != null && picked.trim().isNotEmpty) {
+                          setState(() {
+                            _destinationController.text = picked;
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 TextFormField(

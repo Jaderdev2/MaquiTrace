@@ -104,7 +104,7 @@ export class EvidenceService {
    * Consulta todas las evidencias de una máquina
    */
   async findByMachine(machineId: string) {
-    return this.prisma.evidence.findMany({
+    const list = await this.prisma.evidence.findMany({
       where: { machineId },
       include: {
         uploader: {
@@ -114,13 +114,19 @@ export class EvidenceService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return Promise.all(
+      list.map(async (ev) => {
+        ev.url = (await this.ociStorage.ensureFreshUrl(ev.url)) || ev.url;
+        return ev;
+      }),
+    );
   }
 
   /**
    * Consulta evidencias de una fase específica
    */
   async findByPhase(phaseId: string) {
-    return this.prisma.evidence.findMany({
+    const list = await this.prisma.evidence.findMany({
       where: { phaseId },
       include: {
         uploader: {
@@ -129,5 +135,11 @@ export class EvidenceService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return Promise.all(
+      list.map(async (ev) => {
+        ev.url = (await this.ociStorage.ensureFreshUrl(ev.url)) || ev.url;
+        return ev;
+      }),
+    );
   }
 }

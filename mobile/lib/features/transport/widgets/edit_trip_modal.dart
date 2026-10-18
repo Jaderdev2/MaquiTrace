@@ -4,6 +4,8 @@ import '../../../core/theme/app_colors.dart';
 import '../models/trip_model.dart';
 import '../providers/transport_provider.dart';
 
+import 'location_map_picker.dart';
+
 class EditTripModal extends StatefulWidget {
   final TripModel trip;
 
@@ -120,9 +122,35 @@ class _EditTripModalState extends State<EditTripModal> {
               const SizedBox(height: 16),
 
               // Campo de destino
-              const Text(
-                'Destino de entrega *',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Destino de entrega *',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.accentBlue,
+                      minimumSize: const Size(0, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    icon: const Icon(Icons.map_outlined, size: 16),
+                    label: const Text('Elegir en el mapa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    onPressed: () async {
+                      final picked = await Navigator.of(context).push<String>(
+                        MaterialPageRoute(
+                          builder: (_) => LocationMapPicker(initialDestination: _destinationController.text),
+                        ),
+                      );
+                      if (picked != null && picked.trim().isNotEmpty) {
+                        setState(() {
+                          _destinationController.text = picked;
+                        });
+                      }
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               TextFormField(

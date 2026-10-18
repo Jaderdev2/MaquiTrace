@@ -27,8 +27,34 @@ export class MachinesService {
     private readonly ociStorage: OciStorageService,
   ) {}
 
+  private async attachFreshUrls(machine: any) {
+    if (!machine) return machine;
+    if (machine.imageUrl) {
+      machine.imageUrl = await this.ociStorage.ensureFreshUrl(machine.imageUrl);
+    }
+    if (machine.evidence && Array.isArray(machine.evidence)) {
+      for (const ev of machine.evidence) {
+        if (ev.url) {
+          ev.url = await this.ociStorage.ensureFreshUrl(ev.url);
+        }
+      }
+    }
+    if (machine.phases && Array.isArray(machine.phases)) {
+      for (const ph of machine.phases) {
+        if (ph.evidence && Array.isArray(ph.evidence)) {
+          for (const ev of ph.evidence) {
+            if (ev.url) {
+              ev.url = await this.ociStorage.ensureFreshUrl(ev.url);
+            }
+          }
+        }
+      }
+    }
+    return machine;
+  }
+
   async findAll(category?: string, status?: MachineStatus, serial?: string) {
-    return this.prisma.machine.findMany({
+    const list = await this.prisma.machine.findMany({
       where: {
         category: category || undefined,
         status: status || undefined,
@@ -47,6 +73,7 @@ export class MachinesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return Promise.all(list.map((m) => this.attachFreshUrls(m)));
   }
 
   async findBySerial(serial: string) {
@@ -67,7 +94,7 @@ export class MachinesService {
     if (!machine) {
       throw new NotFoundException(`Máquina con serial ${serial} no encontrada`);
     }
-    return machine;
+    return this.attachFreshUrls(machine);
   }
 
   async findById(id: string) {
@@ -88,7 +115,7 @@ export class MachinesService {
     if (!machine) {
       throw new NotFoundException(`Máquina con ID ${id} no encontrada`);
     }
-    return machine;
+    return this.attachFreshUrls(machine);
   }
 
   async create(dto: CreateMachineDto) {
