@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
+  fetchTripsApi,
   fetchActiveTripsApi,
   departTransportApi,
   deliverTransportApi,
   receiveTransportApi,
+  updateTransportApi,
+  deleteTransportApi,
   recordGpsLocationApi,
   fetchMachinesApi,
   fetchUsersApi,
@@ -14,9 +17,11 @@ import { Sidebar } from '../../components/Sidebar';
 import { Navbar } from '../../components/Navbar';
 import { TrackingMap } from './components/TrackingMap';
 import { NewTripModal } from './components/NewTripModal';
+import { EditTripModal } from './components/EditTripModal';
 import { TripDetailsModal } from './components/TripDetailsModal';
 import { MOCK_TRIPS } from './mockTrackingData';
-import { getTripColorTheme } from './utils/tripColors';
+import { getTripColorTheme, TRIP_PALETTE } from './utils/tripColors';
+import { checkMachineTransitReadiness } from './utils/transitValidation';
 import {
   Navigation,
   Truck,
@@ -37,6 +42,8 @@ import {
   Radio,
   SlidersHorizontal,
   User as UserIcon,
+  Edit3,
+  Trash2,
 } from 'lucide-react';
 import '../../styles/machines.css';
 import '../../styles/tracking.css';
@@ -62,6 +69,7 @@ export const TrackingPage: React.FC = () => {
   // Modales
   const [isNewTripModalOpen, setIsNewTripModalOpen] = useState<boolean>(false);
   const [selectedTrip, setSelectedTrip] = useState<TransportTrip | null>(null);
+  const [editingTrip, setEditingTrip] = useState<TransportTrip | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
 
   // Carga de datos principales desde la API o Fallback MOCK
@@ -72,7 +80,7 @@ export const TrackingPage: React.FC = () => {
       setError(null);
 
       const [tripsData, machinesData, usersData] = await Promise.all([
-        fetchActiveTripsApi(token).catch(() => []),
+        fetchTripsApi(token).catch(() => fetchActiveTripsApi(token).catch(() => [])),
         fetchMachinesApi(token).catch(() => []),
         fetchUsersApi('transportador', token).catch(() => []),
       ]);
@@ -80,17 +88,29 @@ export const TrackingPage: React.FC = () => {
       setMachines(machinesData);
       setTransporters(usersData);
 
-      // Si la API remota aún no tiene viajes creados, cargamos los datos genéricos de ejemplo
+      // Si la API remota devuelve viajes creados, los cargamos
       if (tripsData && tripsData.length > 0) {
-        setTrips(tripsData);
+        const enriched = tripsData.map((t, idx) => ({
+          ...t,
+          color: t.color || TRIP_PALETTE[idx % TRIP_PALETTE.length].primary,
+        }));
+        setTrips(enriched);
         setIsDemoMode(false);
       } else {
-        setTrips(MOCK_TRIPS);
+        const enriched = MOCK_TRIPS.map((t, idx) => ({
+          ...t,
+          color: t.color || TRIP_PALETTE[idx % TRIP_PALETTE.length].primary,
+        }));
+        setTrips(enriched);
         setIsDemoMode(true);
       }
     } catch (err: any) {
       setError(err.message || 'Error al conectar con el servicio de transporte.');
-      setTrips(MOCK_TRIPS);
+      const enriched = MOCK_TRIPS.map((t, idx) => ({
+        ...t,
+        color: t.color || TRIP_PALETTE[idx % TRIP_PALETTE.length].primary,
+      }));
+      setTrips(enriched);
       setIsDemoMode(true);
     } finally {
       setLoading(false);
@@ -107,39 +127,73 @@ export const TrackingPage: React.FC = () => {
       setIsDemoMode(false);
       loadData();
     } else {
-      setTrips(MOCK_TRIPS);
+      const enriched = MOCK_TRIPS.map((t, idx) => ({
+        ...t,
+        color: t.color || TRIP_PALETTE[idx % TRIP_PALETTE.length].primary,
+      }));
+      setTrips(enriched);
       setIsDemoMode(true);
       setSuccessBanner('Datos de demostración activados.');
       setTimeout(() => setSuccessBanner(null), 3500);
     }
   };
 
-  // Programar nuevo viaje
-  const handleCreateTrip = async (machineId: string, vehicle: string, destination: string) => {
+  // Programar nuevo viaje (Create)
+  const handleCreateTrip = async (
+    machineId: string,
+    vehicle: string,
+    destination: string,
+    transporterId?: string
+  ) => {
     if (!token) return;
     setActionLoading(true);
     try {
-      if (!isDemoMode) {
-        await receiveTransportApi(machineId, { vehicle, destination }, token);
+      const foundMachine = machines.find((m) => m.id === machineId);
+      const foundTransporter = transporters.find((t) => t.id === transporterId);
+      const assignedColor = TRIP_PALETTE[trips.length % TRIP_PALETTE.length].primary;
+
+      // Intentar persistir en el backend
+      let savedViaApi = false;
+      try {
+        await receiveTransportApi(machineId, { vehicle, destination, transporterId }, token);
+        savedViaApi = true;
+      } catch (apiErr) {
+        console.warn('API error creando despacho, persistiendo localmente:', apiErr);
+      }
+
+      if (savedViaApi) {
+        await loadData();
       } else {
-        // En modo demostración, agregar localmente
-        const foundMachine = machines.find((m) => m.id === machineId);
+        // Fallback local robusto
+        const newTripId = `trip-${Date.now()}`;
         const newTrip: TransportTrip = {
-          id: `trip-local-${Date.now()}`,
+          id: newTripId,
           machineId,
+          color: assignedColor,
           vehicle,
           destination,
           status: 'pendiente',
           departureAt: undefined,
-          transporter: {
-            name: 'Carlos Alberto Mendoza',
-            email: 'carlos.mendoza@transporte-maquitrace.com',
-            phone: '+57 312 458 9921',
-            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-            cedula: 'CC 1.094.882.310',
-            experienceTime: '4 años y 6 meses',
-            licenseType: 'Licencia C3 (Carga Pesada)',
-          },
+          transporterId,
+          transporter: foundTransporter
+            ? {
+                name: foundTransporter.name,
+                email: foundTransporter.email,
+                phone: foundTransporter.phone || '+57 312 458 9921',
+                avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+                cedula: 'CC 1.094.882.310',
+                experienceTime: '5 años',
+                licenseType: 'Licencia C3 (Carga Pesada)',
+              }
+            : {
+                name: 'Carlos Alberto Mendoza',
+                email: 'carlos.mendoza@transporte-maquitrace.com',
+                phone: '+57 312 458 9921',
+                avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+                cedula: 'CC 1.094.882.310',
+                experienceTime: '4 años y 6 meses',
+                licenseType: 'Licencia C3 (Carga Pesada)',
+              },
           machine: foundMachine || {
             id: machineId,
             model: 'Equipo Pesado',
@@ -150,7 +204,7 @@ export const TrackingPage: React.FC = () => {
           gpsRecords: [
             {
               id: `gps-init-${Date.now()}`,
-              tripId: `trip-local-${Date.now()}`,
+              tripId: newTripId,
               latitude: 4.6097,
               longitude: -74.0817,
               recordedAt: new Date().toISOString(),
@@ -163,15 +217,124 @@ export const TrackingPage: React.FC = () => {
 
       setSuccessBanner('¡Viaje programado con éxito en el sistema de despacho!');
       setTimeout(() => setSuccessBanner(null), 4500);
-      if (!isDemoMode) await loadData();
+    } catch (err: any) {
+      setError(err.message || 'Error al programar el viaje.');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Marcar salida de transporte
+  // Actualizar viaje (Update)
+  const handleUpdateTrip = async (
+    tripId: string,
+    payload: { vehicle?: string; destination?: string; transporterId?: string; status?: string }
+  ) => {
+    if (!token) return;
+    setActionLoading(true);
+    try {
+      try {
+        await updateTransportApi(tripId, payload, token);
+      } catch (apiErr) {
+        console.warn('API error actualizando viaje, actualizando localmente:', apiErr);
+      }
+
+      setTrips((prev) =>
+        prev.map((t) => {
+          if (t.id === tripId) {
+            const updated: TransportTrip = {
+              ...t,
+              vehicle: payload.vehicle ?? t.vehicle,
+              destination: payload.destination ?? t.destination,
+              status: (payload.status as any) ?? t.status,
+            };
+            if (payload.transporterId) {
+              const tr = transporters.find((u) => u.id === payload.transporterId);
+              if (tr) {
+                updated.transporterId = tr.id;
+                updated.transporter = {
+                  ...t.transporter,
+                  name: tr.name,
+                  email: tr.email,
+                  phone: tr.phone || t.transporter?.phone,
+                };
+              }
+            }
+            return updated;
+          }
+          return t;
+        })
+      );
+
+      if (selectedTrip?.id === tripId) {
+        setSelectedTrip((prev) =>
+          prev
+            ? {
+                ...prev,
+                vehicle: payload.vehicle ?? prev.vehicle,
+                destination: payload.destination ?? prev.destination,
+                status: (payload.status as any) ?? prev.status,
+              }
+            : null
+        );
+      }
+
+      setSuccessBanner('¡Viaje de transporte actualizado exitosamente!');
+      setTimeout(() => setSuccessBanner(null), 4000);
+      setEditingTrip(null);
+    } catch (err: any) {
+      setError(err.message || 'Error al actualizar el viaje.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Eliminar viaje (Delete)
+  const handleDeleteTrip = async (tripId: string) => {
+    if (!token) return;
+    setActionLoading(true);
+    try {
+      try {
+        await deleteTransportApi(tripId, token);
+      } catch (apiErr) {
+        console.warn('API error eliminando viaje, eliminando localmente:', apiErr);
+      }
+
+      setTrips((prev) => prev.filter((t) => t.id !== tripId));
+      if (selectedTrip?.id === tripId) setSelectedTrip(null);
+      if (editingTrip?.id === tripId) setEditingTrip(null);
+
+      setSuccessBanner('Registro de transporte eliminado del sistema.');
+      setTimeout(() => setSuccessBanner(null), 4000);
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar el viaje.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Actualización de ubicación interactiva en mapa (Manual o Aleatoria en Colombia)
+  const handleUpdateLocation = async (tripId: string, lat: number, lng: number) => {
+    await handleTransmitGps(tripId, lat, lng);
+    setSuccessBanner(`¡Ubicación del camión actualizada a [${lat.toFixed(4)}, ${lng.toFixed(4)}]!`);
+    setTimeout(() => setSuccessBanner(null), 4500);
+  };
+
+  // Marcar salida de transporte (Con validación estricta de alistamiento en taller)
   const handleDepart = async (machineId: string) => {
     if (!token) return;
+
+    // VALIDACIÓN LÓGICA: ¿La maquinaria concluyó todas sus fases de alistamiento?
+    const targetMachine =
+      machines.find((m) => m.id === machineId) ||
+      trips.find((t) => t.machineId === machineId || t.machine?.id === machineId)?.machine;
+    const readiness = checkMachineTransitReadiness(targetMachine);
+
+    if (!readiness.canDepart) {
+      setError(`Bloqueo operativo: La maquinaria no puede iniciar tránsito. ${readiness.reason}`);
+      setTimeout(() => setError(null), 6000);
+      return;
+    }
+
     try {
       setActionLoading(true);
       if (!isDemoMode) {
@@ -520,6 +683,7 @@ export const TrackingPage: React.FC = () => {
                 selectedTripId={selectedTrip?.id}
                 onSelectTrip={(t) => setSelectedTrip(t)}
                 onOpenDetails={(t) => setSelectedTrip(t)}
+                onUpdateLocation={handleUpdateLocation}
                 height={viewMode === 'map' ? '680px' : '460px'}
               />
             </div>
@@ -556,13 +720,16 @@ export const TrackingPage: React.FC = () => {
                     // Color único asignado a este transporte
                     const theme = getTripColorTheme(trip, index);
                     const driver = trip.transporter;
+                    const readiness = checkMachineTransitReadiness(machine);
 
                     return (
                       <div
                         key={trip.id}
                         className={`tracking-trip-card ${selectedTrip?.id === trip.id ? 'is-selected-card' : ''}`}
                         style={{
-                          borderTop: `4px solid ${theme.primary}`,
+                          borderTopColor: theme.primary,
+                          ['--card-theme-color' as any]: theme.primary,
+                          ['--card-theme-glow' as any]: theme.glow,
                           boxShadow: selectedTrip?.id === trip.id ? `0 0 0 3px ${theme.glow}` : undefined,
                         }}
                       >
@@ -577,7 +744,7 @@ export const TrackingPage: React.FC = () => {
                                 borderColor: theme.border,
                               }}
                             >
-                              <Truck size={18} />
+                              <Truck size={20} />
                             </div>
                             <div>
                               <strong className="trip-card-vehicle-name">{trip.vehicle || 'Vehículo de Carga'}</strong>
@@ -589,6 +756,22 @@ export const TrackingPage: React.FC = () => {
                           </div>
 
                           <div className="tracking-trip-badge-row">
+                            {/* Badge con el Color Distintivo (Idéntico al del Modal y Mapa) */}
+                            <span
+                              className="popup-badge"
+                              style={{
+                                backgroundColor: theme.badgeBg,
+                                color: theme.badgeText,
+                                fontWeight: 700,
+                                fontSize: '11px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                              }}
+                              title={`Color de trazado y telemetría: ${theme.name}`}
+                            >
+                              {theme.name}
+                            </span>
+
                             <span
                               className={`pill-badge ${
                                 isTransit
@@ -600,11 +783,37 @@ export const TrackingPage: React.FC = () => {
                             >
                               {trip.status.replace('_', ' ')}
                             </span>
+
+                            {/* Acciones Rápidas CRUD: Editar y Eliminar */}
+                            <div className="card-quick-actions-group">
+                              <button
+                                type="button"
+                                className="btn-card-action-icon edit-action"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingTrip(trip);
+                                }}
+                                title="Editar viaje de transporte"
+                              >
+                                <Edit3 size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-card-action-icon delete-action"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTrip(trip.id);
+                                }}
+                                title="Eliminar registro de viaje"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </div>
                         </div>
 
                         <div className="tracking-trip-body">
-                          {/* Resumen de Maquinaria Transportada */}
+                          {/* Resumen de Maquinaria Transportada y Validación de Alistamiento */}
                           <div className="trip-card-section-box">
                             <span className="trip-card-section-label">Maquinaria Transportada</span>
                             <div className="trip-card-section-content">
@@ -613,6 +822,16 @@ export const TrackingPage: React.FC = () => {
                               </span>
                               <span className="pill-badge pill-status-ready" style={{ fontSize: '10.5px' }}>
                                 {machine?.category || 'Pesada'}
+                              </span>
+                            </div>
+
+                            {/* Estado de Alistamiento en Taller */}
+                            <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span
+                                className={`trip-card-prep-badge ${readiness.canDepart ? 'prep-ready' : 'prep-warning'}`}
+                                title={readiness.reason}
+                              >
+                                {readiness.canDepart ? '✅' : '⏳'} {readiness.badgeLabel}
                               </span>
                             </div>
                           </div>
@@ -658,7 +877,7 @@ export const TrackingPage: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Botones de acción operativos */}
+                          {/* Botones de acción operativos con bloqueo condicional */}
                           <div className="card-action-footer mt-2">
                             <div className="card-actions-row">
                               <button
@@ -677,13 +896,14 @@ export const TrackingPage: React.FC = () => {
                               {isPending && machine && (
                                 <button
                                   type="button"
-                                  className="btn-primary-register"
+                                  className={`btn-primary-register ${!readiness.canDepart ? 'btn-action-blocked' : ''}`}
                                   style={{ padding: '6px 12px', fontSize: '12px' }}
                                   onClick={() => handleDepart(machine.id)}
-                                  disabled={actionLoading}
+                                  disabled={actionLoading || !readiness.canDepart}
+                                  title={!readiness.canDepart ? readiness.reason : 'Marcar salida e iniciar tránsito'}
                                 >
                                   <Play size={13} />
-                                  <span>Marcar Salida</span>
+                                  <span>{readiness.canDepart ? 'Marcar Salida' : 'Salida Bloqueada'}</span>
                                 </button>
                               )}
 
@@ -722,9 +942,23 @@ export const TrackingPage: React.FC = () => {
         onClose={() => setIsNewTripModalOpen(false)}
         machines={machines}
         transporters={transporters}
+        existingTrips={trips}
         onSubmit={handleCreateTrip}
         loading={actionLoading}
       />
+
+      {/* Modal para Editar Viaje de Transporte */}
+      {editingTrip && (
+        <EditTripModal
+          trip={editingTrip}
+          isOpen={true}
+          onClose={() => setEditingTrip(null)}
+          transporters={transporters}
+          onUpdate={handleUpdateTrip}
+          onDelete={handleDeleteTrip}
+          loading={actionLoading}
+        />
+      )}
 
       {/* Modal de Detalles del Viaje, Telemetría GPS, Maquinaria, Conductor y Evidencias */}
       {selectedTrip && (
@@ -735,6 +969,11 @@ export const TrackingPage: React.FC = () => {
           onDepart={handleDepart}
           onDeliver={handleDeliver}
           onTransmitGps={handleTransmitGps}
+          onEdit={() => {
+            const tripToEdit = selectedTrip;
+            setSelectedTrip(null);
+            setEditingTrip(tripToEdit);
+          }}
           actionLoading={actionLoading}
         />
       )}

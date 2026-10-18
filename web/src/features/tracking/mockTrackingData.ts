@@ -179,8 +179,13 @@ export const MOCK_TRIPS: TransportTrip[] = [
       category: 'Rodillo Compactador',
       model: 'Dynapac CA250D',
       serial: 'DYN-CA250-1099',
-      status: 'pendiente',
+      status: 'en_proceso',
       imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
+      phases: [
+        { id: 'ph-3-1', name: 'ensamblaje', status: 'completada', observations: 'Ensamble de rodillo y motor diesel certificado.' },
+        { id: 'ph-3-2', name: 'pintura', status: 'en_proceso', observations: 'En cabina de pintura: aplicación de esmalte de protección.' },
+        { id: 'ph-3-3', name: 'lavado', status: 'pendiente' },
+      ],
       evidence: [
         {
           id: 'ev-3-1',
@@ -302,6 +307,52 @@ export const MOCK_TRIPS: TransportTrip[] = [
       { id: 'gps-5-06', tripId: 'trip-demo-05', latitude: 4.8133, longitude: -75.6961, recordedAt: new Date(Date.now() - 1.1 * 3600 * 1000).toISOString() }, // Pereira
       { id: 'gps-5-07', tripId: 'trip-demo-05', latitude: 5.7481, longitude: -75.6052, recordedAt: new Date(Date.now() - 0.4 * 3600 * 1000).toISOString() }, // La Pintada
       { id: 'gps-5-08', tripId: 'trip-demo-05', latitude: 5.9723, longitude: -75.8341, recordedAt: new Date(Date.now() - 0.1 * 3600 * 1000).toISOString() }, // Bolombolo, Antioquia (En vivo)
+    ],
+    incidents: [],
+  },
+  {
+    id: 'trip-demo-06',
+    machineId: 'mach-demo-06',
+    color: '#0D9488', // Turquesa Andino
+    vehicle: 'Camión Cama Baja Internacional WorkStar (Placa: KLO-428)',
+    destination: 'Proyecto Infraestructura Troncal del Magdalena - Santander',
+    status: 'pendiente',
+    departureAt: undefined,
+    transporterId: 'user-demo-transporter-1',
+    transporter: {
+      id: 'user-demo-transporter-1',
+      name: 'Carlos Alberto Mendoza',
+      email: 'carlos.mendoza@transporte-maquitrace.com',
+      phone: '+57 312 458 9921',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      cedula: 'CC 1.094.882.310',
+      experienceTime: '5 años',
+      licenseType: 'Licencia C3 (Carga Pesada)',
+    },
+    machine: {
+      id: 'mach-demo-06',
+      category: 'Bulldozer sobre Orugas',
+      model: 'Caterpillar D6T XL',
+      serial: 'CAT-D6T-7721',
+      status: 'completada',
+      imageUrl: 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?auto=format&fit=crop&w=600&q=80',
+      phases: [
+        { id: 'ph-6-1', name: 'ensamblaje', status: 'completada', observations: 'Ensamble de hoja topadora y orugas certificado.' },
+        { id: 'ph-6-2', name: 'pintura', status: 'completada', observations: 'Pintura y rotulado institucional MaquiTrace aprobado.' },
+        { id: 'ph-6-3', name: 'lavado', status: 'completada', observations: 'Lavado a presión e inspección de entrega 100% aprobado.' },
+      ],
+      evidence: [
+        {
+          id: 'ev-6-1',
+          type: 'foto',
+          url: 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?auto=format&fit=crop&w=600&q=80',
+          createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+          observations: 'Control de calidad final en patio: listo para despacho.',
+        },
+      ],
+    },
+    gpsRecords: [
+      { id: 'gps-6-01', tripId: 'trip-demo-06', latitude: 3.8826, longitude: -77.0311, recordedAt: new Date().toISOString() }, // Puerto Buenaventura
     ],
     incidents: [],
   },

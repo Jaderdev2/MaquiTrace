@@ -3,6 +3,7 @@ import type { TransportTrip, Machine, Evidence } from '../../../types';
 import { getTripColorTheme } from '../utils/tripColors';
 import { getMachinePrimaryPhoto } from '../../../utils/evidence';
 import { EvidenceViewerModal } from './EvidenceViewerModal';
+import { checkMachineTransitReadiness } from '../utils/transitValidation';
 import {
   Navigation,
   MapPin,
@@ -21,6 +22,7 @@ import {
   Mail,
   Camera,
   Layers,
+  Edit3,
 } from 'lucide-react';
 
 interface TripDetailsModalProps {
@@ -30,6 +32,7 @@ interface TripDetailsModalProps {
   onDepart: (machineId: string) => Promise<void>;
   onDeliver: (machineId: string) => Promise<void>;
   onTransmitGps: (tripId: string, lat: number, lng: number) => Promise<void>;
+  onEdit?: () => void;
   actionLoading: boolean;
 }
 
@@ -40,6 +43,7 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
   onDepart,
   onDeliver,
   onTransmitGps,
+  onEdit,
   actionLoading,
 }) => {
   const [gpsSimulating, setGpsSimulating] = useState(false);
@@ -54,6 +58,7 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
 
   const theme = getTripColorTheme(trip);
   const driver = trip.transporter;
+  const readiness = checkMachineTransitReadiness(machine);
   const machinePhoto = machine ? getMachinePrimaryPhoto(machine) : null;
   const evidences: Evidence[] = machine?.evidence || trip.evidence || [];
 
@@ -193,14 +198,28 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                     <span className="modal-spec-chip">
                       Serial: <strong>{machine?.serial || 'S/N'}</strong>
                     </span>
-                    <span className="modal-spec-chip">
-                      Estado: <strong>{machine?.status?.toUpperCase() || 'LISTO'}</strong>
+                    <span className={`modal-spec-chip ${readiness.canDepart ? 'spec-chip-ready' : 'spec-chip-pending'}`}>
+                      Alistamiento: <strong>{readiness.badgeLabel}</strong>
                     </span>
                   </div>
                   <p className="modal-machine-dest-text">
                     <MapPin size={13} style={{ display: 'inline', marginRight: '4px', color: theme.primary }} />
                     Destino Oficial: <strong>{trip.destination}</strong>
                   </p>
+
+                  {/* Alerta de bloqueo si el alistamiento aún no ha terminado */}
+                  {!readiness.canDepart && isPending && (
+                    <div className="transit-readiness-warning-box">
+                      <ShieldAlert size={18} className="warning-icon" />
+                      <div>
+                        <strong>Bloqueo Operativo de Salida:</strong>
+                        <p>{readiness.reason}</p>
+                        <span>
+                          La maquinaria no puede transitar por carreteras nacionales hasta que el taller certifique la culminación de todas sus fases técnicas.
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -450,15 +469,32 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
               Cerrar
             </button>
 
+            {onEdit && (
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                onClick={() => {
+                  onClose();
+                  onEdit();
+                }}
+                disabled={actionLoading}
+              >
+                <Edit3 size={15} />
+                <span>Editar Viaje</span>
+              </button>
+            )}
+
             {isPending && machine && (
               <button
                 type="button"
-                className="btn-primary-register"
+                className={`btn-primary-register ${!readiness.canDepart ? 'btn-action-blocked' : ''}`}
                 onClick={() => onDepart(machine.id)}
-                disabled={actionLoading}
+                disabled={actionLoading || !readiness.canDepart}
+                title={!readiness.canDepart ? readiness.reason : 'Confirmar salida de transporte e iniciar telemetría en carretera'}
               >
                 {actionLoading ? <Loader2 size={16} className="spinner" /> : <Play size={16} />}
-                <span>Iniciar Marcha en Carretera</span>
+                <span>{readiness.canDepart ? 'Iniciar Marcha en Carretera' : 'Salida Bloqueada (Alistamiento Pendiente)'}</span>
               </button>
             )}
 

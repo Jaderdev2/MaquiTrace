@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import type { Machine, User } from '../../../types';
-import { Truck, MapPin, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import type { Machine, User, TransportTrip } from '../../../types';
+import { Truck, MapPin, X, Loader2, CheckCircle2, AlertCircle, ShieldAlert } from 'lucide-react';
+import { checkMachineTransitReadiness, isMachineInActiveTrip } from '../utils/transitValidation';
 
 interface NewTripModalProps {
   isOpen: boolean;
   onClose: () => void;
   machines: Machine[];
   transporters: User[];
-  onSubmit: (machineId: string, vehicle: string, destination: string) => Promise<void>;
+  existingTrips?: TransportTrip[];
+  onSubmit: (machineId: string, vehicle: string, destination: string, transporterId?: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -16,6 +18,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
   onClose,
   machines,
   transporters,
+  existingTrips = [],
   onSubmit,
   loading,
 }) => {
@@ -31,10 +34,18 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
   const readyMachines = machines.filter((m) => m.status === 'completada' || m.status === 'pendiente');
   const availableMachines = readyMachines.length > 0 ? readyMachines : machines;
 
+  const selectedMachine = machines.find((m) => m.id === selectedMachineId);
+  const readiness = selectedMachine ? checkMachineTransitReadiness(selectedMachine) : null;
+  const isAlreadyActive = selectedMachineId ? isMachineInActiveTrip(selectedMachineId, existingTrips) : false;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMachineId) {
       setError('Por favor selecciona la maquinaria que será transportada.');
+      return;
+    }
+    if (isAlreadyActive) {
+      setError('Esta máquina ya cuenta con un servicio de transporte activo en curso. No puede asignarse a dos viajes simultáneos.');
       return;
     }
     if (!vehicle.trim()) {
@@ -48,7 +59,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
 
     setError(null);
     try {
-      await onSubmit(selectedMachineId, vehicle.trim(), destination.trim());
+      await onSubmit(selectedMachineId, vehicle.trim(), destination.trim(), selectedTransporterId || undefined);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error al programar el viaje de transporte.');
@@ -72,7 +83,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
             <div>
               <h3>Programar Despacho y Transporte</h3>
               <span className="modal-header-sub">
-                Asigna maquinaria lista, vehículo de carga y destino de entrega en obra.
+                Asigna maquinaria, vehículo de carga y destino oficial de entrega.
               </span>
             </div>
           </div>
@@ -89,7 +100,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
             </div>
           )}
 
-          {/* Selección de Maquinaria */}
+          {/* Selección de Maquinaria con validación de estado */}
           <div className="form-group-field">
             <label htmlFor="machineSelect" className="field-label">
               Maquinaria para Transporte *
@@ -102,16 +113,40 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
               disabled={loading}
               required
             >
-              <option value="">-- Seleccionar maquinaria lista --</option>
-              {availableMachines.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.model} (Serial: {m.serial}) · {m.category} · Estado: {m.status.toUpperCase()}
-                </option>
-              ))}
+              <option value="">-- Seleccionar maquinaria --</option>
+              {availableMachines.map((m) => {
+                const mReadiness = checkMachineTransitReadiness(m);
+                const isBusy = isMachineInActiveTrip(m.id, existingTrips);
+                return (
+                  <option key={m.id} value={m.id} disabled={isBusy}>
+                    {isBusy ? '🚫 [En viaje activo] ' : mReadiness.canDepart ? '✅ [Alistamiento Listo] ' : '⏳ [En Taller] '}
+                    {m.model} (Serial: {m.serial}) · {m.category}
+                  </option>
+                );
+              })}
             </select>
-            <span className="field-hint-text">
-              Se recomienda seleccionar equipos en estado "COMPLETADA" con alistamiento técnico aprobado.
-            </span>
+
+            {/* Aviso reactivo si la máquina seleccionada aún no terminó alistamiento */}
+            {readiness && !readiness.canDepart && (
+              <div className="transit-readiness-warning-box">
+                <ShieldAlert size={18} className="warning-icon" />
+                <div>
+                  <strong>Aviso de Alistamiento Técnico en Taller:</strong>
+                  <p>{readiness.reason}</p>
+                  <span>
+                    El despacho quedará registrado como "Pendiente", pero el botón <strong>"Marcar Salida"</strong> permanecerá bloqueado hasta que el taller apruebe el alistamiento.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Alerta de bloqueo si ya está en otro viaje */}
+            {isAlreadyActive && (
+              <div className="register-alert error" style={{ marginTop: '8px' }}>
+                <AlertCircle size={16} />
+                <span>Esta máquina ya tiene un viaje activo en curso. No puede registrarse dos veces.</span>
+              </div>
+            )}
           </div>
 
           {/* Conductor / Transportador */}
