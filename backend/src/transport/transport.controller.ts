@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ReceiveTransportDto, TransportService } from './transport.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -46,11 +46,11 @@ export class TransportController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar detalles de ruta del viaje (destino, vehículo/remolque)' })
+  @ApiOperation({ summary: 'Actualizar detalles de ruta o datos del viaje (destino, vehículo, conductor, estado)' })
   @ApiParam({ name: 'id', description: 'ID del viaje de transporte' })
   async updateTrip(
     @Param('id') id: string,
-    @Body() dto: { destination?: string; vehicle?: string },
+    @Body() dto: { destination?: string; vehicle?: string; transporterId?: string; status?: any },
   ) {
     return this.transportService.updateTrip(id, dto);
   }
@@ -72,6 +72,18 @@ export class TransportController {
   @ApiOperation({ summary: 'Consultar viaje activo asociado a una maquinaria' })
   async getActiveByMachine(@Param('machineId') machineId: string) {
     return this.transportService.getActiveTripByMachine(machineId);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Listar todos los viajes de transporte registrados' })
+  async getAll() {
+    return this.transportService.getAllTrips();
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar un viaje de transporte' })
+  async delete(@Param('id') id: string) {
+    return this.transportService.deleteTrip(id);
   }
 
   @Get(':id')

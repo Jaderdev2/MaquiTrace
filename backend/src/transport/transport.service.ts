@@ -166,15 +166,41 @@ export class TransportService {
     return trip;
   }
 
-  async updateTrip(id: string, dto: { destination?: string; vehicle?: string }) {
+  // Listar todos los viajes sin restricción de estado para CRUD completo
+  async getAllTrips() {
+    return this.prisma.transportTrip.findMany({
+      include: {
+        machine: true,
+        transporter: true,
+        gpsRecords: {
+          orderBy: { recordedAt: 'asc' },
+        },
+        incidents: true,
+      },
+      orderBy: { id: 'desc' },
+    });
+  }
+
+  // Actualizar datos del transporte (vehículo, destino, transportador, estado)
+  async updateTrip(
+    id: string,
+    dto: {
+      vehicle?: string;
+      destination?: string;
+      transporterId?: string;
+      status?: TripStatus;
+    },
+  ) {
     const trip = await this.prisma.transportTrip.findUnique({ where: { id } });
     if (!trip) throw new NotFoundException(`Viaje con ID ${id} no encontrado`);
 
     return this.prisma.transportTrip.update({
       where: { id },
       data: {
-        ...(dto.destination ? { destination: dto.destination } : {}),
-        ...(dto.vehicle ? { vehicle: dto.vehicle } : {}),
+        ...(dto.destination !== undefined ? { destination: dto.destination } : {}),
+        ...(dto.vehicle !== undefined ? { vehicle: dto.vehicle } : {}),
+        ...(dto.transporterId !== undefined ? { transporterId: dto.transporterId } : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
       },
       include: {
         machine: true,
@@ -182,6 +208,20 @@ export class TransportService {
         gpsRecords: { orderBy: { recordedAt: 'asc' } },
         incidents: true,
       },
+    });
+  }
+
+  // Eliminar un viaje de transporte
+  async deleteTrip(id: string) {
+    const trip = await this.prisma.transportTrip.findUnique({ where: { id } });
+    if (!trip) throw new NotFoundException(`Viaje con ID ${id} no encontrado`);
+
+    // Eliminar registros satelitales e incidencias asociados
+    await this.prisma.gpsRecord.deleteMany({ where: { tripId: id } });
+    await this.prisma.incident.deleteMany({ where: { tripId: id } });
+
+    return this.prisma.transportTrip.delete({
+      where: { id },
     });
   }
 }
