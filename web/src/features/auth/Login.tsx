@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { loginApi } from '../../services/api';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
 import heroImg from '../../assets/media/auth/login_present.png';
+import { isAdminUser } from '../../utils/auth';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -27,6 +28,15 @@ export const Login: React.FC = () => {
 
     try {
       const data = await loginApi(email.trim(), password.trim());
+
+      // La plataforma web es de uso exclusivo para Administradores
+      if (!isAdminUser(data.user)) {
+        setError(
+          'Acceso restringido: Esta plataforma web es exclusiva para Administradores. Si eres Operario o Transportador, debes ingresar desde la aplicación móvil MaquiTrace.'
+        );
+        return;
+      }
+
       login(data.accessToken, data.user);
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
@@ -66,7 +76,7 @@ export const Login: React.FC = () => {
                 Maqui<span className="brand-accent-blue">Trace</span>
               </h1>
               <p className="login-description-text">
-                Inicia sesión para acceder a la plataforma y gestionar la trazabilidad de tu maquinaria.
+                Portal web de administración. Inicia sesión para gestionar la maquinaria, fases de alistamiento y despacho.
               </p>
             </div>
 
@@ -163,36 +173,18 @@ export const Login: React.FC = () => {
               </button>
             </form>
 
-            {/* Accesos rápidos con credenciales reales de la base de datos (docs/credenciales.md) */}
-            <div className="quick-access-strip">
-              <span className="quick-label">Cuentas BD:</span>
+            {/* Portal exclusivo para Administrador */}
+            <div className="admin-portal-box">
+              <div className="admin-portal-badge">
+                <ShieldCheck size={14} className="admin-badge-icon" />
+                <span>Portal exclusivo para <strong>Administradores</strong></span>
+              </div>
               <button
                 type="button"
-                className="quick-chip"
+                className="btn-quick-admin"
                 onClick={() => handleQuickCredentials('admin@maquitrace.com', 'Admin1234!')}
               >
-                Admin
-              </button>
-              <button
-                type="button"
-                className="quick-chip"
-                onClick={() => handleQuickCredentials('itadori@maquitrace.com', 'Operario1234!')}
-              >
-                Operario (Itadori)
-              </button>
-              <button
-                type="button"
-                className="quick-chip"
-                onClick={() => handleQuickCredentials('charly@maquitrace.com', 'Operario1234!')}
-              >
-                Operario (Charly)
-              </button>
-              <button
-                type="button"
-                className="quick-chip"
-                onClick={() => handleQuickCredentials('transportador@maquitrace.com', 'Transporte1234!')}
-              >
-                Transporte
+                Autocompletar cuenta Admin
               </button>
             </div>
           </div>
