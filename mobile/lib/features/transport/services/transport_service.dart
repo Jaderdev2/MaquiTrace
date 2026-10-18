@@ -138,6 +138,31 @@ class TransportService {
     throw HttpException(error['message'] ?? 'Error al confirmar entrega');
   }
 
+  /// Actualiza datos de la ruta (destino, vehículo/remolque)
+  Future<TripModel> updateTripDetails({
+    required String tripId,
+    String? destination,
+    String? vehicle,
+    String? token,
+  }) async {
+    final url = Uri.parse(ApiConstants.tripDetailUrl(tripId));
+    final payload = <String, dynamic>{};
+    if (destination != null) payload['destination'] = destination;
+    if (vehicle != null) payload['vehicle'] = vehicle;
+    final body = jsonEncode(payload);
+
+    final response = await http
+        .patch(url, headers: _buildHeaders(token: token), body: body)
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return TripModel.fromJson(decoded);
+    }
+    final error = jsonDecode(response.body);
+    throw HttpException(error['message'] ?? 'Error al actualizar detalles del viaje');
+  }
+
   /// Envía coordenadas GPS en tiempo real
   Future<GpsRecordModel> sendGpsLocation({
     required String tripId,

@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/trip_model.dart';
 import '../providers/transport_provider.dart';
+import '../widgets/delivery_confirmation_modal.dart';
+import '../widgets/edit_trip_modal.dart';
 import '../widgets/report_incident_modal.dart';
 
-/// Colores y medidas propias de esta pantalla.
-/// Un solo radio para tarjetas y botones, uno menor para chips y miniaturas,
-/// bordes de 1 px, sin sombras, y color solo cuando comunica estado.
 class _Ui {
   static const background = Color(0xFFF5F7FA);
   static const surface = Colors.white;
@@ -40,21 +43,55 @@ class ActiveTripScreen extends StatefulWidget {
 class _ActiveTripScreenState extends State<ActiveTripScreen> {
   bool _isSendingGps = false;
   late TripModel _currentTrip;
+  Timer? _periodicGpsTimer;
+  final MapController _mapController = MapController();
 
-  // Coordenadas simuladas realistas si el dispositivo no tiene sensor satelital activo
+  // Corredor de transporte de maquinaria pesada Pacífico - Valle (Buenaventura a Cali/Yumbo)
   int _gpsStep = 0;
   final List<List<double>> _routeWaypoints = [
-    [4.6097, -74.0817], // Bogotá
-    [4.8143, -74.3541], // Facatativá
-    [4.9754, -74.6219], // Villeta
-    [5.2045, -74.7412], // Guaduas
-    [5.4521, -74.6610], // Honda
+    [3.8833, -77.0167], // Buenaventura (Patio Portuario)
+    [3.8412, -76.9124], // Córdoba - Cisneros
+    [3.7333, -76.6833], // Loboguerrero (Paso de montaña)
+    [3.6558, -76.6917], // Dagua
+    [3.5833, -76.4833], // Yumbo (Zona Industrial)
+    [3.4516, -76.5320], // Cali (Destino Obra)
   ];
 
   @override
   void initState() {
     super.initState();
     _currentTrip = widget.trip;
+    if (_currentTrip.isInTransit) {
+      _startPeriodicGps();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopPeriodicGps();
+    super.dispose();
+  }
+
+  void _startPeriodicGps() {
+    _stopPeriodicGps();
+    // Transmitir primer punto en segundo plano tras renderizar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _transmitGpsLocation(context.read<TransportProvider>(), silent: true);
+      }
+    });
+
+    // Transmisión periódica automática cada 45 segundos en segundo plano
+    _periodicGpsTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+      if (mounted && _currentTrip.isInTransit) {
+        _transmitGpsLocation(context.read<TransportProvider>(), silent: true);
+      }
+    });
+  }
+
+  void _stopPeriodicGps() {
+    _periodicGpsTimer?.cancel();
+    _periodicGpsTimer = null;
   }
 
   TripModel _getUpdatedTrip(TransportProvider provider) {
@@ -64,8 +101,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     );
   }
 
-  Future<void> _transmitGpsLocation(TransportProvider provider) async {
-    setState(() => _isSendingGps = true);
+  Future<void> _transmitGpsLocation(TransportProvider provider, {bool silent = false}) async {
+    if (_isSendingGps && silent) return;
+
+    if (!silent) {
+      setState(() => _isSendingGps = true);
+    }
 
     final coords = _routeWaypoints[_gpsStep % _routeWaypoints.length];
     _gpsStep++;
@@ -77,16 +118,41 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     );
 
     if (mounted) {
-      setState(() => _isSendingGps = false);
-      if (success) {
+      if (!silent) {
+        setState(() => _isSendingGps = false);
+      }
+      if (success && !silent) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: _Ui.success,
             behavior: SnackBarBehavior.floating,
             content: Text(
-              'Posición GPS transmitida: Lat ${coords[0]}, Lng ${coords[1]}',
+              'Posición GPS transmitida: Lat ${coords[0].toStringAsFixed(4)}, Lng ${coords[1].toStringAsFixed(4)}',
             ),
           ),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchExternalMap(String destination) async {
+    final query = Uri.encodeComponent(destination);
+    final googleMapsUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$query');
+
+    try {
+      if (await canLaunchUrl(googleMapsUrl)) {
+        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo abrir la app de mapas externa')),
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enlazar con Google Maps / Waze')),
         );
       }
     }
@@ -98,42 +164,25 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text(
           'Iniciar ruta de transporte',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
         content: const Text(
-          '¿Confirmas la salida de la maquinaria hacia su destino? El estado cambiará a "En tránsito".',
-          style: TextStyle(
-            fontSize: 14,
-            height: 1.4,
-            color: AppColors.textPrimary,
-          ),
+          '¿Confirmas la salida de la maquinaria hacia su destino? El estado cambiará a "En tránsito" y el GPS iniciará telemetría automática.',
+          style: TextStyle(fontSize: 14, height: 1.4, color: AppColors.textPrimary),
         ),
         actions: [
           TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-              minimumSize: const Size(0, 44),
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancelar'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.accentBlue,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(0, 44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(_Ui.radius),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Confirmar salida'),
@@ -148,69 +197,43 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
         setState(() {
           _currentTrip = _currentTrip.copyWith(status: TripStatus.enTransito);
         });
+        _startPeriodicGps();
       }
     }
   }
 
-  Future<void> _handleConfirmDelivery(TransportProvider provider) async {
-    final confirm = await showDialog<bool>(
+  Future<void> _handleConfirmDelivery() async {
+    // Abre el Acta Oficial de Entrega Digital (POD) con firma con el dedo y datos de receptor
+    final delivered = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        title: const Text(
-          'Confirmar entrega final',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        content: Text(
-          '¿Confirmas que el equipo ${_currentTrip.machine?.model ?? "la maquinaria"} fue entregado exitosamente en el destino:\n\n"${_currentTrip.destination}"?',
-          style: const TextStyle(
-            fontSize: 14,
-            height: 1.4,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-              minimumSize: const Size(0, 44),
-            ),
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: _Ui.success,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(0, 44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(_Ui.radius),
-              ),
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirmar entrega'),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (_) => DeliveryConfirmationModal(trip: _currentTrip),
     );
 
-    if (confirm == true) {
-      final success = await provider.completeDelivery(machineId: _currentTrip.machineId);
-      if (success && mounted) {
-        Navigator.of(context).pop();
-      }
+    if (delivered == true && mounted) {
+      _stopPeriodicGps();
+      setState(() {
+        _currentTrip = _currentTrip.copyWith(status: TripStatus.entregado);
+      });
+      Navigator.of(context).pop(true);
     }
   }
 
-  // ───────────────────────────── UI ─────────────────────────────
+  Future<void> _handleEditTripDetails() async {
+    final updated = await showDialog<bool>(
+      context: context,
+      builder: (_) => EditTripModal(trip: _currentTrip),
+    );
+
+    if (updated == true && mounted) {
+      final provider = context.read<TransportProvider>();
+      setState(() {
+        _currentTrip = _getUpdatedTrip(provider);
+      });
+    }
+  }
+
+  // ───────────────────────────── CONSTRUCCIÓN DE UI ─────────────────────────────
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
@@ -231,16 +254,11 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg),
       ),
     );
   }
 
-  /// Título + subtítulo de tarjeta, con un widget opcional a la derecha.
   Widget _buildCardHeader({
     required String title,
     required String subtitle,
@@ -281,25 +299,251 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
       ],
     );
   }
 
-  /// Acción principal del viaje, fija abajo para que siempre esté a mano.
-  /// Si el servicio ya terminó no hay acción (el aviso va arriba, en el cuerpo).
+  Widget _buildMapCard(TripModel trip) {
+    final lastGps = trip.lastGps;
+    final truckLat = lastGps != null && lastGps.latitude != 0 ? lastGps.latitude : _routeWaypoints.first[0];
+    final truckLng = lastGps != null && lastGps.longitude != 0 ? lastGps.longitude : _routeWaypoints.first[1];
+    final truckPos = ll.LatLng(truckLat, truckLng);
+
+    // Destino geográfico referencial
+    final destPos = ll.LatLng(_routeWaypoints.last[0], _routeWaypoints.last[1]);
+
+    final polylinePoints = _routeWaypoints.map((p) => ll.LatLng(p[0], p[1])).toList();
+
+    return Container(
+      decoration: _cardDecoration(),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Mapa de Ruta y Monitoreo',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        trip.isInTransit ? 'Seguimiento por OpenStreetMap' : 'Ruta proyectada en carretera',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    foregroundColor: AppColors.accentBlue,
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radiusSmall)),
+                  ),
+                  icon: const Icon(Icons.near_me_rounded, size: 16),
+                  label: const Text('Navegar GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  onPressed: () => _launchExternalMap(trip.destination),
+                ),
+              ],
+            ),
+          ),
+
+          // Lienzo interactivo de OpenStreetMap
+          SizedBox(
+            height: 230,
+            child: Stack(
+              children: [
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: truckPos,
+                    initialZoom: 11.0,
+                    minZoom: 4.0,
+                    maxZoom: 18.0,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.maquitrace',
+                    ),
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: polylinePoints,
+                          color: AppColors.accentBlue.withValues(alpha: 0.8),
+                          strokeWidth: 4.5,
+                        ),
+                      ],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        // Marcador de la ubicación del camión
+                        Marker(
+                          point: truckPos,
+                          width: 44,
+                          height: 44,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.accentBlue,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.accentBlue.withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 22),
+                          ),
+                        ),
+                        // Marcador del punto de destino
+                        Marker(
+                          point: destPos,
+                          width: 40,
+                          height: 40,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _Ui.success,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _Ui.success.withValues(alpha: 0.35),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.flag_rounded, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                // Controles de zoom y centrado
+                Positioned(
+                  bottom: 10,
+                  right: 10,
+                  child: Column(
+                    children: [
+                      _buildMapButton(
+                        icon: Icons.my_location_rounded,
+                        onTap: () => _mapController.move(truckPos, 13.0),
+                        tooltip: 'Centrar en mi camión',
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMapButton(
+                        icon: Icons.add_rounded,
+                        onTap: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
+                        tooltip: 'Acercar',
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMapButton(
+                        icon: Icons.remove_rounded,
+                        onTap: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1),
+                        tooltip: 'Alejar',
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Créditos de OpenStreetMap
+                Positioned(
+                  bottom: 4,
+                  left: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '© OpenStreetMap contributors',
+                      style: TextStyle(fontSize: 9, color: Color(0xFF64748B)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Enlace directo a Google Maps / Waze
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            color: const Color(0xFFF8FAFC),
+            child: Row(
+              children: [
+                const Icon(Icons.directions_outlined, size: 18, color: AppColors.accentBlue),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Destino: ${trip.destination}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    foregroundColor: AppColors.accentBlue,
+                  ),
+                  onPressed: () => _launchExternalMap(trip.destination),
+                  child: const Text('Abrir en Google Maps', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        elevation: 2,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.all(7),
+            child: Icon(icon, size: 18, color: AppColors.textPrimary),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget? _buildBottomBar(TransportProvider provider, TripModel trip) {
     final Widget button;
     if (trip.isPending) {
@@ -311,9 +555,9 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       );
     } else if (trip.isInTransit) {
       button = FilledButton.icon(
-        onPressed: () => _handleConfirmDelivery(provider),
-        icon: const Icon(Icons.check_circle_outline_rounded, size: 22),
-        label: const Text('Confirmar entrega en destino'),
+        onPressed: _handleConfirmDelivery,
+        icon: const Icon(Icons.assignment_turned_in_rounded, size: 22),
+        label: const Text('Firmar y Confirmar Entrega (POD)'),
         style: _primaryButtonStyle(_Ui.success),
       );
     } else {
@@ -341,9 +585,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       foregroundColor: Colors.white,
       minimumSize: const Size.fromHeight(52),
       textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(_Ui.radius),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
     );
   }
 
@@ -411,6 +653,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 decoration: BoxDecoration(
                   color: _Ui.successBg,
                   borderRadius: BorderRadius.circular(_Ui.radius),
+                  border: Border.all(color: _Ui.success.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,14 +661,23 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     Icon(Icons.check_circle_rounded, color: _Ui.success, size: 20),
                     SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        'Este servicio de transporte ya fue finalizado y entregado.',
-                        style: TextStyle(
-                          color: _Ui.success,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          height: 1.35,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Servicio Entregado Oficialmente',
+                            style: TextStyle(
+                              color: _Ui.success,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'El equipo cuenta con acta de entrega (POD) firmada en destino y registrada a satisfacción.',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -511,7 +763,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Destino y datos de salida
+            // Destino, datos de salida y botón de edición
             Container(
               padding: const EdgeInsets.all(16),
               decoration: _cardDecoration(),
@@ -547,6 +799,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                           ],
                         ),
                       ),
+                      if (!isFinished)
+                        IconButton(
+                          tooltip: 'Editar destino o remolque',
+                          icon: const Icon(Icons.edit_note_rounded, size: 24, color: AppColors.accentBlue),
+                          onPressed: _handleEditTripDetails,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -572,7 +830,11 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Transmisión de GPS
+            // MAPA INTERACTIVO OPENSTREETMAP + BOTÓN DE NAVEGACIÓN
+            _buildMapCard(trip),
+            const SizedBox(height: 16),
+
+            // Transmisión de GPS Automática y en Segundo Plano
             Container(
               padding: const EdgeInsets.all(16),
               decoration: _cardDecoration(),
@@ -581,14 +843,16 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 children: [
                   _buildCardHeader(
                     title: 'Transmisión GPS',
-                    subtitle: 'Sincronización en tiempo real con la web',
+                    subtitle: trip.isInTransit
+                        ? 'Telemetría periódica cada 45s'
+                        : 'Sincronización satelital con centro de control',
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _Ui.successBg,
+                        color: trip.isInTransit ? _Ui.successBg : _Ui.lockedBg,
                         borderRadius: BorderRadius.circular(_Ui.radiusSmall),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
@@ -596,18 +860,18 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                             height: 8,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
-                                color: _Ui.success,
+                                color: trip.isInTransit ? _Ui.success : _Ui.locked,
                                 shape: BoxShape.circle,
                               ),
                             ),
                           ),
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Text(
-                            'En vivo',
+                            trip.isInTransit ? 'Automático en vivo' : 'En espera',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: _Ui.success,
+                              color: trip.isInTransit ? _Ui.success : _Ui.locked,
                             ),
                           ),
                         ],
@@ -630,7 +894,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Última posición',
+                                  'Última posición satelital transmitida',
                                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                                 ),
                                 const SizedBox(height: 2),
@@ -660,22 +924,21 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     const SizedBox(height: 12),
                   ],
 
-                  OutlinedButton.icon(
-                    onPressed: _isSendingGps ? null : () => _transmitGpsLocation(provider),
-                    icon: _isSendingGps
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.my_location_rounded, size: 18),
-                    label: Text(_isSendingGps ? 'Transmitiendo coordenada...' : 'Transmitir coordenada GPS'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.accentBlue,
-                      side: const BorderSide(color: _Ui.border),
-                      minimumSize: const Size.fromHeight(48),
-                      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(_Ui.radius),
+                  if (trip.isInTransit)
+                    OutlinedButton.icon(
+                      onPressed: _isSendingGps ? null : () => _transmitGpsLocation(provider),
+                      icon: _isSendingGps
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.my_location_rounded, size: 18),
+                      label: Text(_isSendingGps ? 'Transmitiendo coordenada...' : 'Forzar actualización inmediata'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.accentBlue,
+                        side: const BorderSide(color: _Ui.border),
+                        minimumSize: const Size.fromHeight(46),
+                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

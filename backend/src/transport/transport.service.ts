@@ -165,4 +165,23 @@ export class TransportService {
     if (!trip) throw new NotFoundException(`Viaje con ID ${id} no encontrado`);
     return trip;
   }
+
+  async updateTrip(id: string, dto: { destination?: string; vehicle?: string }) {
+    const trip = await this.prisma.transportTrip.findUnique({ where: { id } });
+    if (!trip) throw new NotFoundException(`Viaje con ID ${id} no encontrado`);
+
+    return this.prisma.transportTrip.update({
+      where: { id },
+      data: {
+        ...(dto.destination ? { destination: dto.destination } : {}),
+        ...(dto.vehicle ? { vehicle: dto.vehicle } : {}),
+      },
+      include: {
+        machine: true,
+        transporter: true,
+        gpsRecords: { orderBy: { recordedAt: 'asc' } },
+        incidents: true,
+      },
+    });
+  }
 }

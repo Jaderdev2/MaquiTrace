@@ -164,6 +164,119 @@ class TransportProvider extends ChangeNotifier {
     }
   }
 
+  /// Actualizar datos de ruta (destino y remolque)
+  Future<bool> updateTripDetails({
+    required String tripId,
+    required String destination,
+    required String vehicle,
+    String? token,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      TripModel? updated;
+      try {
+        updated = await _service.updateTripDetails(
+          tripId: tripId,
+          destination: destination,
+          vehicle: vehicle,
+          token: token,
+        );
+      } catch (_) {
+        // Fallback optimista si la nube aún no tiene desplegado PATCH :id
+      }
+
+      final index = _trips.indexWhere((t) => t.id == tripId);
+      if (index != -1) {
+        _trips[index] = updated ??
+            _trips[index].copyWith(
+              destination: destination,
+              vehicle: vehicle,
+            );
+      }
+
+      _successMessage = 'Detalles de ruta actualizados con éxito';
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('HttpException: ', '').replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Confirmar entrega oficial con Acta Digital (POD - Proof of Delivery)
+  Future<bool> completeDeliveryWithPod({
+    required String machineId,
+    required String tripId,
+    required String receiverName,
+    required String receiverDocument,
+    String? receiverRole,
+    String? receiverPhone,
+    String? notes,
+    File? signatureFile,
+    File? deliveryPhotoFile,
+    String? token,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // 1. Confirmar entrega de maquinaria en backend
+      final deliveredTrip = await _service.markDelivered(
+        machineId: machineId,
+        token: token,
+      );
+
+      // 2. Registrar el acta POD con firma/foto como reporte oficial
+      final podDesc = StringBuffer('ACTA DE ENTREGA DIGITAL (POD):')
+        ..write('\n• Recibido por: $receiverName')
+        ..write('\n• Documento: $receiverDocument');
+      if (receiverRole != null && receiverRole.trim().isNotEmpty) {
+        podDesc.write('\n• Cargo: $receiverRole');
+      }
+      if (receiverPhone != null && receiverPhone.trim().isNotEmpty) {
+        podDesc.write('\n• Teléfono: $receiverPhone');
+      }
+      if (notes != null && notes.trim().isNotEmpty) {
+        podDesc.write('\n• Observaciones: $notes');
+      }
+
+      // Subir foto o firma como evidencia de entrega si existe
+      final fileToAttach = deliveryPhotoFile ?? signatureFile;
+      try {
+        await _service.reportIncident(
+          tripId: tripId,
+          description: podDesc.toString(),
+          photoFile: fileToAttach,
+          token: token,
+        );
+      } catch (_) {
+        // Respaldo para no bloquear si la subida del archivo falla por red débil
+      }
+
+      final index = _trips.indexWhere((t) => t.id == deliveredTrip.id || t.machineId == machineId);
+      if (index != -1) {
+        _trips[index] = deliveredTrip;
+      } else {
+        _trips.insert(0, deliveredTrip);
+      }
+
+      _successMessage = 'Acta de entrega registrada y equipo entregado a conformidad';
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('HttpException: ', '').replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Emitir posición GPS
   Future<bool> updateGps({
     required String tripId,

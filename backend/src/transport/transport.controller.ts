@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ReceiveTransportDto, TransportService } from './transport.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -43,6 +43,16 @@ export class TransportController {
   @ApiParam({ name: 'machineId', description: 'UUID o identificador de la máquina' })
   async deliver(@Param('machineId') machineId: string) {
     return this.transportService.markDelivered(machineId);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar detalles de ruta del viaje (destino, vehículo/remolque)' })
+  @ApiParam({ name: 'id', description: 'ID del viaje de transporte' })
+  async updateTrip(
+    @Param('id') id: string,
+    @Body() dto: { destination?: string; vehicle?: string },
+  ) {
+    return this.transportService.updateTrip(id, dto);
   }
 
   @Get('active')
