@@ -309,12 +309,36 @@ export async function fetchTripHistoryApi(tripId: string, token: string): Promis
 }
 
 /**
- * Programar y registrar recepción de transporte para una máquina.
+ * Consulta de todos los viajes de transporte registrados (CRUD Read).
+ * Endpoint: GET /api/v1/transport (con fallback a /api/v1/transport/active)
+ */
+export async function fetchTripsApi(token: string): Promise<TransportTrip[]> {
+  try {
+    const response = await authFetch(`${API_BASE_URL}/transport`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (_) {}
+
+  // Fallback a viajes activos si el backend remoto aún no tiene el endpoint global
+  return fetchActiveTripsApi(token);
+}
+
+/**
+ * Programar y registrar recepción de transporte para una máquina (CRUD Create).
  * Endpoint: POST /api/v1/transport/receive/:machineId
  */
 export async function receiveTransportApi(
   machineId: string,
-  payload: { vehicle: string; destination: string },
+  payload: { vehicle: string; destination: string; transporterId?: string },
   token: string
 ): Promise<TransportTrip> {
   const response = await authFetch(`${API_BASE_URL}/transport/receive/${machineId}`, {
@@ -329,6 +353,53 @@ export async function receiveTransportApi(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Error al programar el viaje de transporte.');
+  }
+
+  return await response.json();
+}
+
+/**
+ * Actualizar datos de un viaje de transporte (CRUD Update).
+ * Endpoint: PATCH /api/v1/transport/:id
+ */
+export async function updateTransportApi(
+  tripId: string,
+  payload: { vehicle?: string; destination?: string; transporterId?: string; status?: string },
+  token: string
+): Promise<TransportTrip> {
+  const response = await authFetch(`${API_BASE_URL}/transport/${tripId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Error al actualizar el viaje de transporte.');
+  }
+
+  return await response.json();
+}
+
+/**
+ * Eliminar un viaje de transporte (CRUD Delete).
+ * Endpoint: DELETE /api/v1/transport/:id
+ */
+export async function deleteTransportApi(tripId: string, token: string): Promise<any> {
+  const response = await authFetch(`${API_BASE_URL}/transport/${tripId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Error al eliminar el viaje de transporte.');
   }
 
   return await response.json();
