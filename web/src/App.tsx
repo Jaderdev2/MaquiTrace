@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './features/auth/Login';
@@ -9,14 +9,22 @@ import { TrackingPage } from './features/tracking/TrackingPage';
 import { UsersPage } from './features/users/UsersPage';
 import { Loader2 } from 'lucide-react';
 import { RouteProgressBar } from './components/RouteProgressBar';
+import { isAdminUser } from './utils/auth';
 import './App.css';
 
 /**
- * Componente para proteger rutas privadas (Dashboard, etc.)
- * Si no está autenticado, redirige a /login.
+ * Componente para proteger rutas privadas (Dashboard, Maquinarias, etc.)
+ * Si no está autenticado o no es Administrador, limpia la sesión y redirige a /login.
  */
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading, logout } = useAuth();
+
+  useEffect(() => {
+    // Si hay una sesión pero no pertenece a un administrador, cerrarla de inmediato
+    if (!loading && isAuthenticated && user && !isAdminUser(user)) {
+      logout();
+    }
+  }, [loading, isAuthenticated, user, logout]);
 
   if (loading) {
     return (
@@ -27,7 +35,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user || !isAdminUser(user)) {
     return <Navigate to="/login" replace />;
   }
 
@@ -36,10 +44,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 /**
  * Componente para rutas públicas (Login)
- * Si ya está autenticado, redirige directamente a /dashboard.
+ * Si ya está autenticado como Administrador, redirige directamente a /dashboard.
  */
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -50,7 +58,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated && isAdminUser(user)) {
     return <Navigate to="/dashboard" replace />;
   }
 

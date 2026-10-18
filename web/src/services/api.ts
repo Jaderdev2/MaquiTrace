@@ -14,6 +14,25 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://maquitrace-backend.onrender.com/api/v1';
 
 /**
+ * Interceptor para llamadas autenticadas.
+ * Si el token es inválido, expiró o fue revocado (401 Unauthorized),
+ * limpia la sesión local y redirige de inmediato a la pantalla de login.
+ */
+async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const response = await fetch(url, init);
+  if (response.status === 401) {
+    try {
+      localStorage.removeItem('maquitrace_token');
+      localStorage.removeItem('maquitrace_user');
+    } catch (_) {}
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+  }
+  return response;
+}
+
+/**
  * Petición de autenticación al backend NestJS.
  * Endpoint: POST /api/v1/auth/login
  */
@@ -42,7 +61,7 @@ export async function loginApi(email: string, password: string): Promise<LoginRe
  * Endpoint: GET /api/v1/machines (requiere Bearer Token)
  */
 export async function fetchMachinesApi(token: string): Promise<Machine[]> {
-  const response = await fetch(`${API_BASE_URL}/machines`, {
+  const response = await authFetch(`${API_BASE_URL}/machines`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -66,7 +85,7 @@ export async function fetchMachinesApi(token: string): Promise<Machine[]> {
  * Endpoint: GET /api/v1/machines/:machineId/evidence (requiere Bearer Token)
  */
 export async function fetchMachineEvidenceApi(machineId: string, token: string): Promise<Evidence[]> {
-  const response = await fetch(`${API_BASE_URL}/machines/${machineId}/evidence`, {
+  const response = await authFetch(`${API_BASE_URL}/machines/${machineId}/evidence`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -90,7 +109,7 @@ export async function createMachineApi(
   payload: CreateMachineDto,
   token: string
 ): Promise<Machine> {
-  const response = await fetch(`${API_BASE_URL}/machines`, {
+  const response = await authFetch(`${API_BASE_URL}/machines`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -119,7 +138,7 @@ export async function updateMachineApi(
   payload: Partial<CreateMachineDto>,
   token: string
 ): Promise<Machine> {
-  const response = await fetch(`${API_BASE_URL}/machines/${id}`, {
+  const response = await authFetch(`${API_BASE_URL}/machines/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -144,7 +163,7 @@ export async function updateMachineApi(
  * Endpoint: DELETE /api/v1/machines/:id (requiere Bearer Token)
  */
 export async function deleteMachineApi(id: string, token: string): Promise<boolean> {
-  const response = await fetch(`${API_BASE_URL}/machines/${id}`, {
+  const response = await authFetch(`${API_BASE_URL}/machines/${id}`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
@@ -175,7 +194,7 @@ export async function uploadMachineAvatarApi(
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${API_BASE_URL}/machines/${machineId}/avatar`, {
+  const response = await authFetch(`${API_BASE_URL}/machines/${machineId}/avatar`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -202,7 +221,7 @@ export async function fetchMachinePhasesApi(
   machineId: string,
   token: string
 ): Promise<PreparationPhase[]> {
-  const response = await fetch(`${API_BASE_URL}/machines/${machineId}/phases`, {
+  const response = await authFetch(`${API_BASE_URL}/machines/${machineId}/phases`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -228,7 +247,7 @@ export async function updatePhaseStatusApi(
   payload: { status: string; observations?: string },
   token: string
 ): Promise<PreparationPhase> {
-  const response = await fetch(`${API_BASE_URL}/machines/${machineId}/phases/${phaseId}`, {
+  const response = await authFetch(`${API_BASE_URL}/machines/${machineId}/phases/${phaseId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -253,7 +272,7 @@ export async function updatePhaseStatusApi(
  * Endpoint: GET /api/v1/transport/active
  */
 export async function fetchActiveTripsApi(token: string): Promise<TransportTrip[]> {
-  const response = await fetch(`${API_BASE_URL}/transport/active`, {
+  const response = await authFetch(`${API_BASE_URL}/transport/active`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -274,7 +293,7 @@ export async function fetchActiveTripsApi(token: string): Promise<TransportTrip[
  * Endpoint: GET /api/v1/tracking/:tripId/history
  */
 export async function fetchTripHistoryApi(tripId: string, token: string): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/tracking/${tripId}/history`, {
+  const response = await authFetch(`${API_BASE_URL}/tracking/${tripId}/history`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -294,7 +313,7 @@ export async function fetchTripHistoryApi(tripId: string, token: string): Promis
  * Endpoint: POST /api/v1/transport/depart/:machineId
  */
 export async function departTransportApi(machineId: string, token: string): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/transport/depart/${machineId}`, {
+  const response = await authFetch(`${API_BASE_URL}/transport/depart/${machineId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -315,7 +334,7 @@ export async function departTransportApi(machineId: string, token: string): Prom
  * Endpoint: POST /api/v1/transport/deliver/:machineId
  */
 export async function deliverTransportApi(machineId: string, token: string): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/transport/deliver/${machineId}`, {
+  const response = await authFetch(`${API_BASE_URL}/transport/deliver/${machineId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -343,7 +362,7 @@ export async function fetchUsersApi(role?: string, token?: string): Promise<User
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(url, { method: 'GET', headers });
+  const response = await authFetch(url, { method: 'GET', headers });
 
   if (!response.ok) {
     return [];
@@ -361,7 +380,7 @@ export async function fetchRolesApi(token?: string): Promise<Role[]> {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE_URL}/users/roles`, {
+  const response = await authFetch(`${API_BASE_URL}/users/roles`, {
     method: 'GET',
     headers,
   });
@@ -383,7 +402,7 @@ export async function fetchRolesApi(token?: string): Promise<Role[]> {
  * Endpoint: POST /api/v1/users
  */
 export async function createUserApi(payload: CreateUserDto, token: string): Promise<User> {
-  const response = await fetch(`${API_BASE_URL}/users`, {
+  const response = await authFetch(`${API_BASE_URL}/users`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -412,7 +431,7 @@ export async function updateUserApi(
   payload: UpdateUserDto,
   token: string
 ): Promise<User> {
-  const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+  const response = await authFetch(`${API_BASE_URL}/users/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -437,7 +456,7 @@ export async function updateUserApi(
  * Endpoint: DELETE /api/v1/users/:id
  */
 export async function deleteUserApi(id: string, token: string): Promise<boolean> {
-  const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+  const response = await authFetch(`${API_BASE_URL}/users/${id}`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
