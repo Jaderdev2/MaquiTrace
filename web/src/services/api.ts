@@ -309,6 +309,58 @@ export async function fetchTripHistoryApi(tripId: string, token: string): Promis
 }
 
 /**
+ * Programar y registrar recepción de transporte para una máquina.
+ * Endpoint: POST /api/v1/transport/receive/:machineId
+ */
+export async function receiveTransportApi(
+  machineId: string,
+  payload: { vehicle: string; destination: string },
+  token: string
+): Promise<TransportTrip> {
+  const response = await authFetch(`${API_BASE_URL}/transport/receive/${machineId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Error al programar el viaje de transporte.');
+  }
+
+  return await response.json();
+}
+
+/**
+ * Transmitir coordenada satelital GPS de un viaje activo.
+ * Endpoint: POST /api/v1/tracking/:tripId/location
+ */
+export async function recordGpsLocationApi(
+  tripId: string,
+  payload: { latitude: number; longitude: number },
+  token: string
+): Promise<any> {
+  const response = await authFetch(`${API_BASE_URL}/tracking/${tripId}/location`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Error al transmitir la coordenada GPS.');
+  }
+
+  return await response.json();
+}
+
+/**
  * Marcar salida de transporte.
  * Endpoint: POST /api/v1/transport/depart/:machineId
  */

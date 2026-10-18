@@ -75,12 +75,18 @@ export interface TransportTrip {
   status: 'pendiente' | 'en_transito' | 'entregado';
   departureAt?: string;
   arrivalAt?: string;
+  color?: string;
   transporter?: {
     id?: string;
     name: string;
     email?: string;
     phone?: string;
+    avatarUrl?: string;
+    cedula?: string;
+    experienceTime?: string;
+    licenseType?: string;
   };
+  evidence?: Evidence[];
   gpsRecords?: GpsRecord[];
   incidents?: Incident[];
 }
