@@ -412,10 +412,17 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
         const SizedBox(height: 2),
         Text(
           value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
       ],
@@ -478,7 +485,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   ),
                 ),
 
-                // Selector de Estilos Mapbox: Día / Noche / Satélite
+                // Selector de Estilos Mapbox: Día / Noche / Satélite (0 emojis)
                 Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
@@ -489,9 +496,9 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildStyleChip('day', '☀️ Día'),
-                      _buildStyleChip('night', '🌙 Noche'),
-                      _buildStyleChip('satellite', '🛰️ Sat'),
+                      _buildStyleChip('day', Icons.wb_sunny_outlined, 'Día'),
+                      _buildStyleChip('night', Icons.nightlight_outlined, 'Noche'),
+                      _buildStyleChip('satellite', Icons.satellite_alt_outlined, 'Sat'),
                     ],
                   ),
                 ),
@@ -590,6 +597,49 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   ],
                 ),
 
+                // Indicador flotante de telemetría GPS en tiempo real
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: trip.isInTransit ? const Color(0xFF16A34A) : AppColors.textSecondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          trip.isInTransit ? 'GPS en vivo · 45s' : 'GPS en espera',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: trip.isInTransit ? const Color(0xFF15803D) : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
                 // Controles de zoom y centrado
                 Positioned(
                   bottom: 10,
@@ -667,19 +717,29 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                             child: const Icon(Icons.straighten_rounded, size: 16, color: AppColors.accentBlue),
                           ),
                           const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Distancia', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                              Text(
-                                _mapboxRoute != null ? _mapboxRoute!.formattedDistance : 'Calculando...',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Distancia',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                ),
+                                Text(
+                                  _mapboxRoute != null ? _mapboxRoute!.formattedDistance : 'Calculando...',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
 
                     // Métrica 2: Tiempo estimado (ETA)
                     Expanded(
@@ -694,19 +754,29 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                             child: const Icon(Icons.timer_outlined, size: 16, color: Color(0xFF15803D)),
                           ),
                           const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Tiempo est.', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                              Text(
-                                _mapboxRoute != null ? _mapboxRoute!.formattedDuration : 'En cálculo...',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Tiempo est.',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                ),
+                                Text(
+                                  _mapboxRoute != null ? _mapboxRoute!.formattedDuration : 'En cálculo...',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
 
                     // Botón para navegar por voz con Google Maps o Waze
                     FilledButton.tonalIcon(
@@ -718,7 +788,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radiusSmall)),
                       ),
                       icon: const Icon(Icons.near_me_rounded, size: 15),
-                      label: const Text('Navegar GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      label: const Text('Navegar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                       onPressed: () => _launchExternalMap(trip.destination),
                     ),
                   ],
@@ -758,7 +828,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     );
   }
 
-  Widget _buildStyleChip(String styleKey, String label) {
+  Widget _buildStyleChip(String styleKey, IconData icon, String label) {
     final isSelected = _mapStyle == styleKey;
     return InkWell(
       onTap: () {
@@ -774,13 +844,24 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4)]
               : null,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? AppColors.accentBlue : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -861,7 +942,6 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
     final machine = trip.machine;
     final departureAt = trip.departureAt;
-    final lastGps = trip.lastGps;
     final isFinished = !trip.isPending && !trip.isInTransit;
 
     final departureText = departureAt != null
@@ -996,6 +1076,8 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                         const SizedBox(height: 4),
                         Text(
                           'Serial ${machine?.serial ?? "N/A"} · ${machine?.category ?? "General"}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,
@@ -1015,6 +1097,8 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                               ),
                             ],
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,
@@ -1097,116 +1181,6 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
             // MAPA INTERACTIVO MAPBOX HD + TIRA DE TELEMETRÍA Y NAVEGACIÓN
             _buildMapCard(trip),
-            const SizedBox(height: 16),
-
-            // Transmisión de GPS Automática y en Segundo Plano
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: _cardDecoration(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildCardHeader(
-                    title: 'Transmisión GPS',
-                    subtitle: trip.isInTransit
-                        ? 'Telemetría periódica cada 45s'
-                        : 'Sincronización satelital con centro de control',
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: trip.isInTransit ? _Ui.successBg : _Ui.lockedBg,
-                        borderRadius: BorderRadius.circular(_Ui.radiusSmall),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 8,
-                            height: 8,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: trip.isInTransit ? _Ui.success : _Ui.locked,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            trip.isInTransit ? 'Automático en vivo' : 'En espera',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: trip.isInTransit ? _Ui.success : _Ui.locked,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  if (lastGps != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _Ui.lockedBg,
-                        borderRadius: BorderRadius.circular(_Ui.radius),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Última posición satelital transmitida',
-                                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Lat ${lastGps.latitude.toStringAsFixed(4)} · Lng ${lastGps.longitude.toStringAsFixed(4)}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${_two(lastGps.recordedAt.hour)}:${_two(lastGps.recordedAt.minute)}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  if (trip.isInTransit)
-                    OutlinedButton.icon(
-                      onPressed: _isSendingGps ? null : () => _transmitGpsLocation(provider),
-                      icon: _isSendingGps
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.my_location_rounded, size: 18),
-                      label: Text(_isSendingGps ? 'Transmitiendo coordenada...' : 'Forzar actualización inmediata'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.accentBlue,
-                        side: const BorderSide(color: _Ui.border),
-                        minimumSize: const Size.fromHeight(46),
-                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
-                      ),
-                    ),
-                ],
-              ),
-            ),
             const SizedBox(height: 16),
 
             // Novedades e incidencias en ruta
