@@ -65,12 +65,20 @@ class _LocationMapPickerState extends State<LocationMapPicker> {
     },
   ];
 
+  static final RegExp _coordsRegex = RegExp(r'\s*\((-?\d+\.?\d*),\s*(-?\d+\.?\d*)\)');
+
+  static String _cleanDestination(String destination) {
+    final clean = destination.replaceAll(_coordsRegex, '').trim();
+    return clean.isEmpty ? 'Punto seleccionado en el mapa' : clean;
+  }
+
   @override
   void initState() {
     super.initState();
     _currentCenter = const ll.LatLng(3.8833, -77.0167); // Buenaventura por defecto
-    _customNameController.text = widget.initialDestination?.trim().isNotEmpty == true
-        ? widget.initialDestination!
+    final initial = widget.initialDestination?.trim();
+    _customNameController.text = (initial != null && initial.isNotEmpty)
+        ? _cleanDestination(initial)
         : 'Buenaventura · Terminal Portuario';
   }
 
@@ -148,10 +156,9 @@ class _LocationMapPickerState extends State<LocationMapPicker> {
 
   void _handleConfirm() {
     final text = _customNameController.text.trim();
-    final formatted = text.isNotEmpty
-        ? '$text (${_currentCenter.latitude.toStringAsFixed(4)}, ${_currentCenter.longitude.toStringAsFixed(4)})'
-        : 'Destino (${_currentCenter.latitude.toStringAsFixed(4)}, ${_currentCenter.longitude.toStringAsFixed(4)})';
-    Navigator.of(context).pop(formatted);
+    final clean = _cleanDestination(text);
+    final result = clean.isNotEmpty ? clean : 'Punto seleccionado en el mapa';
+    Navigator.of(context).pop(result);
   }
 
   @override
@@ -170,11 +177,11 @@ class _LocationMapPickerState extends State<LocationMapPicker> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Seleccionar Destino (Mapbox)',
+              'Seleccionar destino',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             ),
             Text(
-              'Búsqueda inteligente y satelital HD en carretera',
+              'Búsqueda inteligente y satelital Mapbox',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],
@@ -192,7 +199,7 @@ class _LocationMapPickerState extends State<LocationMapPicker> {
               ),
               icon: Icon(_isSatellite ? Icons.layers_rounded : Icons.satellite_alt_rounded, size: 16),
               label: Text(
-                _isSatellite ? 'Calles' : 'Satélite HD',
+                _isSatellite ? 'Calles' : 'Satélite',
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
               ),
               onPressed: () {
@@ -331,11 +338,18 @@ class _LocationMapPickerState extends State<LocationMapPicker> {
                                       child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white),
                                     ),
                                     const SizedBox(width: 6),
+                                    const Text(
+                                      'Buscando dirección...',
+                                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                    ),
+                                  ] else ...[
+                                    const Icon(Icons.place_rounded, size: 13, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Punto de entrega',
+                                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                    ),
                                   ],
-                                  Text(
-                                    '${_currentCenter.latitude.toStringAsFixed(4)}, ${_currentCenter.longitude.toStringAsFixed(4)}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                                  ),
                                 ],
                               ),
                             ),
@@ -360,7 +374,7 @@ class _LocationMapPickerState extends State<LocationMapPicker> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
-                          '© Mapbox · © OpenStreetMap',
+                          '© Mapbox',
                           style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
                         ),
                       ),
@@ -436,7 +450,7 @@ class _LocationMapPickerState extends State<LocationMapPicker> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
-                        label: const Text('Confirmar este punto como destino', style: TextStyle(fontWeight: FontWeight.w700)),
+                        label: const Text('Confirmar este destino', style: TextStyle(fontWeight: FontWeight.w700)),
                         onPressed: _handleConfirm,
                       ),
                     ],

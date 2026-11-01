@@ -34,6 +34,14 @@ class _Ui {
   static const double pagePadding = 16;
 }
 
+/// Quita las coordenadas "(lat, lng)" que se agregan al elegir el destino en el mapa.
+final RegExp _coordsRegex = RegExp(r'\s*\((-?\d+\.?\d*),\s*(-?\d+\.?\d*)\)');
+
+String _cleanDestination(String destination) {
+  final clean = destination.replaceAll(_coordsRegex, '').trim();
+  return clean.isEmpty ? 'Punto seleccionado en el mapa' : clean;
+}
+
 class TransportHomeScreen extends StatefulWidget {
   const TransportHomeScreen({super.key});
 
@@ -132,7 +140,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
     }
   }
 
-  // ───────────────────────────── PESTAÑA PRINCIPAL: INICIO DE TRANSPORTE ─────────────────────────────
+  // ───────────────────────────── PESTAÑA PRINCIPAL: INICIO ─────────────────────────────
 
   Widget _buildTransportHomeTab(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -150,81 +158,59 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
         .map((part) => part[0].toUpperCase())
         .join();
 
+    final isFirstLoad = transportProvider.isLoading && transportProvider.myTrips.isEmpty;
+
+    // Cabecera, banner y pestañas quedan fijos; cada pestaña tiene su propio
+    // scroll y su propio "tirar para actualizar".
     return SafeArea(
       bottom: false,
-      child: RefreshIndicator(
-        onRefresh: () => transportProvider.loadDashboardData(),
-        color: AppColors.accentBlue,
-        child: transportProvider.isLoading && transportProvider.myTrips.isEmpty
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.accentBlue),
-              )
-            : CustomScrollView(
-                slivers: [
-                  // 1. Cabecera idéntica a la vista de operario con iniciales y rol
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        _Ui.pagePadding,
-                        16,
-                        _Ui.pagePadding,
-                        12,
-                      ),
-                      child: _buildHeader(firstName, initials),
-                    ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(_Ui.pagePadding, 16, _Ui.pagePadding, 12),
+            child: _buildHeader(firstName, initials),
+          ),
+          if (inTransitTrip != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(_Ui.pagePadding, 0, _Ui.pagePadding, 12),
+              child: _buildInTransitBanner(inTransitTrip),
+            ),
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: AppColors.accentBlue,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.accentBlue,
+              indicatorWeight: 2,
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: _Ui.border,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              tabs: [
+                _buildTab('Despachos', transportProvider.activeTrips.length),
+                _buildTab('Por recibir', transportProvider.readyMachines.length),
+                _buildTab('Entregados', transportProvider.deliveredTrips.length),
+              ],
+            ),
+          ),
+          Expanded(
+            child: isFirstLoad
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.accentBlue),
+                  )
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildActiveTripsSubTab(transportProvider),
+                      _buildReadyMachinesSubTab(transportProvider),
+                      _buildDeliveredTripsSubTab(transportProvider),
+                    ],
                   ),
-
-                  // 2. Banner de Viaje en Marcha (si hay uno activo)
-                  if (inTransitTrip != null)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          _Ui.pagePadding,
-                          0,
-                          _Ui.pagePadding,
-                          12,
-                        ),
-                        child: _buildInTransitBanner(inTransitTrip),
-                      ),
-                    ),
-
-                  // 3. Barra de pestañas operativas (Despachos, Por recibir, Entregados)
-                  SliverToBoxAdapter(
-                    child: Container(
-                      color: Colors.white,
-                      child: TabBar(
-                        controller: _tabController,
-                        labelColor: AppColors.accentBlue,
-                        unselectedLabelColor: AppColors.textSecondary,
-                        indicatorColor: AppColors.accentBlue,
-                        indicatorWeight: 2,
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        dividerColor: _Ui.border,
-                        labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                        tabs: [
-                          _buildTab('Despachos', transportProvider.activeTrips.length),
-                          _buildTab('Por recibir', transportProvider.readyMachines.length),
-                          _buildTab('Entregados', transportProvider.deliveredTrips.length),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // 5. Contenido de las sub-pestañas
-                  SliverFillRemaining(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildActiveTripsSubTab(transportProvider),
-                        _buildReadyMachinesSubTab(transportProvider),
-                        _buildDeliveredTripsSubTab(transportProvider),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          ),
+        ],
       ),
     );
   }
@@ -312,7 +298,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Viaje actualmente en marcha',
+                  'Viaje en curso',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
@@ -321,7 +307,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                 ),
                 const SizedBox(height: 1),
                 Text(
-                  'Hacia ${trip.destination}',
+                  'Hacia ${_cleanDestination(trip.destination)}',
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -341,17 +327,17 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                 borderRadius: BorderRadius.circular(_Ui.radius),
               ),
             ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ActiveTripScreen(trip: trip),
-                ),
-              );
-            },
-            child: const Text('Ir a cabina'),
+            onPressed: () => _openTrip(trip),
+            child: const Text('Ver ruta'),
           ),
         ],
       ),
+    );
+  }
+
+  void _openTrip(TripModel trip) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ActiveTripScreen(trip: trip)),
     );
   }
 
@@ -388,129 +374,143 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
     );
   }
 
-  Widget _buildActiveTripsSubTab(TransportProvider provider) {
-    final trips = provider.activeTrips;
+  /// Envuelve el contenido de cada pestaña con "tirar para actualizar".
+  Widget _refreshable(TransportProvider provider, Widget child) {
+    return RefreshIndicator(
+      color: AppColors.accentBlue,
+      onRefresh: () => provider.loadDashboardData(),
+      child: child,
+    );
+  }
 
-    if (trips.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.assignment_outlined,
-        title: 'No tienes despachos activos',
-        message: 'Ve a "Por recibir" para tomar una máquina alistada y asignarle tu vehículo.',
-      );
-    }
-
-    return ListView.separated(
-      padding: EdgeInsets.fromLTRB(
+  EdgeInsets get _listPadding => EdgeInsets.fromLTRB(
         _Ui.pagePadding,
         _Ui.pagePadding,
         _Ui.pagePadding,
         96 + MediaQuery.of(context).padding.bottom,
-      ),
-      itemCount: trips.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final trip = trips[index];
-        final machine = trip.machine;
+      );
 
-        return Container(
-          decoration: _cardDecoration(),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(_Ui.radius),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ActiveTripScreen(trip: trip)),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildThumb(
-                          child: machine != null
-                              ? machine.buildImage(fit: BoxFit.cover)
-                              : const Center(
-                                  child: Icon(
-                                    Icons.precision_manufacturing_rounded,
-                                    color: _Ui.locked,
-                                  ),
-                                ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      machine?.model ?? 'Maquinaria',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+  Widget _buildActiveTripsSubTab(TransportProvider provider) {
+    final trips = provider.activeTrips;
+
+    if (trips.isEmpty) {
+      return _refreshable(
+        provider,
+        _buildEmptyState(
+          icon: Icons.assignment_outlined,
+          title: 'Sin despachos activos',
+          message: 'Recibe una máquina en "Por recibir" para empezar un viaje.',
+        ),
+      );
+    }
+
+    return _refreshable(
+      provider,
+      ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: _listPadding,
+        itemCount: trips.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final trip = trips[index];
+          final machine = trip.machine;
+
+          return Container(
+            decoration: _cardDecoration(),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(_Ui.radius),
+                onTap: () => _openTrip(trip),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildThumb(
+                            child: machine != null
+                                ? machine.buildImage(fit: BoxFit.cover)
+                                : const Center(
+                                    child: Icon(
+                                      Icons.precision_manufacturing_rounded,
+                                      color: _Ui.locked,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  _buildChip(
-                                    trip.statusLabel,
-                                    trip.statusColor,
-                                    trip.statusBgColor,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Serial ${machine?.serial ?? "N/A"} · ${machine?.category ?? "General"}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                              ),
-                              const SizedBox(height: 2),
-                              _buildLabelValue('Remolque', trip.vehicle),
-                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(height: 1, color: _Ui.divider),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Icon(Icons.place_outlined, size: 18, color: AppColors.textSecondary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            trip.destination,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        machine?.model ?? 'Maquinaria',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _buildChip(
+                                      trip.statusLabel,
+                                      trip.statusColor,
+                                      trip.statusBgColor,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Serial ${machine?.serial ?? "N/A"} · ${machine?.category ?? "General"}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(height: 2),
+                                _buildLabelValue('Remolque', trip.vehicle),
+                              ],
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: _Ui.divider),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.place_outlined, size: 18, color: AppColors.textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _cleanDestination(trip.destination),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -518,94 +518,96 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
     final machines = provider.readyMachines;
 
     if (machines.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.check_circle_outline_rounded,
-        title: 'No hay maquinaria por despachar',
-        message: 'Cuando el taller termine las 3 fases de alistamiento, los equipos aparecerán aquí para recibirlos.',
+      return _refreshable(
+        provider,
+        _buildEmptyState(
+          icon: Icons.check_circle_outline_rounded,
+          title: 'Nada por recibir',
+          message: 'Aquí aparecerán los equipos que el taller deje listos para despachar.',
+        ),
       );
     }
 
-    return ListView.separated(
-      padding: EdgeInsets.fromLTRB(
-        _Ui.pagePadding,
-        _Ui.pagePadding,
-        _Ui.pagePadding,
-        96 + MediaQuery.of(context).padding.bottom,
-      ),
-      itemCount: machines.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final m = machines[index];
+    return _refreshable(
+      provider,
+      ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: _listPadding,
+        itemCount: machines.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final m = machines[index];
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: _cardDecoration(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildThumb(child: m.buildImage(fit: BoxFit.cover)),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                m.model,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _cardDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildThumb(child: m.buildImage(fit: BoxFit.cover)),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  m.model,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildChip('Alistada', _Ui.success, _Ui.successBg),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Serial ${m.serial} · ${m.category}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                        ),
-                      ],
+                              const SizedBox(width: 8),
+                              _buildChip('Lista', _Ui.success, _Ui.successBg),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Serial ${m.serial} · ${m.category}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accentBlue,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(44),
+                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(_Ui.radius),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accentBlue,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(44),
-                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(_Ui.radius),
-                  ),
+                  icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
+                  label: const Text('Recibir máquina'),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => ReceiveMachineModal(machine: m),
+                    );
+                  },
                 ),
-                icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
-                label: const Text('Recibir y asignar ruta'),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => ReceiveMachineModal(machine: m),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -613,92 +615,94 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
     final trips = provider.deliveredTrips;
 
     if (trips.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.history_rounded,
-        title: 'Aún no hay entregas',
-        message: 'Los viajes finalizados y entregados en destino quedarán archivados aquí.',
+      return _refreshable(
+        provider,
+        _buildEmptyState(
+          icon: Icons.history_rounded,
+          title: 'Aún no hay entregas',
+          message: 'Los viajes que entregues quedarán guardados aquí.',
+        ),
       );
     }
 
-    return ListView.separated(
-      padding: EdgeInsets.fromLTRB(
-        _Ui.pagePadding,
-        _Ui.pagePadding,
-        _Ui.pagePadding,
-        96 + MediaQuery.of(context).padding.bottom,
-      ),
-      itemCount: trips.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final trip = trips[index];
-        final machine = trip.machine;
-        final arrival = trip.arrivalAt;
+    return _refreshable(
+      provider,
+      ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: _listPadding,
+        itemCount: trips.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final trip = trips[index];
+          final machine = trip.machine;
+          final arrival = trip.arrivalAt;
 
-        final deliveredText = arrival != null
-            ? 'Entregado el ${_two(arrival.day)}/${_two(arrival.month)}/${arrival.year} a las ${_two(arrival.hour)}:${_two(arrival.minute)}'
-            : 'Entregado en destino';
+          final deliveredText = arrival != null
+              ? 'Entregado el ${_two(arrival.day)}/${_two(arrival.month)}/${arrival.year} · ${_two(arrival.hour)}:${_two(arrival.minute)}'
+              : 'Entregado en destino';
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: _cardDecoration(),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildThumb(
-                child: machine != null
-                    ? machine.buildImage(fit: BoxFit.cover)
-                    : const Center(
-                        child: Icon(Icons.check_rounded, color: _Ui.success),
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _cardDecoration(),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildThumb(
+                  child: machine != null
+                      ? machine.buildImage(fit: BoxFit.cover)
+                      : const Center(
+                          child: Icon(Icons.check_rounded, color: _Ui.success),
+                        ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        machine?.model ?? 'Maquinaria',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      machine?.model ?? 'Maquinaria',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                      const SizedBox(height: 2),
+                      Text(
+                        'Destino: ${_cleanDestination(trip.destination)}',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Destino: ${trip.destination}',
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.check_circle_rounded, size: 14, color: _Ui.success),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            deliveredText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary,
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, size: 14, color: _Ui.success),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              deliveredText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -764,41 +768,54 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
     );
   }
 
+  /// Estado vacío dentro de un ListView para que también se pueda tirar a actualizar.
   Widget _buildEmptyState({
     required IconData icon,
     required String title,
     required String message,
   }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Icon(icon, size: 40, color: AppColors.textMuted),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                height: 1.4,
-                color: AppColors.textSecondary,
+            SizedBox(
+              height: constraints.maxHeight,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 32, 32, 96),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 40, color: AppColors.textMuted),
+                      const SizedBox(height: 12),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.4,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -833,7 +850,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                   children: [
                     const Expanded(
                       child: Text(
-                        'Notificaciones de Despacho',
+                        'Notificaciones',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -854,7 +871,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Todo en orden en carretera',
+                  'Sin novedades',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -864,7 +881,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'No hay alertas viales ni cierres de ruta reportados en este momento.',
+                  'No hay alertas en la ruta por ahora.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
