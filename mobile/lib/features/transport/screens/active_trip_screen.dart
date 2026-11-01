@@ -4,6 +4,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/constants/mapbox_constants.dart';
+import '../../../core/services/mapbox_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/trip_model.dart';
 import '../providers/transport_provider.dart';
@@ -45,22 +47,35 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   late TripModel _currentTrip;
   Timer? _periodicGpsTimer;
   final MapController _mapController = MapController();
+  final MapboxService _mapboxService = MapboxService();
 
-  // Corredor de transporte de maquinaria pesada Pacífico - Valle (Buenaventura a Cali/Yumbo)
+  // Estilo de mapa Mapbox activo: 'day', 'night', 'satellite'
+  String _mapStyle = 'day';
+
+  // Ruta real calculada por carretera con Mapbox Directions
+  MapboxRouteResult? _mapboxRoute;
+  bool _isLoadingRoute = false;
+  List<ll.LatLng> _realRoutePoints = [];
+  ll.LatLng? _destinationCoords;
+
   int _gpsStep = 0;
-  final List<List<double>> _routeWaypoints = [
-    [3.8833, -77.0167], // Buenaventura (Patio Portuario)
-    [3.8412, -76.9124], // Córdoba - Cisneros
-    [3.7333, -76.6833], // Loboguerrero (Paso de montaña)
-    [3.6558, -76.6917], // Dagua
-    [3.5833, -76.4833], // Yumbo (Zona Industrial)
-    [3.4516, -76.5320], // Cali (Destino Obra)
+
+  // Corredor de transporte de maquinaria pesada Pacífico - Valle (fallback referencial)
+  final List<ll.LatLng> _defaultFallbackWaypoints = [
+    const ll.LatLng(3.8833, -77.0167), // Buenaventura (Patio Portuario)
+    const ll.LatLng(3.8412, -76.9124), // Córdoba - Cisneros
+    const ll.LatLng(3.7333, -76.6833), // Loboguerrero (Paso de montaña)
+    const ll.LatLng(3.6558, -76.6917), // Dagua
+    const ll.LatLng(3.5833, -76.4833), // Yumbo (Zona Industrial)
+    const ll.LatLng(3.4516, -76.5320), // Cali (Destino Obra)
   ];
 
   @override
   void initState() {
     super.initState();
     _currentTrip = widget.trip;
+    _loadMapboxRoute();
+
     if (_currentTrip.isInTransit) {
       _startPeriodicGps();
     }
@@ -72,9 +87,83 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     super.dispose();
   }
 
+  /// Extrae o geocodifica las coordenadas del destino del viaje
+  Future<ll.LatLng> _resolveDestinationCoords(String destination) async {
+    // 1. Intentar extraer "(lat, lng)" si el usuario lo seleccionó en el mapa
+    final regex = RegExp(r'\((-?\d+\.?\d*),\s*(-?\d+\.?\d*)\)');
+    final match = regex.firstMatch(destination);
+    if (match != null) {
+      final lat = double.tryParse(match.group(1)!);
+      final lng = double.tryParse(match.group(2)!);
+      if (lat != null && lng != null) {
+        return ll.LatLng(lat, lng);
+      }
+    }
+
+    // 2. Si no tiene coordenadas explícitas, consultar a Mapbox Places Geocoding
+    final search = await _mapboxService.searchPlaces(
+      destination,
+      proximity: const ll.LatLng(3.8833, -77.0167),
+    );
+    if (search.isNotEmpty) {
+      return search.first.center;
+    }
+
+    // 3. Fallback: Cali / Yumbo
+    return const ll.LatLng(3.4516, -76.5320);
+  }
+
+  /// Consulta la ruta real de conducción por carretera a Mapbox Directions API
+  Future<void> _loadMapboxRoute() async {
+    if (!mounted) return;
+    setState(() => _isLoadingRoute = true);
+
+    final lastGps = _currentTrip.lastGps;
+    final origin = (lastGps != null && lastGps.latitude != 0)
+        ? ll.LatLng(lastGps.latitude, lastGps.longitude)
+        : _defaultFallbackWaypoints.first;
+
+    final dest = await _resolveDestinationCoords(_currentTrip.destination);
+    _destinationCoords = dest;
+
+    final route = await _mapboxService.getDrivingRoute(
+      origin: origin,
+      destination: dest,
+    );
+
+    if (mounted) {
+      setState(() {
+        _isLoadingRoute = false;
+        if (route != null && route.points.isNotEmpty) {
+          _mapboxRoute = route;
+          _realRoutePoints = route.points;
+        } else {
+          _realRoutePoints = _defaultFallbackWaypoints;
+        }
+      });
+
+      // Centrar el mapa para ver el camión y la ruta
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _realRoutePoints.isNotEmpty) {
+          _fitRouteInMap(origin, dest);
+        }
+      });
+    }
+  }
+
+  void _fitRouteInMap(ll.LatLng truckPos, ll.LatLng destPos) {
+    try {
+      _mapController.fitCamera(
+        CameraFit.coordinates(
+          coordinates: [truckPos, destPos],
+          padding: const EdgeInsets.all(40),
+        ),
+      );
+    } catch (_) {}
+  }
+
   void _startPeriodicGps() {
     _stopPeriodicGps();
-    // Transmitir primer punto en segundo plano tras renderizar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _transmitGpsLocation(context.read<TransportProvider>(), silent: true);
@@ -108,13 +197,21 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       setState(() => _isSendingGps = true);
     }
 
-    final coords = _routeWaypoints[_gpsStep % _routeWaypoints.length];
+    // Usar puntos reales calculados por Mapbox Directions a lo largo de la carretera
+    ll.LatLng coords;
+    if (_realRoutePoints.isNotEmpty) {
+      // Avanzar gradualmente a lo largo del trazado real
+      final stepIndex = (_gpsStep * 120) % _realRoutePoints.length;
+      coords = _realRoutePoints[stepIndex];
+    } else {
+      coords = _defaultFallbackWaypoints[_gpsStep % _defaultFallbackWaypoints.length];
+    }
     _gpsStep++;
 
     final success = await provider.updateGps(
       tripId: _currentTrip.id,
-      latitude: coords[0],
-      longitude: coords[1],
+      latitude: coords.latitude,
+      longitude: coords.longitude,
     );
 
     if (mounted) {
@@ -127,7 +224,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             backgroundColor: _Ui.success,
             behavior: SnackBarBehavior.floating,
             content: Text(
-              'Posición GPS transmitida: Lat ${coords[0].toStringAsFixed(4)}, Lng ${coords[1].toStringAsFixed(4)}',
+              'Posición GPS transmitida: Lat ${coords.latitude.toStringAsFixed(4)}, Lng ${coords.longitude.toStringAsFixed(4)}',
             ),
           ),
         );
@@ -232,10 +329,24 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       setState(() {
         _currentTrip = _getUpdatedTrip(provider);
       });
+      // Recalcular la ruta de Mapbox con el nuevo destino
+      _loadMapboxRoute();
     }
   }
 
   // ───────────────────────────── CONSTRUCCIÓN DE UI ─────────────────────────────
+
+  String get _currentMapboxTileUrl {
+    switch (_mapStyle) {
+      case 'night':
+        return MapboxConstants.navigationNight;
+      case 'satellite':
+        return MapboxConstants.satelliteStreets;
+      case 'day':
+      default:
+        return MapboxConstants.navigationDay;
+    }
+  }
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
@@ -313,14 +424,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
   Widget _buildMapCard(TripModel trip) {
     final lastGps = trip.lastGps;
-    final truckLat = lastGps != null && lastGps.latitude != 0 ? lastGps.latitude : _routeWaypoints.first[0];
-    final truckLng = lastGps != null && lastGps.longitude != 0 ? lastGps.longitude : _routeWaypoints.first[1];
+    final truckLat = (lastGps != null && lastGps.latitude != 0) ? lastGps.latitude : _defaultFallbackWaypoints.first.latitude;
+    final truckLng = (lastGps != null && lastGps.longitude != 0) ? lastGps.longitude : _defaultFallbackWaypoints.first.longitude;
     final truckPos = ll.LatLng(truckLat, truckLng);
 
-    // Destino geográfico referencial
-    final destPos = ll.LatLng(_routeWaypoints.last[0], _routeWaypoints.last[1]);
-
-    final polylinePoints = _routeWaypoints.map((p) => ll.LatLng(p[0], p[1])).toList();
+    final destPos = _destinationCoords ?? _defaultFallbackWaypoints.last;
+    final polylinePoints = _realRoutePoints.isNotEmpty ? _realRoutePoints : _defaultFallbackWaypoints;
 
     return Container(
       decoration: _cardDecoration(),
@@ -328,73 +437,111 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Cabecera con selector de capas Mapbox
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Mapa de Ruta y Monitoreo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
+                      Row(
+                        children: [
+                          const Text(
+                            'Navegación Mapbox HD',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          if (_isLoadingRoute)
+                            const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.accentBlue),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
-                        trip.isInTransit ? 'Seguimiento por OpenStreetMap' : 'Ruta proyectada en carretera',
-                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        _mapboxRoute != null
+                            ? 'Ruta por carretera: ${_mapboxRoute!.summary}'
+                            : (trip.isInTransit ? 'Transmisión activa en carretera' : 'Ruta proyectada en carretera'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                 ),
-                FilledButton.tonalIcon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    foregroundColor: AppColors.accentBlue,
-                    minimumSize: const Size(0, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radiusSmall)),
+
+                // Selector de Estilos Mapbox: Día / Noche / Satélite
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  icon: const Icon(Icons.near_me_rounded, size: 16),
-                  label: const Text('Navegar GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  onPressed: () => _launchExternalMap(trip.destination),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildStyleChip('day', '☀️ Día'),
+                      _buildStyleChip('night', '🌙 Noche'),
+                      _buildStyleChip('satellite', '🛰️ Sat'),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
 
-          // Lienzo interactivo de OpenStreetMap
+          // Lienzo interactivo de Mapbox
           SizedBox(
-            height: 230,
+            height: 250,
             child: Stack(
               children: [
                 FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
                     initialCenter: truckPos,
-                    initialZoom: 11.0,
+                    initialZoom: 12.0,
                     minZoom: 4.0,
                     maxZoom: 18.0,
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      key: ValueKey(_currentMapboxTileUrl),
+                      urlTemplate: _currentMapboxTileUrl,
+                      additionalOptions: const {
+                        'access_token': MapboxConstants.accessToken,
+                      },
                       userAgentPackageName: 'com.example.maquitrace',
                     ),
+
+                    // Trazado de ruta real sobre la carretera con doble capa (efecto neón / contraste)
                     PolylineLayer(
                       polylines: [
+                        // Capa base de contraste/resaltado
                         Polyline(
                           points: polylinePoints,
-                          color: AppColors.accentBlue.withValues(alpha: 0.8),
+                          color: _mapStyle == 'night'
+                              ? const Color(0xFF1E3A8A).withValues(alpha: 0.9)
+                              : Colors.white.withValues(alpha: 0.9),
+                          strokeWidth: 6.5,
+                        ),
+                        // Capa de ruta activa en azul navegación
+                        Polyline(
+                          points: polylinePoints,
+                          color: const Color(0xFF2563EB),
                           strokeWidth: 4.5,
                         ),
                       ],
                     ),
+
                     MarkerLayer(
                       markers: [
                         // Marcador de la ubicación del camión
@@ -404,13 +551,13 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                           height: 44,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: AppColors.accentBlue,
+                              color: const Color(0xFF2563EB),
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 3),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.accentBlue.withValues(alpha: 0.4),
-                                  blurRadius: 8,
+                                  color: const Color(0xFF2563EB).withValues(alpha: 0.5),
+                                  blurRadius: 10,
                                   spreadRadius: 2,
                                 ),
                               ],
@@ -430,7 +577,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                               border: Border.all(color: Colors.white, width: 2.5),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _Ui.success.withValues(alpha: 0.35),
+                                  color: _Ui.success.withValues(alpha: 0.4),
                                   blurRadius: 6,
                                 ),
                               ],
@@ -451,8 +598,14 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     children: [
                       _buildMapButton(
                         icon: Icons.my_location_rounded,
-                        onTap: () => _mapController.move(truckPos, 13.0),
+                        onTap: () => _mapController.move(truckPos, 14.0),
                         tooltip: 'Centrar en mi camión',
+                      ),
+                      const SizedBox(height: 6),
+                      _buildMapButton(
+                        icon: Icons.fit_screen_rounded,
+                        onTap: () => _fitRouteInMap(truckPos, destPos),
+                        tooltip: 'Ajustar ruta completa',
                       ),
                       const SizedBox(height: 6),
                       _buildMapButton(
@@ -470,7 +623,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   ),
                 ),
 
-                // Créditos de OpenStreetMap
+                // Créditos de Mapbox
                 Positioned(
                   bottom: 4,
                   left: 6,
@@ -481,8 +634,8 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
-                      '© OpenStreetMap contributors',
-                      style: TextStyle(fontSize: 9, color: Color(0xFF64748B)),
+                      '© Mapbox · © OpenStreetMap',
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
                     ),
                   ),
                 ),
@@ -490,35 +643,145 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             ),
           ),
 
-          // Enlace directo a Google Maps / Waze
+          // ── TIRA DE TELEMETRÍA LOGÍSTICA REAL DE MAPBOX ──
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            color: const Color(0xFFF8FAFC),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+            ),
+            child: Column(
               children: [
-                const Icon(Icons.directions_outlined, size: 18, color: AppColors.accentBlue),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Destino: ${trip.destination}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                  ),
+                Row(
+                  children: [
+                    // Métrica 1: Distancia real
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.straighten_rounded, size: 16, color: AppColors.accentBlue),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Distancia', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                              Text(
+                                _mapboxRoute != null ? _mapboxRoute!.formattedDistance : 'Calculando...',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Métrica 2: Tiempo estimado (ETA)
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5EC),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.timer_outlined, size: 16, color: Color(0xFF15803D)),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Tiempo est.', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                              Text(
+                                _mapboxRoute != null ? _mapboxRoute!.formattedDuration : 'En cálculo...',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Botón para navegar por voz con Google Maps o Waze
+                    FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accentBlue,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radiusSmall)),
+                      ),
+                      icon: const Icon(Icons.near_me_rounded, size: 15),
+                      label: const Text('Navegar GPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      onPressed: () => _launchExternalMap(trip.destination),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 32),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    foregroundColor: AppColors.accentBlue,
+
+                // Próxima instrucción o maniobra de la ruta si existe
+                if (_mapboxRoute?.steps != null && _mapboxRoute!.steps.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.turn_right_rounded, size: 16, color: AppColors.accentBlue),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _mapboxRoute!.steps.first,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  onPressed: () => _launchExternalMap(trip.destination),
-                  child: const Text('Abrir en Google Maps', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                ),
+                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStyleChip(String styleKey, String label) {
+    final isSelected = _mapStyle == styleKey;
+    return InkWell(
+      onTap: () {
+        setState(() => _mapStyle = styleKey);
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4)]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
@@ -832,7 +1095,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             ),
             const SizedBox(height: 16),
 
-            // MAPA INTERACTIVO OPENSTREETMAP + BOTÓN DE NAVEGACIÓN
+            // MAPA INTERACTIVO MAPBOX HD + TIRA DE TELEMETRÍA Y NAVEGACIÓN
             _buildMapCard(trip),
             const SizedBox(height: 16),
 
