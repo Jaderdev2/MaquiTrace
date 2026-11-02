@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripStatus } from '@prisma/client';
 
@@ -11,7 +11,16 @@ export interface RecordGpsDto {
 export class TrackingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async recordPosition(tripId: string, dto: RecordGpsDto) {
+  async recordPosition(tripId: string, dto: RecordGpsDto, transporterId: string) {
+    const trip = await this.prisma.transportTrip.findFirst({
+      where: { id: tripId, transporterId },
+      select: { status: true },
+    });
+    if (!trip) throw new NotFoundException(`Viaje asignado no encontrado`);
+    if (trip.status !== TripStatus.en_transito) {
+      throw new ConflictException('Solo se puede reportar ubicación durante un viaje en tránsito');
+    }
+
     return this.prisma.gpsRecord.create({
       data: {
         tripId,

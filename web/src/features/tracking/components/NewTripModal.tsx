@@ -9,7 +9,7 @@ interface NewTripModalProps {
   machines: Machine[];
   transporters: User[];
   existingTrips?: TransportTrip[];
-  onSubmit: (machineId: string, vehicle: string, destination: string, transporterId?: string) => Promise<void>;
+  onSubmit: (machineId: string, vehicle: string, destination: string, transporterId: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -56,10 +56,14 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
       setError('Por favor ingresa el destino oficial de entrega.');
       return;
     }
+    if (!selectedTransporterId) {
+      setError('Por favor asigna un conductor al viaje.');
+      return;
+    }
 
     setError(null);
     try {
-      await onSubmit(selectedMachineId, vehicle.trim(), destination.trim(), selectedTransporterId || undefined);
+      await onSubmit(selectedMachineId, vehicle.trim(), destination.trim(), selectedTransporterId);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error al programar el viaje de transporte.');
@@ -150,27 +154,29 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
           </div>
 
           {/* Conductor / Transportador */}
-          {transporters.length > 0 && (
-            <div className="form-group-field">
-              <label htmlFor="transporterSelect" className="field-label">
-                Conductor Asignado
-              </label>
-              <select
-                id="transporterSelect"
-                className="form-select-custom"
-                value={selectedTransporterId}
-                onChange={(e) => setSelectedTransporterId(e.target.value)}
-                disabled={loading}
-              >
-                <option value="">-- Seleccionar transportador oficial (opcional) --</option>
-                {transporters.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.phone || t.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div className="form-group-field">
+            <label htmlFor="transporterSelect" className="field-label">
+              Conductor Asignado *
+            </label>
+            <select
+              id="transporterSelect"
+              className="form-select-custom"
+              value={selectedTransporterId}
+              onChange={(e) => setSelectedTransporterId(e.target.value)}
+              disabled={loading}
+              required
+            >
+              <option value="">-- Seleccionar transportador --</option>
+              {transporters.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.phone || t.email})
+                </option>
+              ))}
+            </select>
+            {transporters.length === 0 && (
+              <span className="field-help-text">Registra primero un usuario con rol de transportador.</span>
+            )}
+          </div>
 
           {/* Vehículo / Placa */}
           <div className="form-group-field">

@@ -3,12 +3,9 @@ import { useAuth } from '../../context/AuthContext';
 import {
   fetchTripsApi,
   fetchActiveTripsApi,
-  departTransportApi,
-  deliverTransportApi,
   receiveTransportApi,
   updateTransportApi,
   deleteTransportApi,
-  recordGpsLocationApi,
   fetchMachinesApi,
   fetchUsersApi,
 } from '../../services/api';
@@ -34,7 +31,6 @@ import {
   Eye,
   Calendar,
   ShieldAlert,
-  Play,
   Plus,
   Map,
   LayoutGrid,
@@ -143,76 +139,36 @@ export const TrackingPage: React.FC = () => {
     machineId: string,
     vehicle: string,
     destination: string,
-    transporterId?: string
+    transporterId: string
   ) => {
     if (!token) return;
     setActionLoading(true);
     try {
-      const foundMachine = machines.find((m) => m.id === machineId);
-      const foundTransporter = transporters.find((t) => t.id === transporterId);
-      const assignedColor = TRIP_PALETTE[trips.length % TRIP_PALETTE.length].primary;
-
-      // Intentar persistir en el backend
-      let savedViaApi = false;
-      try {
-        await receiveTransportApi(machineId, { vehicle, destination, transporterId }, token);
-        savedViaApi = true;
-      } catch (apiErr) {
-        console.warn('API error creando despacho, persistiendo localmente:', apiErr);
-      }
-
-      if (savedViaApi) {
-        await loadData();
-      } else {
-        // Fallback local robusto
+      if (isDemoMode) {
+        const foundMachine = machines.find((machine) => machine.id === machineId);
+        const foundTransporter = transporters.find((transporter) => transporter.id === transporterId);
         const newTripId = `trip-${Date.now()}`;
-        const newTrip: TransportTrip = {
-          id: newTripId,
-          machineId,
-          color: assignedColor,
-          vehicle,
-          destination,
-          status: 'pendiente',
-          departureAt: undefined,
-          transporterId,
-          transporter: foundTransporter
-            ? {
-                name: foundTransporter.name,
-                email: foundTransporter.email,
-                phone: foundTransporter.phone || '+57 312 458 9921',
-                avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-                cedula: 'CC 1.094.882.310',
-                experienceTime: '5 años',
-                licenseType: 'Licencia C3 (Carga Pesada)',
-              }
-            : {
-                name: 'Carlos Alberto Mendoza',
-                email: 'carlos.mendoza@transporte-maquitrace.com',
-                phone: '+57 312 458 9921',
-                avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-                cedula: 'CC 1.094.882.310',
-                experienceTime: '4 años y 6 meses',
-                licenseType: 'Licencia C3 (Carga Pesada)',
-              },
-          machine: foundMachine || {
-            id: machineId,
-            model: 'Equipo Pesado',
-            serial: 'MAQ-SN-001',
-            category: 'Construcción',
+        setTrips((prev) => [
+          {
+            id: newTripId,
+            machineId,
+            color: TRIP_PALETTE[prev.length % TRIP_PALETTE.length].primary,
+            vehicle,
+            destination,
             status: 'pendiente',
+            transporterId,
+            transporter: foundTransporter
+              ? { name: foundTransporter.name, email: foundTransporter.email, phone: foundTransporter.phone || '' }
+              : undefined,
+            machine: foundMachine,
+            gpsRecords: [],
+            incidents: [],
           },
-          gpsRecords: [
-            {
-              id: `gps-init-${Date.now()}`,
-              tripId: newTripId,
-              latitude: 4.6097,
-              longitude: -74.0817,
-              recordedAt: new Date().toISOString(),
-            },
-          ],
-          incidents: [],
-        };
-        setTrips((prev) => [newTrip, ...prev]);
+          ...prev,
+        ]);
+      } else {
+        await receiveTransportApi(machineId, { vehicle, destination, transporterId }, token);
+        await loadData();
       }
 
       setSuccessBanner('¡Viaje programado con éxito en el sistema de despacho!');
@@ -227,55 +183,29 @@ export const TrackingPage: React.FC = () => {
   // Actualizar viaje (Update)
   const handleUpdateTrip = async (
     tripId: string,
-    payload: { vehicle?: string; destination?: string; transporterId?: string; status?: string }
+    payload: { vehicle?: string; destination?: string; transporterId?: string }
   ) => {
     if (!token) return;
     setActionLoading(true);
     try {
-      try {
-        await updateTransportApi(tripId, payload, token);
-      } catch (apiErr) {
-        console.warn('API error actualizando viaje, actualizando localmente:', apiErr);
-      }
-
-      setTrips((prev) =>
-        prev.map((t) => {
-          if (t.id === tripId) {
-            const updated: TransportTrip = {
-              ...t,
-              vehicle: payload.vehicle ?? t.vehicle,
-              destination: payload.destination ?? t.destination,
-              status: (payload.status as any) ?? t.status,
-            };
-            if (payload.transporterId) {
-              const tr = transporters.find((u) => u.id === payload.transporterId);
-              if (tr) {
-                updated.transporterId = tr.id;
-                updated.transporter = {
-                  ...t.transporter,
-                  name: tr.name,
-                  email: tr.email,
-                  phone: tr.phone || t.transporter?.phone,
-                };
-              }
-            }
-            return updated;
-          }
-          return t;
-        })
-      );
-
-      if (selectedTrip?.id === tripId) {
-        setSelectedTrip((prev) =>
-          prev
-            ? {
-                ...prev,
-                vehicle: payload.vehicle ?? prev.vehicle,
-                destination: payload.destination ?? prev.destination,
-                status: (payload.status as any) ?? prev.status,
-              }
-            : null
+      if (isDemoMode) {
+        setTrips((prev) =>
+          prev.map((trip) =>
+            trip.id === tripId
+              ? {
+                  ...trip,
+                  ...payload,
+                  transporter:
+                    transporters.find((transporter) => transporter.id === payload.transporterId) ??
+                    trip.transporter,
+                }
+              : trip
+          )
         );
+      } else {
+        const updatedTrip = await updateTransportApi(tripId, payload, token);
+        setTrips((prev) => prev.map((trip) => (trip.id === tripId ? updatedTrip : trip)));
+        if (selectedTrip?.id === tripId) setSelectedTrip(updatedTrip);
       }
 
       setSuccessBanner('¡Viaje de transporte actualizado exitosamente!');
@@ -293,15 +223,14 @@ export const TrackingPage: React.FC = () => {
     if (!token) return;
     setActionLoading(true);
     try {
-      try {
+      if (isDemoMode) {
+        setTrips((prev) => prev.filter((trip) => trip.id !== tripId));
+        if (selectedTrip?.id === tripId) setSelectedTrip(null);
+        if (editingTrip?.id === tripId) setEditingTrip(null);
+      } else {
         await deleteTransportApi(tripId, token);
-      } catch (apiErr) {
-        console.warn('API error eliminando viaje, eliminando localmente:', apiErr);
+        await loadData();
       }
-
-      setTrips((prev) => prev.filter((t) => t.id !== tripId));
-      if (selectedTrip?.id === tripId) setSelectedTrip(null);
-      if (editingTrip?.id === tripId) setEditingTrip(null);
 
       setSuccessBanner('Registro de transporte eliminado del sistema.');
       setTimeout(() => setSuccessBanner(null), 4000);
@@ -309,138 +238,6 @@ export const TrackingPage: React.FC = () => {
       setError(err.message || 'Error al eliminar el viaje.');
     } finally {
       setActionLoading(false);
-    }
-  };
-
-  // Actualización de ubicación interactiva en mapa (Manual o Aleatoria en Colombia)
-  const handleUpdateLocation = async (tripId: string, lat: number, lng: number) => {
-    await handleTransmitGps(tripId, lat, lng);
-    setSuccessBanner(`¡Ubicación del camión actualizada a [${lat.toFixed(4)}, ${lng.toFixed(4)}]!`);
-    setTimeout(() => setSuccessBanner(null), 4500);
-  };
-
-  // Marcar salida de transporte (Con validación estricta de alistamiento en taller)
-  const handleDepart = async (machineId: string) => {
-    if (!token) return;
-
-    // VALIDACIÓN LÓGICA: ¿La maquinaria concluyó todas sus fases de alistamiento?
-    const targetMachine =
-      machines.find((m) => m.id === machineId) ||
-      trips.find((t) => t.machineId === machineId || t.machine?.id === machineId)?.machine;
-    const readiness = checkMachineTransitReadiness(targetMachine);
-
-    if (!readiness.canDepart) {
-      setError(`Bloqueo operativo: La maquinaria no puede iniciar tránsito. ${readiness.reason}`);
-      setTimeout(() => setError(null), 6000);
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-      if (!isDemoMode) {
-        await departTransportApi(machineId, token);
-      } else {
-        setTrips((prev) =>
-          prev.map((t) =>
-            t.machineId === machineId || t.machine?.id === machineId
-              ? {
-                  ...t,
-                  status: 'en_transito',
-                  departureAt: new Date().toISOString(),
-                  gpsRecords: [
-                    ...(t.gpsRecords || []),
-                    {
-                      id: `gps-${Date.now()}`,
-                      tripId: t.id,
-                      latitude: 4.8143,
-                      longitude: -74.3541,
-                      recordedAt: new Date().toISOString(),
-                    },
-                  ],
-                }
-              : t
-          )
-        );
-      }
-      setSuccessBanner('¡Salida de ruta confirmada! La maquinaria ahora está "En Tránsito".');
-      setTimeout(() => setSuccessBanner(null), 4500);
-      if (selectedTrip) {
-        setSelectedTrip((prev) => (prev ? { ...prev, status: 'en_transito', departureAt: new Date().toISOString() } : null));
-      }
-      if (!isDemoMode) await loadData();
-    } catch (err: any) {
-      setError(err.message || 'Error al registrar la salida de transporte.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Marcar entrega final
-  const handleDeliver = async (machineId: string) => {
-    if (!token) return;
-    try {
-      setActionLoading(true);
-      if (!isDemoMode) {
-        await deliverTransportApi(machineId, token);
-      } else {
-        setTrips((prev) =>
-          prev.map((t) =>
-            t.machineId === machineId || t.machine?.id === machineId
-              ? { ...t, status: 'entregado', arrivalAt: new Date().toISOString() }
-              : t
-          )
-        );
-      }
-      setSuccessBanner('¡Entrega de maquinaria completada con éxito en obra!');
-      setTimeout(() => setSuccessBanner(null), 4500);
-      if (selectedTrip) {
-        setSelectedTrip((prev) => (prev ? { ...prev, status: 'entregado', arrivalAt: new Date().toISOString() } : null));
-      }
-      if (!isDemoMode) await loadData();
-    } catch (err: any) {
-      setError(err.message || 'Error al registrar la entrega de maquinaria.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Transmisión de coordenada GPS satelital
-  const handleTransmitGps = async (tripId: string, lat: number, lng: number) => {
-    if (!token) return;
-    if (!isDemoMode) {
-      await recordGpsLocationApi(tripId, { latitude: lat, longitude: lng }, token);
-    }
-
-    const newRecord = {
-      id: `gps-${Date.now()}`,
-      tripId,
-      latitude: lat,
-      longitude: lng,
-      recordedAt: new Date().toISOString(),
-    };
-
-    setTrips((prev) =>
-      prev.map((t) =>
-        t.id === tripId
-          ? {
-              ...t,
-              status: t.status === 'pendiente' ? 'en_transito' : t.status,
-              gpsRecords: [...(t.gpsRecords || []), newRecord],
-            }
-          : t
-      )
-    );
-
-    if (selectedTrip && selectedTrip.id === tripId) {
-      setSelectedTrip((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: prev.status === 'pendiente' ? 'en_transito' : prev.status,
-              gpsRecords: [...(prev.gpsRecords || []), newRecord],
-            }
-          : null
-      );
     }
   };
 
@@ -683,7 +480,6 @@ export const TrackingPage: React.FC = () => {
                 selectedTripId={selectedTrip?.id}
                 onSelectTrip={(t) => setSelectedTrip(t)}
                 onOpenDetails={(t) => setSelectedTrip(t)}
-                onUpdateLocation={handleUpdateLocation}
                 height={viewMode === 'map' ? '680px' : '460px'}
               />
             </div>
@@ -713,7 +509,6 @@ export const TrackingPage: React.FC = () => {
                     const machine = trip.machine || machines.find((m) => m.id === trip.machineId);
                     const isTransit = trip.status === 'en_transito';
                     const isDelivered = trip.status === 'entregado';
-                    const isPending = trip.status === 'pendiente';
                     const gpsCount = trip.gpsRecords?.length || 0;
                     const incidentsCount = trip.incidents?.length || 0;
 
@@ -831,7 +626,7 @@ export const TrackingPage: React.FC = () => {
                                 className={`trip-card-prep-badge ${readiness.canDepart ? 'prep-ready' : 'prep-warning'}`}
                                 title={readiness.reason}
                               >
-                                {readiness.canDepart ? '✅' : '⏳'} {readiness.badgeLabel}
+                                {readiness.badgeLabel}
                               </span>
                             </div>
                           </div>
@@ -893,36 +688,6 @@ export const TrackingPage: React.FC = () => {
                                 <span>Ver Detalles y Ruta Satelital</span>
                               </button>
 
-                              {isPending && machine && (
-                                <button
-                                  type="button"
-                                  className={`btn-primary-register ${!readiness.canDepart ? 'btn-action-blocked' : ''}`}
-                                  style={{ padding: '6px 12px', fontSize: '12px' }}
-                                  onClick={() => handleDepart(machine.id)}
-                                  disabled={actionLoading || !readiness.canDepart}
-                                  title={!readiness.canDepart ? readiness.reason : 'Marcar salida e iniciar tránsito'}
-                                >
-                                  <Play size={13} />
-                                  <span>{readiness.canDepart ? 'Marcar Salida' : 'Salida Bloqueada'}</span>
-                                </button>
-                              )}
-
-                              {isTransit && machine && (
-                                <button
-                                  type="button"
-                                  className="btn-primary-register"
-                                  style={{
-                                    padding: '6px 12px',
-                                    fontSize: '12px',
-                                    backgroundColor: '#059669',
-                                  }}
-                                  onClick={() => handleDeliver(machine.id)}
-                                  disabled={actionLoading}
-                                >
-                                  <CheckCircle2 size={13} />
-                                  <span>Confirmar Entrega</span>
-                                </button>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -966,9 +731,6 @@ export const TrackingPage: React.FC = () => {
           trip={selectedTrip}
           machine={selectedTrip.machine || machines.find((m) => m.id === selectedTrip.machineId)}
           onClose={() => setSelectedTrip(null)}
-          onDepart={handleDepart}
-          onDeliver={handleDeliver}
-          onTransmitGps={handleTransmitGps}
           onEdit={() => {
             const tripToEdit = selectedTrip;
             setSelectedTrip(null);

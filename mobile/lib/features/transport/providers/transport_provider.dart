@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import '../../machines/models/machine_model.dart';
 import '../models/trip_model.dart';
 import '../services/transport_service.dart';
 
@@ -8,16 +7,12 @@ class TransportProvider extends ChangeNotifier {
   final TransportService _service = TransportService();
 
   List<TripModel> _trips = [];
-  List<MachineModel> _readyMachines = [];
   bool _isLoading = false;
   String? _errorMessage;
   String? _successMessage;
 
   List<TripModel> get myTrips => _trips;
 
-  /// Maquinarias 100% autorizadas para despacho (fases mecánicas + 4 ángulos de inspección completos)
-  List<MachineModel> get readyMachines =>
-      _readyMachines.where((m) => m.isReadyForDispatch).toList();
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
@@ -44,20 +39,14 @@ class TransportProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Carga viajes del transportador y máquinas listas para despacho
+  /// Carga los viajes asignados al transportador.
   Future<void> loadDashboardData({String? token}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final results = await Future.wait([
-        _service.fetchMyTrips(token: token).catchError((_) => <TripModel>[]),
-        _service.fetchReadyMachines(token: token).catchError((_) => <MachineModel>[]),
-      ]);
-
-      _trips = results[0] as List<TripModel>;
-      _readyMachines = results[1] as List<MachineModel>;
+      _trips = await _service.fetchMyTrips(token: token);
     } catch (e) {
       _errorMessage = 'No se pudo sincronizar la información de transporte.';
     } finally {
@@ -66,43 +55,8 @@ class TransportProvider extends ChangeNotifier {
     }
   }
 
-  /// Registrar recepción de maquinaria
-  Future<bool> receiveMachine({
-    required String machineId,
-    required String vehicle,
-    required String destination,
-    String? token,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final newTrip = await _service.receiveMachine(
-        machineId: machineId,
-        vehicle: vehicle,
-        destination: destination,
-        token: token,
-      );
-
-      _trips.insert(0, newTrip);
-      _readyMachines.removeWhere((m) => m.id == machineId);
-      _successMessage = 'Maquinaria recibida exitosamente en el despacho';
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('HttpException: ', '').replaceAll('Exception: ', '');
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   /// Iniciar salida / viaje en ruta
-  Future<bool> startTrip({
-    required String machineId,
-    String? token,
-  }) async {
+  Future<bool> startTrip({required String machineId, String? token}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -113,17 +67,23 @@ class TransportProvider extends ChangeNotifier {
         token: token,
       );
 
-      final index = _trips.indexWhere((t) => t.id == updatedTrip.id || t.machineId == machineId);
+      final index = _trips.indexWhere(
+        (t) => t.id == updatedTrip.id || t.machineId == machineId,
+      );
       if (index != -1) {
         _trips[index] = updatedTrip;
       } else {
         _trips.insert(0, updatedTrip);
       }
 
-      _successMessage = 'Ruta iniciada: El equipo se encuentra ahora en tránsito';
+      _successMessage =
+          'Ruta iniciada: El equipo se encuentra ahora en tránsito';
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('HttpException: ', '').replaceAll('Exception: ', '');
+      _errorMessage = e
+          .toString()
+          .replaceAll('HttpException: ', '')
+          .replaceAll('Exception: ', '');
       return false;
     } finally {
       _isLoading = false;
@@ -146,7 +106,9 @@ class TransportProvider extends ChangeNotifier {
         token: token,
       );
 
-      final index = _trips.indexWhere((t) => t.id == deliveredTrip.id || t.machineId == machineId);
+      final index = _trips.indexWhere(
+        (t) => t.id == deliveredTrip.id || t.machineId == machineId,
+      );
       if (index != -1) {
         _trips[index] = deliveredTrip;
       } else {
@@ -156,51 +118,10 @@ class TransportProvider extends ChangeNotifier {
       _successMessage = 'Entrega confirmada y registrada exitosamente';
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('HttpException: ', '').replaceAll('Exception: ', '');
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Actualizar datos de ruta (destino y remolque)
-  Future<bool> updateTripDetails({
-    required String tripId,
-    required String destination,
-    required String vehicle,
-    String? token,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      TripModel? updated;
-      try {
-        updated = await _service.updateTripDetails(
-          tripId: tripId,
-          destination: destination,
-          vehicle: vehicle,
-          token: token,
-        );
-      } catch (_) {
-        // Fallback optimista si la nube aún no tiene desplegado PATCH :id
-      }
-
-      final index = _trips.indexWhere((t) => t.id == tripId);
-      if (index != -1) {
-        _trips[index] = updated ??
-            _trips[index].copyWith(
-              destination: destination,
-              vehicle: vehicle,
-            );
-      }
-
-      _successMessage = 'Detalles de ruta actualizados con éxito';
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('HttpException: ', '').replaceAll('Exception: ', '');
+      _errorMessage = e
+          .toString()
+          .replaceAll('HttpException: ', '')
+          .replaceAll('Exception: ', '');
       return false;
     } finally {
       _isLoading = false;
@@ -259,17 +180,23 @@ class TransportProvider extends ChangeNotifier {
         // Respaldo para no bloquear si la subida del archivo falla por red débil
       }
 
-      final index = _trips.indexWhere((t) => t.id == deliveredTrip.id || t.machineId == machineId);
+      final index = _trips.indexWhere(
+        (t) => t.id == deliveredTrip.id || t.machineId == machineId,
+      );
       if (index != -1) {
         _trips[index] = deliveredTrip;
       } else {
         _trips.insert(0, deliveredTrip);
       }
 
-      _successMessage = 'Acta de entrega registrada y equipo entregado a conformidad';
+      _successMessage =
+          'Acta de entrega registrada y equipo entregado a conformidad';
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('HttpException: ', '').replaceAll('Exception: ', '');
+      _errorMessage = e
+          .toString()
+          .replaceAll('HttpException: ', '')
+          .replaceAll('Exception: ', '');
       return false;
     } finally {
       _isLoading = false;
@@ -324,7 +251,9 @@ class TransportProvider extends ChangeNotifier {
 
       final index = _trips.indexWhere((t) => t.id == tripId);
       if (index != -1) {
-        final currentIncidents = List<IncidentModel>.from(_trips[index].incidents);
+        final currentIncidents = List<IncidentModel>.from(
+          _trips[index].incidents,
+        );
         currentIncidents.insert(0, incident);
         _trips[index] = _trips[index].copyWith(incidents: currentIncidents);
       }
@@ -332,7 +261,10 @@ class TransportProvider extends ChangeNotifier {
       _successMessage = 'Novedad registrada y transmitida al centro de control';
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('HttpException: ', '').replaceAll('Exception: ', '');
+      _errorMessage = e
+          .toString()
+          .replaceAll('HttpException: ', '')
+          .replaceAll('Exception: ', '');
       return false;
     } finally {
       _isLoading = false;

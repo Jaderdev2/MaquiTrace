@@ -10,7 +10,7 @@ interface EditTripModalProps {
   transporters: User[];
   onUpdate: (
     tripId: string,
-    payload: { vehicle?: string; destination?: string; transporterId?: string; status?: string }
+    payload: { vehicle?: string; destination?: string; transporterId?: string }
   ) => Promise<void>;
   onDelete: (tripId: string) => Promise<void>;
   loading: boolean;
@@ -30,7 +30,6 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   const [transporterId, setTransporterId] = useState<string>(
     trip.transporter?.id || trip.transporterId || ''
   );
-  const [status, setStatus] = useState<string>(trip.status || 'pendiente');
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
@@ -49,15 +48,8 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
       return;
     }
 
-    // Validación lógica: No pasar a en_transito si el alistamiento está incompleto
-    if (status === 'en_transito' && trip.status === 'pendiente' && !readiness.canDepart) {
-      setError(`Bloqueo operativo: No se puede cambiar a "En Tránsito". ${readiness.reason}`);
-      return;
-    }
-
-    // Validación lógica: No pasar directamente de pendiente a entregado sin transitar
-    if (status === 'entregado' && trip.status === 'pendiente') {
-      setError('Un viaje no puede marcarse directamente como "Entregado" sin antes haber salido a carretera.');
+    if (!transporterId) {
+      setError('El viaje debe tener un conductor asignado.');
       return;
     }
 
@@ -66,8 +58,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
       await onUpdate(trip.id, {
         vehicle: vehicle.trim(),
         destination: destination.trim(),
-        transporterId: transporterId || undefined,
-        status,
+        transporterId,
       });
       onClose();
     } catch (err: any) {
@@ -102,7 +93,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
             <div>
               <h3>Editar Viaje de Transporte</h3>
               <span className="modal-header-sub">
-                Actualiza datos del vehículo, destino, conductor o estado del servicio.
+                Actualiza el vehículo, destino o conductor asignado. El conductor registra salida y entrega desde la app.
               </span>
             </div>
           </div>
@@ -196,7 +187,6 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
                 onChange={(e) => setTransporterId(e.target.value)}
                 disabled={loading || isDeleting}
               >
-                <option value="">-- Sin conductor asignado --</option>
                 {transporters.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name} ({t.phone || t.email})
@@ -204,28 +194,6 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
                 ))}
               </select>
             </div>
-          </div>
-
-          {/* Estado del Transporte */}
-          <div className="form-group-field">
-            <label htmlFor="editStatusSelect" className="field-label">
-              Estado del Viaje
-            </label>
-            <select
-              id="editStatusSelect"
-              className="form-select-custom"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              disabled={loading || isDeleting}
-            >
-              <option value="pendiente">Pendiente de salida</option>
-              <option value="en_transito" disabled={!readiness.canDepart && trip.status === 'pendiente'}>
-                En tránsito satelital {!readiness.canDepart && trip.status === 'pendiente' ? '(Bloqueado por taller)' : ''}
-              </option>
-              <option value="entregado" disabled={trip.status === 'pendiente'}>
-                Entregado en obra {trip.status === 'pendiente' ? '(Requiere haber salido a ruta)' : ''}
-              </option>
-            </select>
           </div>
 
           <div

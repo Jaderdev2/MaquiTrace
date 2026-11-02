@@ -9,11 +9,7 @@ import {
   MapPin,
   Truck,
   ShieldAlert,
-  CheckCircle2,
-  Play,
   X,
-  Loader2,
-  Radio,
   User,
   CreditCard,
   Clock,
@@ -29,9 +25,6 @@ interface TripDetailsModalProps {
   trip: TransportTrip;
   machine?: Machine | null;
   onClose: () => void;
-  onDepart: (machineId: string) => Promise<void>;
-  onDeliver: (machineId: string) => Promise<void>;
-  onTransmitGps: (tripId: string, lat: number, lng: number) => Promise<void>;
   onEdit?: () => void;
   actionLoading: boolean;
 }
@@ -40,15 +33,9 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
   trip,
   machine,
   onClose,
-  onDepart,
-  onDeliver,
-  onTransmitGps,
   onEdit,
   actionLoading,
 }) => {
-  const [gpsSimulating, setGpsSimulating] = useState(false);
-  const [simMessage, setSimMessage] = useState<string | null>(null);
-
   // Estado para el visor de fotos de evidencia en alta resolución
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
@@ -64,43 +51,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
 
   const gpsRecords = trip.gpsRecords || [];
   const incidents = trip.incidents || [];
-
-  // Coordenadas simuladas realistas por carreteras nacionales desde Buenaventura
-  const sampleWaypoints = [
-    { name: 'Buenaventura (Puerto Marítimo TCBUEN)', lat: 3.8826, lng: -77.0311 },
-    { name: 'Loboguerrero (Cañón de Dagua - Vía al Mar)', lat: 3.7663, lng: -76.6610 },
-    { name: 'Buga (Troncal del Valle - Ruta 25)', lat: 3.9009, lng: -76.2978 },
-    { name: 'Tuluá (Estación de Pesaje e Industrial)', lat: 4.0847, lng: -76.1954 },
-    { name: 'Cartago (Límite Valle del Cauca - Risaralda)', lat: 4.7464, lng: -75.9117 },
-    { name: 'Túnel de La Línea (Paso Cordillera Central)', lat: 4.4851, lng: -75.5214 },
-    { name: 'Ibagué (Variante Tolima)', lat: 4.4389, lng: -75.2322 },
-    { name: 'La Pintada (Entrada Suroeste Antioqueño)', lat: 5.7481, lng: -75.6052 },
-    { name: 'Medellín (Destino Obra Pacífico)', lat: 6.2442, lng: -75.5812 },
-    { name: 'Cali (Destino Zona Industrial Acopi)', lat: 3.4542, lng: -76.5458 },
-    { name: 'Bogotá (Destino Fontibón)', lat: 4.6712, lng: -74.1421 },
-  ];
-
-  const handleSimulateGps = async () => {
-    setGpsSimulating(true);
-    setSimMessage(null);
-    try {
-      const nextIndex = gpsRecords.length % sampleWaypoints.length;
-      const targetPoint = sampleWaypoints[nextIndex];
-
-      const randomOffsetLat = (Math.random() - 0.5) * 0.01;
-      const randomOffsetLng = (Math.random() - 0.5) * 0.01;
-      const lat = Number((targetPoint.lat + randomOffsetLat).toFixed(4));
-      const lng = Number((targetPoint.lng + randomOffsetLng).toFixed(4));
-
-      await onTransmitGps(trip.id, lat, lng);
-      setSimMessage(`¡Punto satelital emitido: ${lat}, ${lng} (${targetPoint.name})!`);
-      setTimeout(() => setSimMessage(null), 4000);
-    } catch (err: any) {
-      setSimMessage(`Error: ${err.message || 'No se pudo transmitir punto GPS'}`);
-    } finally {
-      setGpsSimulating(false);
-    }
-  };
 
   return (
     <>
@@ -356,43 +306,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
               )}
             </div>
 
-            {/* SECCIÓN 4: SIMULADOR DE TELEMETRÍA GPS SATELITAL */}
-            <div className="telemetry-simulation-box">
-              <div className="telemetry-sim-left">
-                <Radio size={18} className="telemetry-sim-icon" style={{ color: theme.primary }} />
-                <div>
-                  <strong>Simulador de Telemetría GPS en Vivo</strong>
-                  <p>Transmite una coordenada satelital para actualizar en tiempo real el mapa.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn-simulate-gps"
-                style={{ backgroundColor: theme.primary }}
-                onClick={handleSimulateGps}
-                disabled={gpsSimulating || isDelivered}
-              >
-                {gpsSimulating ? (
-                  <>
-                    <Loader2 size={14} className="spinner" />
-                    <span>Transmitiendo...</span>
-                  </>
-                ) : (
-                  <>
-                    <Radio size={14} />
-                    <span>Emitir Coordenada GPS</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {simMessage && (
-              <div className="register-alert success" style={{ margin: '0' }}>
-                <CheckCircle2 size={16} />
-                <span>{simMessage}</span>
-              </div>
-            )}
-
             {/* SECCIÓN 5: HISTORIAL DE WAYPOINTS SATELITALES */}
             <div className="modal-section-card">
               <div className="modal-section-title-row">
@@ -463,7 +376,7 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
             )}
           </div>
 
-          {/* Footer con Acciones Operativas de Despacho / Entrega */}
+          {/* El panel supervisa el viaje; las acciones de campo se realizan en la app móvil. */}
           <div className="modal-footer">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={actionLoading}>
               Cerrar
@@ -485,31 +398,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
               </button>
             )}
 
-            {isPending && machine && (
-              <button
-                type="button"
-                className={`btn-primary-register ${!readiness.canDepart ? 'btn-action-blocked' : ''}`}
-                onClick={() => onDepart(machine.id)}
-                disabled={actionLoading || !readiness.canDepart}
-                title={!readiness.canDepart ? readiness.reason : 'Confirmar salida de transporte e iniciar telemetría en carretera'}
-              >
-                {actionLoading ? <Loader2 size={16} className="spinner" /> : <Play size={16} />}
-                <span>{readiness.canDepart ? 'Iniciar Marcha en Carretera' : 'Salida Bloqueada (Alistamiento Pendiente)'}</span>
-              </button>
-            )}
-
-            {isTransit && machine && (
-              <button
-                type="button"
-                className="btn-primary-register"
-                style={{ backgroundColor: '#059669' }}
-                onClick={() => onDeliver(machine.id)}
-                disabled={actionLoading}
-              >
-                {actionLoading ? <Loader2 size={16} className="spinner" /> : <CheckCircle2 size={16} />}
-                <span>Confirmar Entrega en Destino</span>
-              </button>
-            )}
           </div>
         </div>
       </div>

@@ -15,7 +15,6 @@ import '../../evidence/widgets/fullscreen_image_viewer.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../transport/providers/transport_provider.dart';
 import '../../transport/screens/active_trip_screen.dart';
-import '../../transport/widgets/receive_machine_modal.dart';
 
 /// Colores y medidas propias de esta pantalla.
 /// Un solo radio para tarjetas y botones, uno menor para chips y miniaturas,
@@ -43,10 +42,7 @@ class _Ui {
 class MachineDetailScreen extends StatefulWidget {
   final MachineModel machine;
 
-  const MachineDetailScreen({
-    super.key,
-    required this.machine,
-  });
+  const MachineDetailScreen({super.key, required this.machine});
 
   @override
   State<MachineDetailScreen> createState() => _MachineDetailScreenState();
@@ -84,7 +80,14 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   }
 
   // Estado general en tiempo real según fases y evidencias obligatorias
-  ({String label, Color fg, Color bg, bool isPhotosPending, int completedAngles}) _effectiveStatus(
+  ({
+    String label,
+    Color fg,
+    Color bg,
+    bool isPhotosPending,
+    int completedAngles,
+  })
+  _effectiveStatus(
     BuildContext context,
     MachineModel m, {
     bool isTransportador = false,
@@ -113,7 +116,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         : m.overallState == OverallState.completed;
     final anyPhaseStarted = _phases.isNotEmpty
         ? _phases.any((p) => p.isInProgress || p.isCompleted)
-        : (m.overallState == OverallState.inProgress || m.overallState == OverallState.completed);
+        : (m.overallState == OverallState.inProgress ||
+              m.overallState == OverallState.completed);
 
     // Conteo de los 4 ángulos obligatorios
     final evidenceProvider = context.watch<EvidenceProvider>();
@@ -126,7 +130,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         return lowerUrl.contains(key) || lowerObs.contains(key);
       });
     }).length;
-    final completedAngles = evidenceAngles > 0 ? evidenceAngles : m.completedAnglesCount;
+    final completedAngles = evidenceAngles > 0
+        ? evidenceAngles
+        : m.completedAnglesCount;
     final allAnglesCompleted = completedAngles >= mandatoryKeys.length;
 
     // Regla MaquiTrace: Solo está Lista para despacho si terminó fases Y tiene los 4 ángulos
@@ -155,7 +161,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
 
     if (anyPhaseStarted) {
       return (
-        label: isTransportador ? 'En alistamiento de taller' : 'En alistamiento',
+        label: isTransportador
+            ? 'En alistamiento de taller'
+            : 'En alistamiento',
         fg: _Ui.info,
         bg: _Ui.infoBg,
         isPhotosPending: false,
@@ -180,9 +188,24 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     // Si aún no hay fases cargadas, armar plantilla por defecto
     if (phases.isEmpty) {
       phases.addAll([
-        PreparationPhaseModel(id: '1', machineId: machine.id, name: 'ensamblaje', status: 'completada'),
-        PreparationPhaseModel(id: '2', machineId: machine.id, name: 'lavado', status: 'en_proceso'),
-        PreparationPhaseModel(id: '3', machineId: machine.id, name: 'pintura', status: 'pendiente'),
+        PreparationPhaseModel(
+          id: '1',
+          machineId: machine.id,
+          name: 'ensamblaje',
+          status: 'completada',
+        ),
+        PreparationPhaseModel(
+          id: '2',
+          machineId: machine.id,
+          name: 'lavado',
+          status: 'en_proceso',
+        ),
+        PreparationPhaseModel(
+          id: '3',
+          machineId: machine.id,
+          name: 'pintura',
+          status: 'pendiente',
+        ),
       ]);
     }
     return phases;
@@ -207,16 +230,23 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     bool isLocked,
   ) {
     if (isLocked) return (label: 'Bloqueada', fg: _Ui.locked, bg: _Ui.lockedBg);
-    if (phase.isCompleted) return (label: 'Completada', fg: _Ui.success, bg: _Ui.successBg);
-    if (phase.isInProgress) return (label: 'En proceso', fg: _Ui.info, bg: _Ui.infoBg);
+    if (phase.isCompleted)
+      return (label: 'Completada', fg: _Ui.success, bg: _Ui.successBg);
+    if (phase.isInProgress)
+      return (label: 'En proceso', fg: _Ui.info, bg: _Ui.infoBg);
     return (label: 'Pendiente', fg: _Ui.warning, bg: _Ui.warningBg);
   }
 
   @override
   Widget build(BuildContext context) {
     final m = widget.machine;
-    final isTransportador = context.watch<AuthProvider>().currentUser?.isTransportador == true;
-    final status = _effectiveStatus(context, m, isTransportador: isTransportador);
+    final isTransportador =
+        context.watch<AuthProvider>().currentUser?.isTransportador == true;
+    final status = _effectiveStatus(
+      context,
+      m,
+      isTransportador: isTransportador,
+    );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -242,7 +272,12 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildSummaryCard(context, m, status, isTransportador: isTransportador),
+                      _buildSummaryCard(
+                        context,
+                        m,
+                        status,
+                        isTransportador: isTransportador,
+                      ),
                       if (isTransportador) ...[
                         const SizedBox(height: 16),
                         _buildTransporterSection(context, m),
@@ -279,7 +314,10 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           IconButton(
             tooltip: 'Volver',
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: AppColors.textPrimary,
+            ),
           ),
           const Expanded(
             child: Text(
@@ -296,14 +334,20 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           IconButton(
             tooltip: 'Ver código QR',
             onPressed: () => _showMachineQrModal(context, machine),
-            icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.textPrimary),
+            icon: const Icon(
+              Icons.qr_code_2_rounded,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _openEvidenceChecklist(BuildContext context, MachineModel machine) async {
+  Future<void> _openEvidenceChecklist(
+    BuildContext context,
+    MachineModel machine,
+  ) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EvidenceChecklistScreen(
@@ -333,19 +377,28 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         decoration: BoxDecoration(
           color: _Ui.infoBg,
           borderRadius: BorderRadius.circular(_Ui.radius),
-          border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.3)),
+          border: Border.all(
+            color: AppColors.accentBlue.withValues(alpha: 0.3),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                const Icon(Icons.navigation_rounded, color: AppColors.accentBlue, size: 22),
+                const Icon(
+                  Icons.navigation_rounded,
+                  color: AppColors.accentBlue,
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Asignada a tu remolque: ${activeTrip.vehicle}',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
@@ -356,13 +409,17 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                 backgroundColor: AppColors.accentBlue,
                 foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(42),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(_Ui.radius),
+                ),
               ),
               icon: const Icon(Icons.speed, size: 18),
               label: const Text('Abrir Cabina de Control de Ruta'),
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ActiveTripScreen(trip: activeTrip)),
+                  MaterialPageRoute(
+                    builder: (_) => ActiveTripScreen(trip: activeTrip),
+                  ),
                 );
               },
             ),
@@ -382,7 +439,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
         return lowerUrl.contains(key) || lowerObs.contains(key);
       });
     }).length;
-    final completedAngles = evidenceAngles > 0 ? evidenceAngles : machine.completedAnglesCount;
+    final completedAngles = evidenceAngles > 0
+        ? evidenceAngles
+        : machine.completedAnglesCount;
     final allAnglesCompleted = completedAngles >= mandatoryKeys.length;
     final allPhasesCompleted = _phases.isNotEmpty
         ? _phases.every((p) => p.isCompleted)
@@ -412,7 +471,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     color: _Ui.success,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.local_shipping_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 const Expanded(
@@ -428,8 +491,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                         ),
                       ),
                       Text(
-                        'Alistamiento finalizado por taller. Asigna vehículo de remolque para iniciar ruta.',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        'Alistamiento finalizado por taller. El equipo está disponible para que administración programe el despacho.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -437,21 +503,29 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: _Ui.success,
-                foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_Ui.radius)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(_Ui.radius),
+                border: Border.all(color: _Ui.border),
               ),
-              icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
-              label: const Text('Recibir y Asignar Ruta de Despacho', style: TextStyle(fontWeight: FontWeight.w600)),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => ReceiveMachineModal(machine: machine),
-                );
-              },
+              child: const Row(
+                children: [
+                  Icon(Icons.assignment_outlined, color: _Ui.info, size: 18),
+                  SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      'El administrador asignará conductor, vehículo y destino. Cuando te asignen el viaje, aparecerá en “En curso”.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -480,7 +554,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     color: _Ui.warning,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Icon(Icons.fact_check_outlined, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.fact_check_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -498,7 +576,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                       const SizedBox(height: 4),
                       const Text(
                         'Las fases mecánicas de taller concluyeron, pero el equipo aún tiene pendiente la inspección obligatoria de los 4 ángulos por parte del taller.\n\nEstará disponible para despacho en cuanto el taller apruebe la inspección.',
-                        style: TextStyle(fontSize: 12, height: 1.35, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -606,7 +688,10 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   }
 
   // --- Ficha técnica y custodia en modo lectura para Transportadores ---
-  Widget _buildTransporterSpecsCard(BuildContext context, MachineModel machine) {
+  Widget _buildTransporterSpecsCard(
+    BuildContext context,
+    MachineModel machine,
+  ) {
     final phases = _orderedPhases(machine);
     final completedPhases = phases.where((p) => p.isCompleted).length;
     final totalPhases = phases.length;
@@ -630,7 +715,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   color: _Ui.infoBg,
                   borderRadius: BorderRadius.circular(_Ui.radiusSmall),
                 ),
-                child: const Icon(Icons.info_outline_rounded, color: AppColors.accentBlue, size: 18),
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  color: AppColors.accentBlue,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -651,12 +740,15 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           const Divider(height: 1, color: _Ui.divider),
           _buildTransporterSpecRow(
             'Operario de taller',
-            machine.assignedOperator.isNotEmpty ? machine.assignedOperator : 'Equipo de Taller MaquiTrace',
+            machine.assignedOperator.isNotEmpty
+                ? machine.assignedOperator
+                : 'Equipo de Taller MaquiTrace',
           ),
           const Divider(height: 1, color: _Ui.divider),
           _buildTransporterSpecRow(
             'Estado en taller',
-            machine.overallState == OverallState.completed || machine.overallState == OverallState.delivered
+            machine.overallState == OverallState.completed ||
+                    machine.overallState == OverallState.delivered
                 ? 'Alistamiento completado ($totalPhases fases)'
                 : 'En preparación ($completedPhases de $totalPhases fases completadas)',
           ),
@@ -665,7 +757,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
             'Ubicación actual',
             machine.overallState == OverallState.inTransit
                 ? 'En ruta hacia destino'
-                : (machine.overallState == OverallState.delivered ? 'En sitio del cliente' : 'Patio de taller MaquiTrace'),
+                : (machine.overallState == OverallState.delivered
+                      ? 'En sitio del cliente'
+                      : 'Patio de taller MaquiTrace'),
           ),
         ],
       ),
@@ -710,12 +804,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   Widget _buildEvidenceButtonCard(BuildContext context, MachineModel machine) {
     final evidenceProvider = context.watch<EvidenceProvider>();
     final evidences = evidenceProvider.getEvidencesForMachine(machine.id);
-    final isLoading = (evidenceProvider.isLoading && evidences.isEmpty) || _isLoadingPhases;
+    final isLoading =
+        (evidenceProvider.isLoading && evidences.isEmpty) || _isLoadingPhases;
 
     if (isLoading) {
-      return const SkeletonGroup(
-        child: MachineDetailEvidenceSkeleton(),
-      );
+      return const SkeletonGroup(child: MachineDetailEvidenceSkeleton());
     }
 
     // Conteo de ángulos obligatorios cubiertos
@@ -735,21 +828,21 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     final Color stateFg = isAllDone
         ? _Ui.success
         : completedCount > 0
-            ? _Ui.info
-            : _Ui.locked;
+        ? _Ui.info
+        : _Ui.locked;
     final Color stateBg = isAllDone
         ? _Ui.successBg
         : completedCount > 0
-            ? _Ui.infoBg
-            : _Ui.lockedBg;
+        ? _Ui.infoBg
+        : _Ui.lockedBg;
 
     final String subtitle = isAllDone
         ? 'Los 4 ángulos obligatorios están capturados.'
         : completedCount > 0
-            ? (missing == 1
-                ? 'Falta 1 ángulo obligatorio por capturar.'
-                : 'Faltan $missing ángulos obligatorios por capturar.')
-            : 'Aún sin fotos. Registra los 4 ángulos obligatorios.';
+        ? (missing == 1
+              ? 'Falta 1 ángulo obligatorio por capturar.'
+              : 'Faltan $missing ángulos obligatorios por capturar.')
+        : 'Aún sin fotos. Registra los 4 ángulos obligatorios.';
 
     return Container(
       decoration: BoxDecoration(
@@ -779,7 +872,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                         borderRadius: BorderRadius.circular(_Ui.radius),
                       ),
                       child: Icon(
-                        isAllDone ? Icons.verified_rounded : Icons.camera_alt_rounded,
+                        isAllDone
+                            ? Icons.verified_rounded
+                            : Icons.camera_alt_rounded,
                         color: stateFg,
                         size: 22,
                       ),
@@ -847,7 +942,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: evidences.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         final ev = evidences[index];
                         return InkWell(
@@ -860,22 +956,32 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                             height: 56,
                             decoration: BoxDecoration(
                               color: _Ui.lockedBg,
-                              borderRadius: BorderRadius.circular(_Ui.radiusSmall),
+                              borderRadius: BorderRadius.circular(
+                                _Ui.radiusSmall,
+                              ),
                               border: Border.all(color: _Ui.border),
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: Image.network(
                               ev.url,
                               fit: BoxFit.cover,
-                              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                                if (wasSynchronouslyLoaded) return child;
-                                return AnimatedOpacity(
-                                  opacity: frame == null ? 0 : 1,
-                                  duration: const Duration(milliseconds: 220),
-                                  curve: Curves.easeOut,
-                                  child: child,
-                                );
-                              },
+                              frameBuilder:
+                                  (
+                                    context,
+                                    child,
+                                    frame,
+                                    wasSynchronouslyLoaded,
+                                  ) {
+                                    if (wasSynchronouslyLoaded) return child;
+                                    return AnimatedOpacity(
+                                      opacity: frame == null ? 0 : 1,
+                                      duration: const Duration(
+                                        milliseconds: 220,
+                                      ),
+                                      curve: Curves.easeOut,
+                                      child: child,
+                                    );
+                                  },
                               loadingBuilder: (context, child, progress) {
                                 if (progress == null) return child;
                                 return const Center(
@@ -884,18 +990,21 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                                     height: 16,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 1.8,
-                                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentBlue),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppColors.accentBlue,
+                                      ),
                                     ),
                                   ),
                                 );
                               },
-                              errorBuilder: (context, error, stackTrace) => const Center(
-                                child: Icon(
-                                  Icons.image_not_supported_rounded,
-                                  size: 20,
-                                  color: _Ui.locked,
-                                ),
-                              ),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Center(
+                                    child: Icon(
+                                      Icons.image_not_supported_rounded,
+                                      size: 20,
+                                      color: _Ui.locked,
+                                    ),
+                                  ),
                             ),
                           ),
                         );
@@ -953,13 +1062,18 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   Widget _buildSummaryCard(
     BuildContext context,
     MachineModel machine,
-    ({String label, Color fg, Color bg, bool isPhotosPending, int completedAngles}) status, {
+    ({
+      String label,
+      Color fg,
+      Color bg,
+      bool isPhotosPending,
+      int completedAngles,
+    })
+    status, {
     bool isTransportador = false,
   }) {
     if (_isLoadingPhases) {
-      return const SkeletonGroup(
-        child: MachineDetailSummarySkeleton(),
-      );
+      return const SkeletonGroup(child: MachineDetailSummarySkeleton());
     }
 
     final heroTag = 'machine-photo-${machine.id}';
@@ -982,7 +1096,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                 Hero(
                   tag: heroTag,
                   child: GestureDetector(
-                    onTap: () => _openMachinePhotoViewer(context, machine, heroTag),
+                    onTap: () =>
+                        _openMachinePhotoViewer(context, machine, heroTag),
                     child: machine.buildImage(fit: BoxFit.cover),
                   ),
                 ),
@@ -1038,7 +1153,10 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   borderRadius: BorderRadius.circular(_Ui.radiusSmall),
                   onTap: () => _copySerial(machine.serial),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1064,7 +1182,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                           style: const TextStyle(fontSize: 14),
                         ),
                         const SizedBox(width: 8),
-                        const Icon(Icons.copy_rounded, size: 16, color: _Ui.locked),
+                        const Icon(
+                          Icons.copy_rounded,
+                          size: 16,
+                          color: _Ui.locked,
+                        ),
                       ],
                     ),
                   ),
@@ -1082,7 +1204,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: _Ui.warning, size: 20),
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: _Ui.warning,
+                          size: 20,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -1108,7 +1234,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   }
 
   // --- Vista de pantalla completa de la foto principal de la máquina ---
-  void _openMachinePhotoViewer(BuildContext context, MachineModel machine, String heroTag) {
+  void _openMachinePhotoViewer(
+    BuildContext context,
+    MachineModel machine,
+    String heroTag,
+  ) {
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
@@ -1138,7 +1268,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                       child: IconButton(
                         tooltip: 'Cerrar',
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                       ),
                     ),
                     Positioned(
@@ -1177,14 +1311,12 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       );
   }
 
-  Widget _buildChip(
-    String label,
-    Color fg,
-    Color bg, {
-    bool large = false,
-  }) {
+  Widget _buildChip(String label, Color fg, Color bg, {bool large = false}) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: large ? 12 : 8, vertical: large ? 6 : 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: large ? 12 : 8,
+        vertical: large ? 6 : 4,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(_Ui.radiusSmall),
@@ -1203,9 +1335,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
   // --- Alistamiento: línea de tiempo con todas las fases ---
   Widget _buildProcessCard(MachineModel machine) {
     if (_isLoadingPhases) {
-      return const SkeletonGroup(
-        child: MachineDetailProcessSkeleton(),
-      );
+      return const SkeletonGroup(child: MachineDetailProcessSkeleton());
     }
 
     final phases = _orderedPhases(machine);
@@ -1245,7 +1375,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh_rounded, size: 22, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    size: 22,
+                    color: AppColors.textSecondary,
+                  ),
                   tooltip: 'Actualizar fases',
                   onPressed: _loadPhases,
                 ),
@@ -1281,14 +1415,21 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           shape: BoxShape.circle,
           border: Border.all(color: _Ui.border, width: 1.5),
         ),
-        child: const Icon(Icons.lock_outline_rounded, size: 18, color: _Ui.locked),
+        child: const Icon(
+          Icons.lock_outline_rounded,
+          size: 18,
+          color: _Ui.locked,
+        ),
       );
     }
     if (phase.isCompleted) {
       return Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(color: _Ui.success, shape: BoxShape.circle),
+        decoration: const BoxDecoration(
+          color: _Ui.success,
+          shape: BoxShape.circle,
+        ),
         child: const Icon(Icons.check_rounded, size: 22, color: Colors.white),
       );
     }
@@ -1297,7 +1438,10 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       return Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(color: _Ui.info, shape: BoxShape.circle),
+        decoration: const BoxDecoration(
+          color: _Ui.info,
+          shape: BoxShape.circle,
+        ),
         child: Icon(_phaseIcon(phase), size: 20, color: Colors.white),
       );
     }
@@ -1322,7 +1466,8 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     final isLocked = _isLocked(phases, index);
     final prerequisite = isLocked ? phases[index - 1] : null;
     final st = _phaseStatus(phase, isLocked);
-    final hasObservations = phase.observations != null && phase.observations!.isNotEmpty;
+    final hasObservations =
+        phase.observations != null && phase.observations!.isNotEmpty;
     final isActionable = !isLocked && !phase.isCompleted;
 
     void open() {
@@ -1337,7 +1482,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           onPhaseUpdated: () {
             _loadPhases();
             if (context.mounted) {
-              context.read<EvidenceProvider>().fetchEvidences(widget.machine.id);
+              context.read<EvidenceProvider>().fetchEvidences(
+                widget.machine.id,
+              );
             }
           },
         );
@@ -1391,7 +1538,9 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: isLocked ? _Ui.locked : AppColors.textPrimary,
+                                color: isLocked
+                                    ? _Ui.locked
+                                    : AppColors.textPrimary,
                               ),
                             ),
                           ),
@@ -1425,7 +1574,10 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                       const SizedBox(height: 10),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: _Ui.lockedBg,
                           borderRadius: BorderRadius.circular(_Ui.radius),
@@ -1445,7 +1597,11 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Icon(Icons.person_outline_rounded, size: 18, color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.person_outline_rounded,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -1475,9 +1631,16 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(_Ui.radius),
                             ),
-                            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            textStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          child: Text(phase.isInProgress ? 'Continuar fase' : 'Iniciar fase'),
+                          child: Text(
+                            phase.isInProgress
+                                ? 'Continuar fase'
+                                : 'Iniciar fase',
+                          ),
                         ),
                       )
                     else
@@ -1489,7 +1652,10 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                           padding: const EdgeInsets.only(right: 8),
                           alignment: Alignment.centerLeft,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1519,9 +1685,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text(
           'Fase bloqueada',
           style: TextStyle(

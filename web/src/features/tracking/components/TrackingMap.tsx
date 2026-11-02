@@ -3,14 +3,13 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { TransportTrip } from '../../../types';
 import { getTripColorTheme } from '../utils/tripColors';
-import { Maximize2, Mountain, Globe, Navigation, X, Crosshair } from 'lucide-react';
+import { Maximize2, Mountain, Globe, Navigation, X } from 'lucide-react';
 
 interface TrackingMapProps {
   trips: TransportTrip[];
   selectedTripId?: string | null;
   onSelectTrip?: (trip: TransportTrip) => void;
   onOpenDetails?: (trip: TransportTrip) => void;
-  onUpdateLocation?: (tripId: string, lat: number, lng: number) => Promise<void>;
   height?: string | number;
 }
 
@@ -42,37 +41,11 @@ const TILE_CONFIG: Record<
   },
 };
 
-// 20+ Regiones y nodos viales estratégicos de Colombia para la generación aleatoria realista
-const COLOMBIA_REGIONS = [
-  { name: 'Bogotá D.C. (Corredor Central)', lat: 4.6097, lng: -74.0817 },
-  { name: 'Medellín, Antioquia (Valle de Aburrá)', lat: 6.2442, lng: -75.5812 },
-  { name: 'Cali, Valle del Cauca', lat: 3.4516, lng: -76.5320 },
-  { name: 'Buenaventura (Puerto Marítimo)', lat: 3.8826, lng: -77.0311 },
-  { name: 'Tuluá, Valle (Centro Logístico)', lat: 4.0847, lng: -76.1954 },
-  { name: 'Buga, Valle del Cauca', lat: 3.9009, lng: -76.2978 },
-  { name: 'Pereira, Risaralda (Eje Cafetero)', lat: 4.8133, lng: -75.6961 },
-  { name: 'Manizales, Caldas', lat: 5.0689, lng: -75.5174 },
-  { name: 'Ibagué, Tolima (Paso La Línea)', lat: 4.4389, lng: -75.2322 },
-  { name: 'La Pintada, Antioquia (Suroeste)', lat: 5.7481, lng: -75.6052 },
-  { name: 'Bolombolo, Antioquia (Pacífico 2)', lat: 5.9723, lng: -75.8341 },
-  { name: 'Bucaramanga, Santander', lat: 7.1254, lng: -73.1198 },
-  { name: 'Barranquilla, Atlántico', lat: 10.9685, lng: -74.7813 },
-  { name: 'Cartagena, Bolívar', lat: 10.3910, lng: -75.4794 },
-  { name: 'Villavicencio, Meta (Vía al Llano)', lat: 4.1420, lng: -73.6266 },
-  { name: 'Pasto, Nariño (Vía Panamericana)', lat: 1.2136, lng: -77.2811 },
-  { name: 'Armenia, Quindío', lat: 4.5339, lng: -75.6811 },
-  { name: 'Popayán, Cauca', lat: 2.4448, lng: -76.6147 },
-  { name: 'Montería, Córdoba', lat: 8.7479, lng: -75.8814 },
-  { name: 'Neiva, Huila', lat: 2.9273, lng: -75.2819 },
-  { name: 'Cúcuta, Norte de Santander', lat: 7.8939, lng: -72.5078 },
-];
-
 export const TrackingMap: React.FC<TrackingMapProps> = ({
   trips,
   selectedTripId,
   onSelectTrip,
   onOpenDetails,
-  onUpdateLocation,
   height = '520px',
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -85,9 +58,6 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
 
   // Estado para la ruta que el usuario elige visualizar en el mapa (por defecto null, sin líneas interpuestas)
   const [activeRouteTripId, setActiveRouteTripId] = useState<string | null>(null);
-
-  // Estado de actualización de posición manual (cuando el usuario da clic en el mapa)
-  const [manualLocTripId, setManualLocTripId] = useState<string | null>(null);
 
   // Sincronizar si se selecciona un viaje desde las tarjetas exteriores
   useEffect(() => {
@@ -159,30 +129,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
     map.invalidateSize();
   }, []);
 
-  // Escuchar clic en el mapa cuando está activo el Modo Manual de Localización
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    const handleMapClick = (e: L.LeafletMouseEvent) => {
-      if (!manualLocTripId) return;
-
-      const lat = Number(e.latlng.lat.toFixed(4));
-      const lng = Number(e.latlng.lng.toFixed(4));
-
-      if (onUpdateLocation) {
-        onUpdateLocation(manualLocTripId, lat, lng);
-      }
-      setManualLocTripId(null);
-    };
-
-    map.on('click', handleMapClick);
-    return () => {
-      map.off('click', handleMapClick);
-    };
-  }, [manualLocTripId, onUpdateLocation]);
-
-  // Manejo de eventos de clic en los botones del popup: [Detalles], [Ruta] y [Localización -> Manual / Aleatoria]
+  // Manejo de eventos de clic en los botones de detalles y ruta del popup.
   useEffect(() => {
     const container = mapContainerRef.current;
     if (!container) return;
@@ -212,60 +159,13 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         return;
       }
 
-      // 3. Clic en botón "Localización" (desplegar sub-opciones Manual / Aleatoria)
-      const locToggleBtn = target.closest('.btn-popup-loc-toggle') as HTMLElement;
-      if (locToggleBtn) {
-        const tripId = locToggleBtn.getAttribute('data-trip-id');
-        const subBox = document.getElementById(`loc-suboptions-${tripId}`);
-        if (subBox) {
-          const isVisible = subBox.style.display !== 'none';
-          subBox.style.display = isVisible ? 'none' : 'block';
-          locToggleBtn.classList.toggle('is-loc-expanded', !isVisible);
-        }
-        return;
-      }
-
-      // 4. Sub-opción A: Ubicación Manual (esperar clic en el mapa)
-      const manualBtn = target.closest('.btn-loc-manual') as HTMLElement;
-      if (manualBtn) {
-        const tripId = manualBtn.getAttribute('data-trip-id');
-        if (tripId) {
-          setManualLocTripId(tripId);
-          // Cerrar popups para facilitar clic en el mapa
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.closePopup();
-          }
-        }
-        return;
-      }
-
-      // 5. Sub-opción B: Ubicación Aleatoria dentro del territorio de Colombia
-      const randomBtn = target.closest('.btn-loc-random') as HTMLElement;
-      if (randomBtn) {
-        const tripId = randomBtn.getAttribute('data-trip-id');
-        if (tripId && onUpdateLocation) {
-          // Seleccionar nodo colombiano y aplicar variación sutil
-          const baseRegion = COLOMBIA_REGIONS[Math.floor(Math.random() * COLOMBIA_REGIONS.length)];
-          const deltaLat = (Math.random() - 0.5) * 0.15;
-          const deltaLng = (Math.random() - 0.5) * 0.15;
-          const lat = Number((baseRegion.lat + deltaLat).toFixed(4));
-          const lng = Number((baseRegion.lng + deltaLng).toFixed(4));
-
-          onUpdateLocation(tripId, lat, lng);
-
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo([lat, lng], 10, { duration: 1.2 });
-          }
-        }
-        return;
-      }
     };
 
     container.addEventListener('click', handleContainerClick);
     return () => {
       container.removeEventListener('click', handleContainerClick);
     };
-  }, [trips, onOpenDetails, onSelectTrip, onUpdateLocation]);
+  }, [trips, onOpenDetails, onSelectTrip]);
 
   // Dibujar marcadores e icono único por vehículo.
   // SOLO se dibuja la línea de ruta para el viaje que el usuario elija ver.
@@ -362,7 +262,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         zIndexOffset: isRouteActive ? 1200 : 500,
       });
 
-      // Contenido del Popup con las opciones: [Detalles], [Ruta] y [Localización]
+      // Contenido del Popup con las opciones de supervisión de detalles y ruta.
       const popupHtml = `
         <div class="map-trip-popup">
           <div class="popup-header" style="border-left: 3px solid ${truckColor}; padding-left: 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
@@ -404,33 +304,6 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
               <span>${isRouteActive ? 'Ocultar' : 'Ruta'}</span>
             </button>
 
-            <button type="button" class="btn-popup-action btn-popup-loc-toggle" data-trip-id="${trip.id}" title="Actualizar ubicación del transportador">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              <span>Localización</span>
-            </button>
-          </div>
-
-          <div class="popup-loc-suboptions" id="loc-suboptions-${trip.id}" style="display: none;">
-            <span class="loc-suboptions-title">Actualizar posición satelital:</span>
-            <div class="loc-suboptions-grid">
-              <button type="button" class="btn-suboption btn-loc-manual" data-trip-id="${trip.id}" title="Hacer clic en cualquier parte del mapa">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <span>Manual (Clic en mapa)</span>
-              </button>
-
-              <button type="button" class="btn-suboption btn-loc-random" data-trip-id="${trip.id}" title="Generar posición aleatoria en Colombia">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
-                </svg>
-                <span>Aleatoria (Colombia)</span>
-              </button>
-            </div>
           </div>
         </div>
       `;
@@ -465,11 +338,9 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   };
 
   const activeTripData = trips.find((t) => t.id === activeRouteTripId);
-  const manualTripData = trips.find((t) => t.id === manualLocTripId);
-
   return (
     <div
-      className={`tracking-map-wrapper ${manualLocTripId ? 'is-manual-picking-mode' : ''}`}
+      className="tracking-map-wrapper"
       style={{ height }}
     >
       {/* Selector de Capas Flotante: Topográfico (Predeterminado) y Satelital */}
@@ -507,29 +378,8 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         </button>
       </div>
 
-      {/* Banner interactivo cuando está activo el Modo Manual de Clic en el Mapa */}
-      {manualLocTripId && (
-        <div className="map-manual-mode-banner">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Crosshair size={16} className="pulse-icon" style={{ color: '#EF4444' }} />
-            <span>
-              <strong>Modo Asignación Manual:</strong> Haz clic en cualquier punto del mapa para posicionar a{' '}
-              <strong>{manualTripData?.vehicle || 'este transportador'}</strong>.
-            </span>
-          </div>
-          <button
-            type="button"
-            className="btn-cancel-manual-mode"
-            onClick={() => setManualLocTripId(null)}
-          >
-            <X size={12} style={{ display: 'inline', marginRight: '3px' }} />
-            Cancelar
-          </button>
-        </div>
-      )}
-
       {/* Cartel flotante cuando se está mostrando la ruta trazada de un camión en el mapa */}
-      {activeTripData && !manualLocTripId && (
+      {activeTripData && (
         <div className="map-active-route-banner">
           <Navigation size={15} style={{ color: '#60A5FA', flexShrink: 0 }} />
           <span>

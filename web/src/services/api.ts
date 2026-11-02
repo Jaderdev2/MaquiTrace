@@ -338,7 +338,7 @@ export async function fetchTripsApi(token: string): Promise<TransportTrip[]> {
  */
 export async function receiveTransportApi(
   machineId: string,
-  payload: { vehicle: string; destination: string; transporterId?: string },
+  payload: { vehicle: string; destination: string; transporterId: string },
   token: string
 ): Promise<TransportTrip> {
   const response = await authFetch(`${API_BASE_URL}/transport/receive/${machineId}`, {
@@ -364,7 +364,7 @@ export async function receiveTransportApi(
  */
 export async function updateTransportApi(
   tripId: string,
-  payload: { vehicle?: string; destination?: string; transporterId?: string; status?: string },
+  payload: { vehicle?: string; destination?: string; transporterId?: string },
   token: string
 ): Promise<TransportTrip> {
   const response = await authFetch(`${API_BASE_URL}/transport/${tripId}`, {
