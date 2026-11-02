@@ -11,7 +11,6 @@ import '../../profile/screens/profile_screen.dart';
 import '../../qr_scanner/screens/qr_scanner_screen.dart';
 import '../models/trip_model.dart';
 import '../providers/transport_provider.dart';
-import '../widgets/receive_machine_modal.dart';
 import 'active_trip_screen.dart';
 
 /// Colores y medidas compartidas con el resto de pantallas del flujo.
@@ -24,7 +23,6 @@ class _Ui {
   static const divider = Color(0xFFEDF1F5);
 
   static const success = Color(0xFF15803D);
-  static const successBg = Color(0xFFE8F5EC);
   static const infoBg = Color(0xFFE6EFFE);
   static const locked = Color(0xFF64748B);
   static const lockedBg = Color(0xFFF1F5F9);
@@ -57,7 +55,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TransportProvider>().loadDashboardData();
     });
@@ -190,8 +188,7 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
               labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
               tabs: [
-                _buildTab('Despachos', transportProvider.activeTrips.length),
-                _buildTab('Por recibir', transportProvider.readyMachines.length),
+                _buildTab('En curso', transportProvider.activeTrips.length),
                 _buildTab('Entregados', transportProvider.deliveredTrips.length),
               ],
             ),
@@ -205,7 +202,6 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                     controller: _tabController,
                     children: [
                       _buildActiveTripsSubTab(transportProvider),
-                      _buildReadyMachinesSubTab(transportProvider),
                       _buildDeliveredTripsSubTab(transportProvider),
                     ],
                   ),
@@ -398,8 +394,8 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
         provider,
         _buildEmptyState(
           icon: Icons.assignment_outlined,
-          title: 'Sin despachos activos',
-          message: 'Recibe una máquina en "Por recibir" para empezar un viaje.',
+          title: 'Sin viajes asignados',
+          message: 'El administrador te asignará un viaje cuando haya un despacho listo para ti.',
         ),
       );
     }
@@ -507,103 +503,6 @@ class _TransportHomeScreenState extends State<TransportHomeScreen>
                   ),
                 ),
               ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildReadyMachinesSubTab(TransportProvider provider) {
-    final machines = provider.readyMachines;
-
-    if (machines.isEmpty) {
-      return _refreshable(
-        provider,
-        _buildEmptyState(
-          icon: Icons.check_circle_outline_rounded,
-          title: 'Nada por recibir',
-          message: 'Aquí aparecerán los equipos que el taller deje listos para despachar.',
-        ),
-      );
-    }
-
-    return _refreshable(
-      provider,
-      ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: _listPadding,
-        itemCount: machines.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final m = machines[index];
-
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: _cardDecoration(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildThumb(child: m.buildImage(fit: BoxFit.cover)),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  m.model,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              _buildChip('Lista', _Ui.success, _Ui.successBg),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Serial ${m.serial} · ${m.category}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accentBlue,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(44),
-                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(_Ui.radius),
-                    ),
-                  ),
-                  icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
-                  label: const Text('Recibir máquina'),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => ReceiveMachineModal(machine: m),
-                    );
-                  },
-                ),
-              ],
             ),
           );
         },

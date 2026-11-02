@@ -11,7 +11,6 @@ import '../../../core/theme/app_colors.dart';
 import '../models/trip_model.dart';
 import '../providers/transport_provider.dart';
 import '../widgets/delivery_confirmation_modal.dart';
-import '../widgets/edit_trip_modal.dart';
 import '../widgets/report_incident_modal.dart';
 
 class _Ui {
@@ -333,24 +332,6 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
         _currentTrip = _currentTrip.copyWith(status: TripStatus.entregado);
       });
       Navigator.of(context).pop(true);
-    }
-  }
-
-  Future<void> _handleEditTripDetails() async {
-    final updated = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => EditTripModal(trip: _currentTrip),
-    );
-
-    if (updated == true && mounted) {
-      final provider = context.read<TransportProvider>();
-      setState(() {
-        _currentTrip = _getUpdatedTrip(provider);
-      });
-      _loadRoute();
     }
   }
 
@@ -840,7 +821,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
   Widget _destinationSection(TripModel trip, bool isFinished) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(_Ui.pagePadding, 8, 8, 8),
+      padding: const EdgeInsets.symmetric(horizontal: _Ui.pagePadding, vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -851,7 +832,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Destino',
+                  'Destino de entrega',
                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 2),
@@ -867,12 +848,17 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               ],
             ),
           ),
-          if (!isFinished)
-            IconButton(
-              tooltip: 'Editar destino o remolque',
-              icon: const Icon(Icons.edit_outlined, size: 22, color: AppColors.accentBlue),
-              onPressed: _handleEditTripDetails,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _Ui.lockedBg,
+              borderRadius: BorderRadius.circular(_Ui.radiusSmall),
             ),
+            child: const Text(
+              'Ruta fijada',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _Ui.locked),
+            ),
+          ),
         ],
       ),
     );
