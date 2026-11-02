@@ -6,10 +6,10 @@
   "scripts": {
     "dev:backend": "npm --prefix backend run start:dev",
     "dev:web": "npm --prefix web run dev",
-    "dev:mobile": "cd mobile && flutter run",
+    "dev:mobile": "cd mobile && flutter run --dart-define-from-file=mapbox.env.json",
     "dev": "npx --yes concurrently -n \"BACKEND,WEB\" -c \"blue,magenta\" \"npm --prefix backend run start:dev\" \"npm --prefix web run dev\"",
     "build:backend": "npm --prefix backend run build",
     "build:web": "npm --prefix web run build",
-    "build:mobile": "cd mobile && flutter build apk --split-per-abi"
+    "build:mobile": "cd mobile && flutter build apk --split-per-abi --dart-define-from-file=mapbox.env.json"
   }
 }

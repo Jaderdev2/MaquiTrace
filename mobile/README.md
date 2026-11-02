@@ -1,17 +1,11 @@
-# maquitrace
+# MaquiTrace Mobile
 
-A new Flutter project.
+## Configuración de Mapbox
 
-## Getting Started
+La app recibe el token de Mapbox durante el build, no desde el código fuente.
 
-This project is a starting point for a Flutter application.
+1. Copia `mapbox.env.json.example` como `mapbox.env.json`.
+2. Reemplaza el valor de `MAPBOX_ACCESS_TOKEN` por un token público de Mapbox.
+3. Ejecuta `npm run dev:mobile` para desarrollo o `npm run build:mobile` para generar los APK.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+El archivo `mapbox.env.json` está excluido de Git. No subas el token al repositorio. Los tokens incluidos en una app móvil pueden extraerse del APK; usa un token público con los permisos mínimos necesarios y revoca el token anterior si ya estuvo comprometido.
