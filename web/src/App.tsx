@@ -7,6 +7,7 @@ import { MachinesPage } from './features/machines';
 import { PreparationPage } from './features/preparation/PreparationPage';
 import { TrackingPage } from './features/tracking/TrackingPage';
 import { UsersPage } from './features/users/UsersPage';
+import { DownloadPage } from './features/download/DownloadPage';
 import { Loader2 } from 'lucide-react';
 import { RouteProgressBar } from './components/RouteProgressBar';
 import { isAdminUser } from './utils/auth';
@@ -71,6 +72,9 @@ export default function App() {
       <BrowserRouter>
         <RouteProgressBar />
         <Routes>
+          {/* Página pública para descargar la aplicación móvil */}
+          <Route path="/descargar" element={<DownloadPage />} />
+
           {/* Ruta pública: Inicio de sesión */}
           <Route
             path="/login"
@@ -139,4 +143,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

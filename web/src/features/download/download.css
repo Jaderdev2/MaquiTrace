@@ -1,0 +1,481 @@
+.download-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+  color: #0f172a;
+  font-family: var(--font-sans);
+}
+
+.download-header,
+.download-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px max(24px, calc((100vw - 1180px) / 2));
+}
+
+.download-header {
+  min-height: 82px;
+  background: #0b172a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 1;
+}
+
+.download-wordmark {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  text-decoration: none;
+}
+
+.download-wordmark img {
+  display: block;
+  width: 216px;
+  height: 43px;
+  object-fit: contain;
+}
+
+.download-admin-link {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.download-admin-link:hover {
+  border-color: #93c5fd;
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.download-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: center;
+  gap: 72px;
+  min-height: 650px;
+  overflow: hidden;
+  padding: 76px max(24px, calc((100vw - 1180px) / 2));
+  color: #fff;
+  background-color: #091a2d;
+  background-image:
+    linear-gradient(90deg, #091a2d 0%, rgba(9, 26, 45, 0.98) 37%, rgba(9, 26, 45, 0.78) 61%, rgba(9, 26, 45, 0.46) 100%),
+    url('../../assets/media/backgrounds/maqui_trace_header_home.png');
+  background-position: center, center right;
+  background-size: cover;
+}
+
+.download-hero-copy,
+.download-qr-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.download-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 20px;
+  color: #bfdbfe;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.download-eyebrow > span {
+  width: 24px;
+  height: 3px;
+  background: #f59e0b;
+}
+
+.download-hero h1 {
+  max-width: 670px;
+  margin: 0;
+  font-size: clamp(43px, 5.3vw, 70px);
+  font-weight: 780;
+  letter-spacing: -0.06em;
+  line-height: 1.02;
+}
+
+.download-hero h1 span {
+  display: block;
+  color: #60a5fa;
+}
+
+.download-intro {
+  max-width: 570px;
+  margin: 24px 0 32px;
+  color: #e2e8f0;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.download-action {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.download-button {
+  display: inline-flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: #2563eb;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+a.download-button:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.download-button:focus-visible,
+.download-admin-link:focus-visible,
+.download-wordmark:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+.download-button:disabled {
+  color: #cbd5e1;
+  background: #334155;
+  cursor: not-allowed;
+}
+
+.download-file-meta {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.download-qr-panel {
+  width: 340px;
+  justify-self: center;
+  padding: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 20px 60px rgba(2, 8, 23, 0.32);
+}
+
+.download-qr-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.download-qr-icon {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.download-qr-eyebrow {
+  color: #475569;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.download-qr-heading h2 {
+  margin: 3px 0 0;
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+}
+
+.download-qr-link {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.download-qr-link:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
+.download-qr-code {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.download-qr-instruction {
+  margin: 16px 0 5px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.download-qr-url {
+  display: block;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-decoration: none;
+}
+
+.download-qr-url:hover {
+  text-decoration: underline;
+}
+
+.download-qr-rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.download-qr-rule span:first-child,
+.download-qr-rule span:last-child {
+  height: 1px;
+  flex: 1;
+  background: #e2e8f0;
+}
+
+.download-hero-grid {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 35%, rgba(2, 8, 23, 0.12) 100%);
+  pointer-events: none;
+}
+
+.download-benefits {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 24px;
+}
+
+.download-benefits > div {
+  padding: 4px 34px 4px 0;
+}
+
+.download-benefits > div + div {
+  padding-left: 34px;
+  border-left: 1px solid #cbd5e1;
+}
+
+.download-benefit-number {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.download-benefits h2 {
+  margin: 12px 0 8px;
+  font-size: 19px;
+  letter-spacing: -0.03em;
+}
+
+.download-benefits p {
+  max-width: 310px;
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.download-install {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 48px;
+  align-items: start;
+  padding: 54px max(24px, calc((100vw - 1180px) / 2));
+  background: #e9eef5;
+}
+
+.download-install .download-eyebrow {
+  margin-bottom: 12px;
+  color: #1d4ed8;
+}
+
+.download-install h2 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.download-install ol {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.download-install li {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.download-install li span {
+  display: grid;
+  flex: 0 0 30px;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #94a3b8;
+  border-radius: 50%;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.download-footer {
+  min-height: 78px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.download-footer .download-wordmark {
+  font-size: 12px;
+}
+
+@media (max-width: 850px) {
+  .download-hero {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 30px;
+    min-height: 560px;
+    background-position: center, 58% center;
+  }
+
+  .download-qr-panel {
+    width: 280px;
+    padding: 18px;
+  }
+}
+
+@media (max-width: 650px) {
+  .download-header,
+  .download-footer {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .download-admin-link {
+    gap: 0;
+    padding: 0 12px;
+    font-size: 0;
+  }
+
+  .download-admin-link svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .download-hero {
+    grid-template-columns: 1fr;
+    gap: 38px;
+    padding: 54px 22px 48px;
+    background-image:
+      linear-gradient(180deg, rgba(9, 26, 45, 0.88) 0%, rgba(9, 26, 45, 0.94) 47%, #091a2d 100%),
+      url('../../assets/media/backgrounds/maqui_trace_header_home.png');
+    background-position: center, 63% top;
+    background-size: cover, auto 620px;
+  }
+
+  .download-hero h1 {
+    font-size: clamp(39px, 11vw, 52px);
+  }
+
+  .download-intro {
+    font-size: 15px;
+  }
+
+  .download-qr-panel {
+    width: min(100%, 340px);
+  }
+
+  .download-hero-grid {
+    display: none;
+  }
+
+  .download-benefits {
+    grid-template-columns: 1fr;
+    gap: 25px;
+    padding: 44px 22px;
+  }
+
+  .download-benefits > div,
+  .download-benefits > div + div {
+    padding: 0 0 22px;
+    border-bottom: 1px solid #cbd5e1;
+    border-left: 0;
+  }
+
+  .download-benefits > div:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .download-install {
+    grid-template-columns: 1fr;
+    gap: 25px;
+    padding: 42px 22px;
+  }
+
+  .download-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .download-button,
+  .download-admin-link {
+    transition: none;
+  }
+}

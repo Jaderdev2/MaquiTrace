@@ -1,32 +1,33 @@
-# React + TypeScript + Vite
+# MaquiTrace Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Panel de supervisión para administradores, construido con React, TypeScript y Vite. La ruta pública `/descargar` comparte el APK móvil y no requiere iniciar sesión; el resto de la plataforma continúa protegida por rol de administrador.
 
-Currently, two official plugins are available:
+## Desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Configura `VITE_API_URL` en un archivo `.env.local` para apuntar a la API. Las variables disponibles están documentadas en `.env.example`.
+
+## Página pública de descarga
+
+La página `/descargar` lee estas variables durante la compilación:
+
+| Variable | Uso |
+|---|---|
+| `VITE_ANDROID_APK_URL` | URL HTTPS directa al APK publicado |
+| `VITE_ANDROID_APK_VERSION` | Versión exacta del APK |
+| `VITE_ANDROID_APK_SIZE` | Peso exacto mostrado junto al botón |
+
+Si no hay una URL configurada, el botón de descarga permanece desactivado; la página no anuncia un APK que todavía no está publicado. Configura las tres variables en el entorno de producción de Cloudflare Pages y vuelve a desplegar para habilitar la descarga.
+
+La URL para el QR de la presentación es `https://maquitrace.pages.dev/descargar`.
+
+## Build y lint
+
+```sh
+npm run build
+npm run lint
+```
