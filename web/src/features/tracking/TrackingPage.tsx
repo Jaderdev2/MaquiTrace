@@ -115,7 +115,30 @@ export const TrackingPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+
+    // Sondeo periódico cada 15 segundos para recibir en vivo las coordenadas GPS y novedades que el transportador transmite desde su celular
+    const interval = setInterval(() => {
+      if (!isDemoMode && token) {
+        fetchTripsApi(token)
+          .then((freshTrips) => {
+            if (freshTrips && freshTrips.length > 0) {
+              setTrips((prev) =>
+                freshTrips.map((fresh, idx) => {
+                  const existing = prev.find((p) => p.id === fresh.id);
+                  return {
+                    ...fresh,
+                    color: existing?.color || fresh.color || TRIP_PALETTE[idx % TRIP_PALETTE.length].primary,
+                  };
+                })
+              );
+            }
+          })
+          .catch(() => {});
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [loadData, isDemoMode, token]);
 
   // Alternar manualmente entre datos de demostración y datos de la nube
   const handleToggleDemoData = () => {

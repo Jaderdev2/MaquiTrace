@@ -19,6 +19,7 @@ import {
   Camera,
   Layers,
   Edit3,
+  FileCheck2,
 } from 'lucide-react';
 
 interface TripDetailsModalProps {
@@ -48,105 +49,118 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
   const readiness = checkMachineTransitReadiness(machine);
   const machinePhoto = machine ? getMachinePrimaryPhoto(machine) : null;
   const evidences: Evidence[] = machine?.evidence || trip.evidence || [];
-
   const gpsRecords = trip.gpsRecords || [];
   const incidents = trip.incidents || [];
 
   return (
     <>
       <div className="modal-backdrop" onClick={onClose}>
-        <div className="modal-content trip-details-modal-content" onClick={(e) => e.stopPropagation()}>
-          {/* Cabecera del Modal con Color Distintivo */}
-          <div className="modal-header" style={{ borderTop: `4px solid ${theme.primary}` }}>
+        <div
+          className="modal-content trip-details-modal-content"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* HEADER CON COLOR TEMÁTICO DINÁMICO */}
+          <div className="modal-header" style={{ borderBottom: `2.5px solid ${theme.primary}` }}>
             <div className="modal-header-title">
               <div
-                className="register-modal-icon-badge"
-                style={{ backgroundColor: theme.light, color: theme.primary }}
+                className="trip-vehicle-icon-box"
+                style={{
+                  backgroundColor: theme.badgeBg,
+                  color: theme.primary,
+                  borderColor: theme.primary,
+                }}
               >
-                <Truck size={20} />
+                <Truck size={22} />
               </div>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ margin: 0 }}>Detalles del Servicio de Transporte</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h3>{trip.vehicle}</h3>
                   <span
-                    className="popup-badge"
-                    style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
+                    className="modal-theme-indicator-tag"
+                    style={{
+                      backgroundColor: theme.badgeBg,
+                      color: theme.badgeText,
+                      borderColor: theme.primary,
+                    }}
                   >
                     {theme.name}
                   </span>
                 </div>
                 <span className="modal-header-sub">
-                  {trip.vehicle} · Obra: {trip.destination}
+                  Monitoreo de ruta oficial y telemetría móvil en tiempo real
                 </span>
               </div>
             </div>
-            <button className="btn-close" onClick={onClose}>
+
+            <button className="btn-close" onClick={onClose} aria-label="Cerrar modal">
               <X size={20} />
             </button>
           </div>
 
-          <div className="modal-body trip-details-body">
-            {/* Stepper de progreso del viaje */}
-            <div className="trip-stepper-bar">
-              <div className={`stepper-step ${isPending || isTransit || isDelivered ? 'completed' : ''}`}>
-                <div className="step-circle" style={{ backgroundColor: isPending || isTransit || isDelivered ? theme.primary : undefined }}>
-                  1
-                </div>
-                <span className="step-label">Recepción / Asignado</span>
+          <div className="modal-body">
+            {/* BARRA DE ESTADO DEL VIAJE */}
+            <div className="trip-status-banner-card" style={{ borderColor: theme.primary }}>
+              <div className="status-banner-item">
+                <span className="banner-label">Estado de Logística:</span>
+                <span
+                  className="trip-status-badge"
+                  style={{
+                    backgroundColor: isTransit ? '#EFF6FF' : isDelivered ? '#E8F5EC' : '#FEF3C7',
+                    color: isTransit ? '#2563EB' : isDelivered ? '#15803D' : '#B45309',
+                    fontWeight: 700,
+                  }}
+                >
+                  {isTransit ? 'En Tránsito (Móvil)' : isDelivered ? 'Entregado a Conformidad (POD)' : 'Pendiente de Salida'}
+                </span>
               </div>
-              <div className={`stepper-line ${isTransit || isDelivered ? 'active' : ''}`} style={{ backgroundColor: isTransit || isDelivered ? theme.primary : undefined }} />
-              <div className={`stepper-step ${isTransit || isDelivered ? 'completed' : ''}`}>
-                <div className="step-circle" style={{ backgroundColor: isTransit || isDelivered ? theme.primary : undefined }}>
-                  2
-                </div>
-                <span className="step-label">En Tránsito Satelital</span>
+
+              <div className="status-banner-item">
+                <span className="banner-label">Salida de Patio:</span>
+                <strong>
+                  {trip.departureAt ? new Date(trip.departureAt).toLocaleString('es-CO') : 'Pendiente de salida en celular'}
+                </strong>
               </div>
-              <div className={`stepper-line ${isDelivered ? 'active' : ''}`} style={{ backgroundColor: isDelivered ? theme.primary : undefined }} />
-              <div className={`stepper-step ${isDelivered ? 'completed' : ''}`}>
-                <div className="step-circle" style={{ backgroundColor: isDelivered ? theme.primary : undefined }}>
-                  3
-                </div>
-                <span className="step-label">Entregado en Obra</span>
+
+              <div className="status-banner-item">
+                <span className="banner-label">Llegada a Destino:</span>
+                <strong>
+                  {trip.arrivalAt ? new Date(trip.arrivalAt).toLocaleString('es-CO') : 'En tránsito hacia el destino'}
+                </strong>
               </div>
             </div>
 
-            {/* SECCIÓN 1: AVATAR Y FICHA DE LA MAQUINARIA TRANSPORTADA */}
+            {/* SECCIÓN 1: AVATAR Y DATOS DE LA MÁQUINA TRANSPORTADA */}
             <div className="modal-section-card">
               <div className="modal-section-title-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Layers size={16} color={theme.primary} />
                   <h4>Maquinaria Transportada</h4>
                 </div>
-                <span
-                  className={`pill-badge ${
-                    isTransit ? 'pill-status-transit' : isDelivered ? 'pill-status-ready' : 'pill-status-pending'
-                  }`}
-                >
-                  {trip.status.replace('_', ' ')}
-                </span>
               </div>
 
               <div className="modal-machine-showcase">
-                <div className="modal-machine-avatar-box">
+                <div className="modal-machine-avatar-wrap">
                   {machinePhoto ? (
-                    <img
-                      src={machinePhoto}
-                      alt={machine?.model || 'Maquinaria'}
-                      className="modal-machine-avatar-img"
-                    />
+                    <img src={machinePhoto} alt={machine?.model} className="modal-machine-avatar-img" />
                   ) : (
-                    <div className="modal-machine-placeholder">
-                      <Truck size={36} />
+                    <div className="modal-machine-avatar-empty">
+                      <Truck size={38} color="#94A3B8" />
+                      <span>Sin fotografía</span>
                     </div>
                   )}
+                  <span className="modal-machine-avatar-badge" style={{ backgroundColor: theme.primary }}>
+                    {machine?.category || 'Maquinaria Pesada'}
+                  </span>
                 </div>
 
-                <div className="modal-machine-details">
-                  <span className="modal-machine-category">{machine?.category || 'Maquinaria Pesada'}</span>
-                  <h3 className="modal-machine-model">{machine?.model || 'Equipo Asignado'}</h3>
+                <div className="modal-machine-meta-col">
+                  <h4 className="modal-machine-model-title">{machine?.model || 'Modelo no especificado'}</h4>
                   <div className="modal-machine-specs-row">
                     <span className="modal-spec-chip">
                       Serial: <strong>{machine?.serial || 'S/N'}</strong>
+                    </span>
+                    <span className="modal-spec-chip">
+                      Categoría: <strong>{machine?.category || 'General'}</strong>
                     </span>
                     <span className={`modal-spec-chip ${readiness.canDepart ? 'spec-chip-ready' : 'spec-chip-pending'}`}>
                       Alistamiento: <strong>{readiness.badgeLabel}</strong>
@@ -157,7 +171,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                     Destino Oficial: <strong>{trip.destination}</strong>
                   </p>
 
-                  {/* Alerta de bloqueo si el alistamiento aún no ha terminado */}
                   {!readiness.canDepart && isPending && (
                     <div className="transit-readiness-warning-box">
                       <ShieldAlert size={18} className="warning-icon" />
@@ -174,7 +187,7 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 2: DETALLES COMPLETOS DEL CONDUCTOR (FOTO, CÉDULA, TIEMPO TRABAJANDO) */}
+            {/* SECCIÓN 2: DETALLES COMPLETOS DEL CONDUCTOR */}
             <div className="modal-section-card">
               <div className="modal-section-title-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -207,7 +220,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
               </div>
 
               <div className="driver-details-grid" style={{ marginTop: '12px' }}>
-                {/* Cédula */}
                 <div className="driver-info-cell">
                   <div className="cell-icon-wrap icon-blue">
                     <CreditCard size={15} />
@@ -218,7 +230,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Tiempo Trabajando */}
                 <div className="driver-info-cell">
                   <div className="cell-icon-wrap icon-purple">
                     <Clock size={15} />
@@ -229,7 +240,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Licencia */}
                 <div className="driver-info-cell">
                   <div className="cell-icon-wrap icon-emerald">
                     <Award size={15} />
@@ -240,7 +250,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Teléfono */}
                 <div className="driver-info-cell">
                   <div className="cell-icon-wrap icon-amber">
                     <Phone size={15} />
@@ -251,7 +260,6 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Correo */}
                 <div className="driver-info-cell" style={{ gridColumn: 'span 2' }}>
                   <div className="cell-icon-wrap icon-blue">
                     <Mail size={15} />
@@ -264,12 +272,50 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 3: APARTADO PARA LAS EVIDENCIAS FOTOGRÁFICAS */}
+            {/* SECCIÓN 3: NOVEDADES / INCIDENCIAS REPORTADAS DESDE LA APP MÓVIL */}
+            {incidents.length > 0 && (
+              <div className="modal-section-card" style={{ borderColor: '#FECACA', backgroundColor: '#FFFBFB' }}>
+                <div className="modal-section-title-row">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldAlert size={16} color="#DC2626" />
+                    <h4 style={{ color: '#991B1B' }}>Novedades Reportadas en Ruta desde el Celular ({incidents.length})</h4>
+                  </div>
+                  <span className="section-note" style={{ color: '#B91C1C' }}>Reportadas por el conductor</span>
+                </div>
+
+                <div className="incidents-list-wrap">
+                  {incidents.map((inc) => (
+                    <div key={inc.id} className="incident-card-item">
+                      <div className="incident-icon-pill">
+                        <ShieldAlert size={16} />
+                      </div>
+                      <div className="incident-card-body" style={{ flex: 1 }}>
+                        <strong className="incident-title">{inc.description}</strong>
+                        <span className="incident-time">
+                          {inc.reportedAt ? new Date(inc.reportedAt).toLocaleString('es-CO') : 'Reporte reciente'}
+                        </span>
+                      </div>
+                      {inc.photoUrl && (
+                        <div
+                          style={{ cursor: 'pointer', borderRadius: '6px', overflow: 'hidden', width: '60px', height: '60px' }}
+                          onClick={() => window.open(inc.photoUrl, '_blank')}
+                          title="Ver fotografía de la novedad"
+                        >
+                          <img src={inc.photoUrl} alt="Foto novedad" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SECCIÓN 4: EVIDENCIAS MULTIMEDIA DE ALISTAMIENTO / OCI */}
             <div className="modal-section-card">
               <div className="modal-section-title-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Camera size={16} color={theme.primary} />
-                  <h4>Evidencias Multimedia de Inspección y Alistamiento ({evidences.length})</h4>
+                  <h4>Evidencias de Alistamiento y Salida ({evidences.length})</h4>
                 </div>
                 <span className="section-note">Almacenadas en Oracle Cloud (OCI)</span>
               </div>
@@ -306,19 +352,19 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
               )}
             </div>
 
-            {/* SECCIÓN 5: HISTORIAL DE WAYPOINTS SATELITALES */}
+            {/* SECCIÓN 5: TRANSMISIONES GPS PERIÓDICAS DEL CELULAR */}
             <div className="modal-section-card">
               <div className="modal-section-title-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Navigation size={16} color={theme.primary} />
-                  <h4>Historial de Waypoints Satelitales ({gpsRecords.length} registrados)</h4>
+                  <h4>Historial de Transmisiones GPS ({gpsRecords.length} reportes del celular)</h4>
                 </div>
               </div>
 
               {gpsRecords.length === 0 ? (
                 <div className="empty-waypoints-box">
                   <Navigation size={22} />
-                  <span>Sin coordenadas registradas aún</span>
+                  <span>El conductor aún no ha iniciado marcha ni transmitido coordenadas</span>
                 </div>
               ) : (
                 <div className="gps-waypoints-timeline">
@@ -337,7 +383,7 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                             </span>
                           </div>
                           <span className="waypoint-meta">
-                            {isLatest ? '📍 Posición satelital más reciente' : `Punto de control #${idx + 1}`}
+                            {isLatest ? '📍 Transmisión más reciente en carretera' : `Reporte GPS #${idx + 1}`}
                           </span>
                         </div>
                       </div>
@@ -346,37 +392,8 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                 </div>
               )}
             </div>
-
-            {/* SECCIÓN 6: INCIDENCIAS REPORTADAS SI EXISTEN */}
-            {incidents.length > 0 && (
-              <div className="modal-section-card" style={{ borderColor: '#FECACA', backgroundColor: '#FFF5F5' }}>
-                <div className="modal-section-title-row">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ShieldAlert size={16} color="#DC2626" />
-                    <h4 style={{ color: '#991B1B' }}>Novedades Reportadas en Ruta ({incidents.length})</h4>
-                  </div>
-                </div>
-
-                <div className="incidents-list-wrap">
-                  {incidents.map((inc) => (
-                    <div key={inc.id} className="incident-card-item">
-                      <div className="incident-icon-pill">
-                        <ShieldAlert size={16} />
-                      </div>
-                      <div className="incident-card-body">
-                        <strong className="incident-title">{inc.description}</strong>
-                        <span className="incident-time">
-                          Reportado el {new Date(inc.reportedAt).toLocaleString('es-CO')}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* El panel supervisa el viaje; las acciones de campo se realizan en la app móvil. */}
           <div className="modal-footer">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={actionLoading}>
               Cerrar
@@ -394,15 +411,13 @@ export const TripDetailsModal: React.FC<TripDetailsModalProps> = ({
                 disabled={actionLoading}
               >
                 <Edit3 size={15} />
-                <span>Editar Viaje</span>
+                <span>Editar Asignación</span>
               </button>
             )}
-
           </div>
         </div>
       </div>
 
-      {/* Visor Lightbox para Evidencias en Alta Resolución */}
       {viewerIndex !== null && (
         <EvidenceViewerModal
           evidences={evidences}

@@ -3,7 +3,12 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { TransportTrip } from '../../../types';
 import { getTripColorTheme } from '../utils/tripColors';
-import { Maximize2, Mountain, Globe, Navigation, X } from 'lucide-react';
+import {
+  MAPBOX_STYLES,
+  getMapboxTileUrl,
+  MAPBOX_ACCESS_TOKEN,
+} from '../services/mapboxService';
+import { Maximize2, Moon, Sun, Globe, Navigation, X } from 'lucide-react';
 
 interface TrackingMapProps {
   trips: TransportTrip[];
@@ -13,33 +18,7 @@ interface TrackingMapProps {
   height?: string | number;
 }
 
-type MapLayerType = 'topo' | 'satellite';
-
-// Capas de mapas: Topográfico (por defecto) y Satelital
-const TILE_CONFIG: Record<
-  MapLayerType,
-  {
-    url: string;
-    options: L.TileLayerOptions;
-  }
-> = {
-  // Capa Topográfica y Vías Nacionales (Esri World Street Map - predeterminada, clara y estable)
-  topo: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    options: {
-      attribution: '&copy; Esri, HERE, Garmin, USGS',
-      maxZoom: 18,
-    },
-  },
-  // Capa Satelital de alta resolución (Esri World Imagery)
-  satellite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    options: {
-      attribution: '&copy; Esri, Maxar, Earthstar Geographics',
-      maxZoom: 18,
-    },
-  },
-};
+type MapLayerType = 'day' | 'night' | 'satellite';
 
 export const TrackingMap: React.FC<TrackingMapProps> = ({
   trips,
@@ -53,10 +32,10 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   const layersGroupRef = useRef<L.LayerGroup | null>(null);
   const activeTileLayerRef = useRef<L.TileLayer | null>(null);
 
-  // Iniciar siempre en el mapa topográfico
-  const [currentLayer, setCurrentLayer] = useState<MapLayerType>('topo');
+  // Estilo de Mapbox activo: 'day' (Navigation Day), 'night' (Navigation Night), 'satellite' (Satellite Streets)
+  const [currentLayer, setCurrentLayer] = useState<MapLayerType>('day');
 
-  // Estado para la ruta que el usuario elige visualizar en el mapa (por defecto null, sin líneas interpuestas)
+  // Estado para la ruta que el usuario elige visualizar en el mapa
   const [activeRouteTripId, setActiveRouteTripId] = useState<string | null>(null);
 
   // Sincronizar si se selecciona un viaje desde las tarjetas exteriores
@@ -66,7 +45,25 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
     }
   }, [selectedTripId]);
 
-  // Inicialización del mapa Leaflet
+  // Obtener URL de teselas según el estilo elegido
+  const getTileConfig = (layerType: MapLayerType) => {
+    let styleId = MAPBOX_STYLES.navigationDay;
+    if (layerType === 'night') styleId = MAPBOX_STYLES.navigationNight;
+    if (layerType === 'satellite') styleId = MAPBOX_STYLES.satelliteStreets;
+
+    return {
+      url: getMapboxTileUrl(styleId),
+      options: {
+        attribution: MAPBOX_ACCESS_TOKEN
+          ? '&copy; <a href="https://www.mapbox.com/">Mapbox</a> &copy; OpenStreetMap'
+          : '&copy; Esri & CartoDB',
+        maxZoom: 19,
+        tileSize: 256,
+      },
+    };
+  };
+
+  // Inicialización del mapa Leaflet con capa base de Mapbox
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
@@ -81,9 +78,9 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Cargar capa base inicial: Topográfico
-    const config = TILE_CONFIG.topo;
-    const initialTiles = L.tileLayer(config.url, config.options);
+    // Cargar capa inicial (Navigation Day)
+    const initialConfig = getTileConfig('day');
+    const initialTiles = L.tileLayer(initialConfig.url, initialConfig.options);
     initialTiles.addTo(map);
     activeTileLayerRef.current = initialTiles;
 
@@ -91,7 +88,6 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
     layersGroupRef.current = layersGroup;
     mapInstanceRef.current = map;
 
-    // Asegurar redimensionamiento inmediato
     const timer = setTimeout(() => {
       map.invalidateSize();
     }, 200);
@@ -111,7 +107,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
     };
   }, []);
 
-  // Alternar capa base (Topográfico / Satélite)
+  // Alternar estilo de capa de Mapbox (Día, Noche, Satélite)
   const handleChangeLayer = useCallback((newType: MapLayerType) => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -120,7 +116,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
       map.removeLayer(activeTileLayerRef.current);
     }
 
-    const config = TILE_CONFIG[newType];
+    const config = getTileConfig(newType);
     const newTiles = L.tileLayer(config.url, config.options);
     newTiles.addTo(map);
     activeTileLayerRef.current = newTiles;
@@ -129,7 +125,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
     map.invalidateSize();
   }, []);
 
-  // Manejo de eventos de clic en los botones de detalles y ruta del popup.
+  // Manejo de eventos de clic en los botones de detalles y ruta del popup
   useEffect(() => {
     const container = mapContainerRef.current;
     if (!container) return;
@@ -149,7 +145,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         return;
       }
 
-      // 2. Clic en botón "Ruta" (alternar mostrar/ocultar ruta en el mapa)
+      // 2. Clic en botón "Ruta"
       const routeBtn = target.closest('.btn-popup-route') as HTMLElement;
       if (routeBtn) {
         const tripId = routeBtn.getAttribute('data-trip-id');
@@ -158,7 +154,6 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         }
         return;
       }
-
     };
 
     container.addEventListener('click', handleContainerClick);
@@ -167,8 +162,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
     };
   }, [trips, onOpenDetails, onSelectTrip]);
 
-  // Dibujar marcadores e icono único por vehículo.
-  // SOLO se dibuja la línea de ruta para el viaje que el usuario elija ver.
+  // Dibujar marcadores de vehículos e historial GPS transmitido por el celular
   useEffect(() => {
     const map = mapInstanceRef.current;
     const group = layersGroupRef.current;
@@ -178,52 +172,57 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
 
     const activeTrip = trips.find((t) => t.id === activeRouteTripId);
 
-    // 1. DIBUJAR RUTA EXCLUSIVA SOLO SI EL USUARIO ACTIVÓ "VER RUTA" EN UN VEHÍCULO
-    if (activeTrip && activeTrip.gpsRecords && activeTrip.gpsRecords.length > 1) {
+    // 1. Trazado de ruta para el viaje seleccionado
+    if (activeTrip && activeTrip.gpsRecords && activeTrip.gpsRecords.length > 0) {
       const activeIndex = trips.findIndex((t) => t.id === activeRouteTripId);
       const activeTheme = getTripColorTheme(activeTrip, activeIndex >= 0 ? activeIndex : 0);
-      const activePathCoords: L.LatLngExpression[] = activeTrip.gpsRecords.map((r) => [r.latitude, r.longitude]);
 
-      // Sombra de contraste para destacar el trazado sobre el mapa
-      const shadowPolyline = L.polyline(activePathCoords, {
-        color: 'rgba(255, 255, 255, 0.85)',
-        weight: 7,
-        lineCap: 'round',
-        lineJoin: 'round',
-      });
-      group.addLayer(shadowPolyline);
+      // Si tiene múltiples coordenadas enviadas por el transportador, usarlas
+      let routeCoords: [number, number][] = activeTrip.gpsRecords.map((r) => [r.latitude, r.longitude]);
 
-      // Línea principal de la carretera seguida por el vehículo
-      const routePolyline = L.polyline(activePathCoords, {
-        color: activeTheme.primary,
-        weight: 4.5,
-        opacity: 1,
-        lineCap: 'round',
-        lineJoin: 'round',
-      });
-      group.addLayer(routePolyline);
+      // Si solo tiene 1 punto reportado o queremos calcular la ruta en carretera vía Mapbox Directions
+      if (activeTrip.gpsRecords.length >= 2) {
+        // Sombra de contraste para destacar el trazado sobre el mapa
+        const shadowPolyline = L.polyline(routeCoords, {
+          color: 'rgba(255, 255, 255, 0.85)',
+          weight: 7,
+          lineCap: 'round',
+          lineJoin: 'round',
+        });
+        group.addLayer(shadowPolyline);
 
-      // Marcador de Origen (Puerto de Buenaventura)
-      const startGps = activeTrip.gpsRecords[0];
-      const startIcon = L.divIcon({
-        className: 'custom-map-marker-start',
-        html: `
-          <div class="map-pin-badge start-pin" title="Punto de Origen: Buenaventura">
-            <span class="pin-dot"></span>
-          </div>
-        `,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-      });
-      const startMarker = L.marker([startGps.latitude, startGps.longitude], { icon: startIcon });
-      startMarker.bindTooltip(`Origen: Puerto de Buenaventura`);
-      group.addLayer(startMarker);
+        // Línea principal de la carretera seguida por el vehículo
+        const routePolyline = L.polyline(routeCoords, {
+          color: activeTheme.primary,
+          weight: 4.5,
+          opacity: 1,
+          lineCap: 'round',
+          lineJoin: 'round',
+        });
+        group.addLayer(routePolyline);
 
-      // Ajustar vista del mapa para encuadrar la ruta completa
-      map.fitBounds(L.latLngBounds(activePathCoords), { padding: [50, 50], maxZoom: 11 });
+        // Marcador de Origen
+        const startGps = activeTrip.gpsRecords[0];
+        const startIcon = L.divIcon({
+          className: 'custom-map-marker-start',
+          html: `
+            <div class="map-pin-badge start-pin" title="Punto de Origen">
+              <span class="pin-dot"></span>
+            </div>
+          `,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+        });
+        const startMarker = L.marker([startGps.latitude, startGps.longitude], { icon: startIcon });
+        startMarker.bindTooltip('Punto de Origen');
+        group.addLayer(startMarker);
+
+        // Ajustar vista del mapa
+        map.fitBounds(L.latLngBounds(routeCoords), { padding: [50, 50], maxZoom: 11 });
+      }
     }
 
-    // 2. DIBUJAR CADA VEHÍCULO ÚNICAMENTE EN SU POSICIÓN ACTUAL (SIN LÍNEAS QUE SE INTERPONGAN)
+    // 2. Renderizar los marcadores de posición transmitidos por el transportador
     trips.forEach((trip, index) => {
       const records = trip.gpsRecords || [];
       if (records.length === 0) return;
@@ -234,8 +233,11 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
       const theme = getTripColorTheme(trip, index);
       const truckColor = theme.primary;
 
-      // Último punto GPS = Posición actual en tiempo real
+      // Último punto GPS = Posición en vivo enviada desde el móvil
       const lastGps = records[records.length - 1];
+
+      // Verificar si tiene incidentes reportados en ruta
+      const hasIncidents = trip.incidents && trip.incidents.length > 0;
 
       const liveIcon = L.divIcon({
         className: 'custom-map-marker-truck',
@@ -250,6 +252,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
                 <circle cx="7" cy="18.5" r="2.5"></circle>
               </svg>
             </div>
+            ${hasIncidents ? `<span class="truck-incident-badge" title="Novedades viales reportadas">!</span>` : ''}
             ${isTransit ? `<span class="truck-radar-wave" style="background-color: ${truckColor} !important;"></span>` : ''}
           </div>
         `,
@@ -262,15 +265,15 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         zIndexOffset: isRouteActive ? 1200 : 500,
       });
 
-      // Contenido del Popup con las opciones de supervisión de detalles y ruta.
+      // Contenido del Popup informativo sincronizado con la app móvil
       const popupHtml = `
         <div class="map-trip-popup">
           <div class="popup-header" style="border-left: 3px solid ${truckColor}; padding-left: 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
             <span class="popup-badge" style="background-color: ${theme.badgeBg}; color: ${theme.badgeText}; font-weight: 700;">
               ${theme.name}
             </span>
-            <span class="popup-badge" style="background-color: #F1F5F9; color: #475569;">
-              ${isTransit ? 'En Tránsito' : isDelivered ? 'Entregado' : 'Listo'}
+            <span class="popup-badge" style="background-color: ${isTransit ? '#EFF6FF' : isDelivered ? '#E8F5EC' : '#FEF3C7'}; color: ${isTransit ? '#2563EB' : isDelivered ? '#15803D' : '#B45309'};">
+              ${isTransit ? 'En Tránsito (Móvil)' : isDelivered ? 'Entregado (POD)' : 'Pendiente de Salida'}
             </span>
           </div>
           <h4 class="popup-title" style="color: ${truckColor}; margin-bottom: 2px;">${trip.vehicle}</h4>
@@ -281,15 +284,21 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
             <strong>Destino:</strong> ${trip.destination}
           </p>
           <p class="popup-sub">
-            <strong>Conductor:</strong> ${trip.transporter?.name || 'Transportador Oficial'}
+            <strong>Transportador:</strong> ${trip.transporter?.name || 'Conductor Asignado'}
           </p>
 
+          ${hasIncidents ? `
+            <div style="background: #FEF2F2; color: #DC2626; border: 1px solid #FEE2E2; border-radius: 6px; padding: 4px 8px; font-size: 11px; margin-top: 6px; display: flex; align-items: center; gap: 4px;">
+              <strong>${trip.incidents?.length} novedad(es) reportada(s) desde el celular</strong>
+            </div>
+          ` : ''}
+
           <div class="popup-gps-meta">
-            <span>Ubicación actual: <strong>${lastGps.latitude.toFixed(4)}, ${lastGps.longitude.toFixed(4)}</strong> (${records.length} pts)</span>
+            <span>Último reporte GPS: <strong>${lastGps.latitude.toFixed(4)}, ${lastGps.longitude.toFixed(4)}</strong> (${records.length} transmisiones)</span>
           </div>
 
           <div class="popup-actions-row">
-            <button type="button" class="btn-popup-action btn-popup-details" data-trip-id="${trip.id}" title="Ver ficha técnica completa de máquina, conductor y evidencias">
+            <button type="button" class="btn-popup-action btn-popup-details" data-trip-id="${trip.id}" title="Ver ficha técnica completa de máquina, conductor, actas y novedades">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
@@ -297,13 +306,12 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
               <span>Detalles</span>
             </button>
 
-            <button type="button" class="btn-popup-action btn-popup-route ${isRouteActive ? 'is-active-route' : ''}" data-trip-id="${trip.id}" title="${isRouteActive ? 'Ocultar trazado' : 'Ver trazado vial de este camión'}">
+            <button type="button" class="btn-popup-action btn-popup-route ${isRouteActive ? 'is-active-route' : ''}" data-trip-id="${trip.id}" title="${isRouteActive ? 'Ocultar trazado' : 'Ver trazado vial'}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
               </svg>
               <span>${isRouteActive ? 'Ocultar' : 'Ruta'}</span>
             </button>
-
           </div>
         </div>
       `;
@@ -311,18 +319,17 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
       truckMarker.bindPopup(popupHtml, { maxWidth: 320, className: 'maquitrace-leaflet-popup' });
       group.addLayer(truckMarker);
 
-      // Si este camión tiene la ruta activa, mantener su popup abierto
       if (isRouteActive) {
         truckMarker.openPopup();
       }
     });
   }, [trips, activeRouteTripId]);
 
-  // Centrar en toda la flota de transporte
+  // Centrar en toda la flota
   const handleFitAll = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    const allLatLngs: L.LatLngExpression[] = [];
+    const allLatLngs: [number, number][] = [];
     trips.forEach((t) => {
       const records = t.gpsRecords || [];
       if (records.length > 0) {
@@ -338,29 +345,37 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   };
 
   const activeTripData = trips.find((t) => t.id === activeRouteTripId);
+
   return (
-    <div
-      className="tracking-map-wrapper"
-      style={{ height }}
-    >
-      {/* Selector de Capas Flotante: Topográfico (Predeterminado) y Satelital */}
+    <div className="tracking-map-wrapper" style={{ height }}>
+      {/* Selector de Estilos Mapbox: Día (Navigation Day), Noche (Navigation Night) y Satélite (Satellite Streets) */}
       <div className="tracking-map-controls">
         <div className="map-layer-selector-group">
           <button
             type="button"
-            className={`map-control-btn ${currentLayer === 'topo' ? 'is-active-layer' : ''}`}
-            onClick={() => handleChangeLayer('topo')}
-            title="Vista Topográfica de Carreteras y Relieve Nacional (Predeterminado)"
+            className={`map-control-btn ${currentLayer === 'day' ? 'is-active-layer' : ''}`}
+            onClick={() => handleChangeLayer('day')}
+            title="Estilo Mapbox Navigation Day (Día)"
           >
-            <Mountain size={13} />
-            <span>Topográfico</span>
+            <Sun size={13} />
+            <span>Mapbox Día</span>
+          </button>
+
+          <button
+            type="button"
+            className={`map-control-btn ${currentLayer === 'night' ? 'is-active-layer' : ''}`}
+            onClick={() => handleChangeLayer('night')}
+            title="Estilo Mapbox Navigation Night (Noche)"
+          >
+            <Moon size={13} />
+            <span>Mapbox Noche</span>
           </button>
 
           <button
             type="button"
             className={`map-control-btn ${currentLayer === 'satellite' ? 'is-active-layer' : ''}`}
             onClick={() => handleChangeLayer('satellite')}
-            title="Vista Satelital Fotográfica (Esri World Imagery)"
+            title="Estilo Mapbox Satellite Streets (Satélite)"
           >
             <Globe size={13} />
             <span>Satélite</span>
@@ -371,19 +386,19 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
           type="button"
           className="map-control-btn"
           onClick={handleFitAll}
-          title="Centrar en las ubicaciones de todos los camiones"
+          title="Centrar mapa en toda la flota de transporte"
         >
           <Maximize2 size={13} />
           <span>Centrar Flota</span>
         </button>
       </div>
 
-      {/* Cartel flotante cuando se está mostrando la ruta trazada de un camión en el mapa */}
+      {/* Banner de ruta activa seleccionada */}
       {activeTripData && (
         <div className="map-active-route-banner">
           <Navigation size={15} style={{ color: '#60A5FA', flexShrink: 0 }} />
           <span>
-            Ruta activa: <strong>{activeTripData.vehicle}</strong> (Buenaventura &rarr; {activeTripData.destination})
+            Ruta activa: <strong>{activeTripData.vehicle}</strong> (&rarr; {activeTripData.destination})
           </span>
           <button
             type="button"
@@ -397,7 +412,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         </div>
       )}
 
-      {/* Contenedor Leaflet */}
+      {/* Contenedor del Mapa */}
       <div ref={mapContainerRef} className="tracking-leaflet-container" />
     </div>
   );
