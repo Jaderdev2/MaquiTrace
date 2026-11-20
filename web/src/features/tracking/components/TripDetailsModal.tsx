@@ -19,7 +19,6 @@ import {
   Camera,
   Layers,
   Edit3,
-  FileCheck2,
 } from 'lucide-react';
 
 interface TripDetailsModalProps {
