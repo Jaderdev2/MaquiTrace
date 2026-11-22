@@ -1,6 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { MachineStatus, PhaseName, PhaseStatus } from '@prisma/client';
+import { notifyAdmins } from "../notifications/notification-events";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { MachineStatus, PhaseName, PhaseStatus } from "@prisma/client";
 
 export interface UpdatePhaseDto {
   status: PhaseStatus;
@@ -34,15 +39,30 @@ export class PreparationPhasesService {
     // Si la máquina no tiene fases aún, inicializar automáticamente las 3 oficiales
     if (phases.length === 0) {
       const defaultOperator = await this.prisma.user.findFirst({
-        where: { role: { name: 'operario' } },
+        where: { role: { name: "operario" } },
       });
 
       if (defaultOperator) {
         await this.prisma.preparationPhase.createMany({
           data: [
-            { machineId, name: PhaseName.ensamblaje, status: PhaseStatus.pendiente, operatorId: defaultOperator.id },
-            { machineId, name: PhaseName.lavado, status: PhaseStatus.pendiente, operatorId: defaultOperator.id },
-            { machineId, name: PhaseName.pintura, status: PhaseStatus.pendiente, operatorId: defaultOperator.id },
+            {
+              machineId,
+              name: PhaseName.ensamblaje,
+              status: PhaseStatus.pendiente,
+              operatorId: defaultOperator.id,
+            },
+            {
+              machineId,
+              name: PhaseName.lavado,
+              status: PhaseStatus.pendiente,
+              operatorId: defaultOperator.id,
+            },
+            {
+              machineId,
+              name: PhaseName.pintura,
+              status: PhaseStatus.pendiente,
+              operatorId: defaultOperator.id,
+            },
           ],
         });
 
@@ -60,7 +80,9 @@ export class PreparationPhasesService {
       [PhaseName.pintura]: 3,
     };
 
-    return phases.sort((a, b) => (orderMap[a.name] ?? 99) - (orderMap[b.name] ?? 99));
+    return phases.sort(
+      (a, b) => (orderMap[a.name] ?? 99) - (orderMap[b.name] ?? 99),
+    );
   }
 
   async createPhase(dto: CreatePhaseDto) {
@@ -85,14 +107,17 @@ export class PreparationPhasesService {
     }
 
     // Regla de Negocio: Restricción de avance secuencial (1. Ensamblaje -> 2. Lavado -> 3. Pintura)
-    if (dto.status === PhaseStatus.en_proceso || dto.status === PhaseStatus.completada) {
+    if (
+      dto.status === PhaseStatus.en_proceso ||
+      dto.status === PhaseStatus.completada
+    ) {
       if (phase.name === PhaseName.lavado) {
         const ensamblaje = await this.prisma.preparationPhase.findFirst({
           where: { machineId: phase.machineId, name: PhaseName.ensamblaje },
         });
         if (ensamblaje && ensamblaje.status !== PhaseStatus.completada) {
           throw new BadRequestException(
-            'Restricción de avance: La fase de Ensamblaje debe estar completada antes de iniciar o completar Lavado.',
+            "Restricción de avance: La fase de Ensamblaje debe estar completada antes de iniciar o completar Lavado.",
           );
         }
       } else if (phase.name === PhaseName.pintura) {
@@ -101,7 +126,7 @@ export class PreparationPhasesService {
         });
         if (lavado && lavado.status !== PhaseStatus.completada) {
           throw new BadRequestException(
-            'Restricción de avance: La fase de Lavado debe estar completada antes de iniciar o completar Pintura.',
+            "Restricción de avance: La fase de Lavado debe estar completada antes de iniciar o completar Pintura.",
           );
         }
       }
@@ -110,41 +135,62 @@ export class PreparationPhasesService {
     const completedAt =
       dto.status === PhaseStatus.completada ? new Date() : phase.completedAt;
     const startedAt =
-      dto.status === PhaseStatus.en_proceso && !phase.startedAt ? new Date() : phase.startedAt;
+      dto.status === PhaseStatus.en_proceso && !phase.startedAt
+        ? new Date()
+        : phase.startedAt;
 
-    const updated = await this.prisma.preparationPhase.update({
-      where: { id: phaseId },
-      data: {
-        status: dto.status,
-        observations: dto.observations !== undefined ? dto.observations : phase.observations,
-        startedAt,
-        completedAt,
-      },
-      include: { operator: true, evidence: true },
-    });
-
-    // Actualizar estado general de la máquina si todas las fases quedan completadas
-    if (dto.status === PhaseStatus.completada) {
-      const pendingCount = await this.prisma.preparationPhase.count({
-        where: {
-          machineId: phase.machineId,
-          status: { not: PhaseStatus.completada },
+    return this.prisma.$transaction(async (transaction) => {
+      const updated = await transaction.preparationPhase.update({
+        where: { id: phaseId },
+        data: {
+          status: dto.status,
+          observations:
+            dto.observations !== undefined
+              ? dto.observations
+              : phase.observations,
+          startedAt,
+          completedAt,
         },
+        include: { operator: true, evidence: true },
       });
 
-      if (pendingCount === 0) {
-        await this.prisma.machine.update({
+      // Actualizar estado general de la máquina si todas las fases quedan completadas
+      if (dto.status === PhaseStatus.completada) {
+        const pendingCount = await transaction.preparationPhase.count({
+          where: {
+            machineId: phase.machineId,
+            status: { not: PhaseStatus.completada },
+          },
+        });
+
+        if (pendingCount === 0) {
+          const transition = await transaction.machine.updateMany({
+            where: {
+              id: phase.machineId,
+              status: { not: MachineStatus.completada },
+            },
+            data: { status: MachineStatus.completada },
+          });
+          if (transition.count > 0) {
+            const machine = await transaction.machine.findUniqueOrThrow({
+              where: { id: phase.machineId },
+            });
+            await notifyAdmins(transaction, {
+              type: "preparation_completed",
+              title: "Alistamiento completado",
+              message: `La máquina ${machine.serial} completó el alistamiento.`,
+              machineId: machine.id,
+            });
+          }
+        }
+      } else if (dto.status === PhaseStatus.en_proceso) {
+        await transaction.machine.update({
           where: { id: phase.machineId },
-          data: { status: MachineStatus.completada },
+          data: { status: MachineStatus.en_proceso },
         });
       }
-    } else if (dto.status === PhaseStatus.en_proceso) {
-      await this.prisma.machine.update({
-        where: { id: phase.machineId },
-        data: { status: MachineStatus.en_proceso },
-      });
-    }
 
-    return updated;
+      return updated;
+    });
   }
 }

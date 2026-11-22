@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { OciStorageService } from '../evidence/oci-storage.service';
-import { UploadedFileDto } from '../evidence/evidence.types';
+import { notifyAdmins } from "../notifications/notification-events";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { OciStorageService } from "../evidence/oci-storage.service";
+import { UploadedFileDto } from "../evidence/evidence.types";
 
 export interface ReportIncidentDto {
   description: string;
@@ -25,29 +26,43 @@ export class IncidentsService {
       where: { id: tripId, transporterId },
       select: { id: true },
     });
-    if (!assignedTrip) throw new NotFoundException('Viaje asignado no encontrado');
+    if (!assignedTrip)
+      throw new NotFoundException("Viaje asignado no encontrado");
 
     let finalPhotoUrl = dto.photoUrl;
 
     if (file) {
-      const { url } = await this.ociStorage.uploadFile(file, `incidencias/${tripId}`);
+      const { url } = await this.ociStorage.uploadFile(
+        file,
+        `incidencias/${tripId}`,
+      );
       finalPhotoUrl = url;
     }
 
-    return this.prisma.incident.create({
-      data: {
+    return this.prisma.$transaction(async (transaction) => {
+      const incident = await transaction.incident.create({
+        data: {
+          tripId,
+          description: dto.description,
+          photoUrl: finalPhotoUrl || null,
+        },
+        include: { trip: { include: { machine: true, transporter: true } } },
+      });
+      await notifyAdmins(transaction, {
+        type: "incident_reported",
+        title: "Novedad en ruta",
+        message: `Se reportó una novedad para la máquina ${incident.trip.machine.serial}.`,
+        machineId: incident.trip.machineId,
         tripId,
-        description: dto.description,
-        photoUrl: finalPhotoUrl || null,
-      },
-      include: { trip: { include: { machine: true, transporter: true } } },
+      });
+      return incident;
     });
   }
 
   async findByTrip(tripId: string) {
     return this.prisma.incident.findMany({
       where: { tripId },
-      orderBy: { reportedAt: 'desc' },
+      orderBy: { reportedAt: "desc" },
     });
   }
 }

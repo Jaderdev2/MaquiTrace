@@ -59,6 +59,7 @@ model User {
   evidenceUploads   Evidence[]         @relation("EvidenceUploader")
   transportTrips    TransportTrip[]    @relation("TripTransporter")
   createdAt         DateTime           @default(now())
+  notifications     Notification[]
 
   @@map("usuarios")
 }
@@ -154,4 +155,21 @@ model Incident {
   reportedAt  DateTime      @default(now())
 
   @@map("incidencias")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  machineId String?
+  tripId    String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notificaciones")
 }

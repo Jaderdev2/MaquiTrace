@@ -1,13 +1,14 @@
+import { notifyAdmins } from "../notifications/notification-events";
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
-} from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { MachineStatus, TripStatus } from '@prisma/client';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { MachineStatus, TripStatus } from "@prisma/client";
+import { IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class ReceiveTransportDto {
   @IsString()
@@ -47,19 +48,26 @@ export class TransportService {
   // El administrador asigna un conductor y programa el despacho.
   async receiveMachine(machineId: string, dto: ReceiveTransportDto) {
     if (!dto.transporterId?.trim()) {
-      throw new BadRequestException('Debes asignar un transportador al viaje');
+      throw new BadRequestException("Debes asignar un transportador al viaje");
     }
 
     const transporter = await this.prisma.user.findFirst({
-      where: { id: dto.transporterId, role: { name: 'transportador' } },
+      where: { id: dto.transporterId, role: { name: "transportador" } },
     });
     if (!transporter) {
-      throw new BadRequestException('El usuario seleccionado no tiene el rol de transportador');
+      throw new BadRequestException(
+        "El usuario seleccionado no tiene el rol de transportador",
+      );
     }
 
     return this.prisma.$transaction(async (transaction) => {
-      const machine = await transaction.machine.findUnique({ where: { id: machineId } });
-      if (!machine) throw new NotFoundException(`Máquina con ID ${machineId} no encontrada`);
+      const machine = await transaction.machine.findUnique({
+        where: { id: machineId },
+      });
+      if (!machine)
+        throw new NotFoundException(
+          `Máquina con ID ${machineId} no encontrada`,
+        );
 
       const existingTrip = await transaction.transportTrip.findFirst({
         where: {
@@ -68,7 +76,9 @@ export class TransportService {
         },
       });
       if (existingTrip) {
-        throw new ConflictException('La máquina ya tiene un viaje activo asignado');
+        throw new ConflictException(
+          "La máquina ya tiene un viaje activo asignado",
+        );
       }
 
       const trip = await transaction.transportTrip.create({
@@ -87,13 +97,24 @@ export class TransportService {
         data: { status: MachineStatus.en_proceso },
       });
 
+      await transaction.notification.create({
+        data: {
+          userId: trip.transporterId,
+          type: "trip_assigned",
+          title: "Viaje asignado",
+          message: `Se te asignó el traslado de la máquina ${machine.serial}.`,
+          machineId,
+          tripId: trip.id,
+        },
+      });
       return trip;
     });
   }
 
   // El conductor solo puede iniciar un viaje que le fue asignado.
   async markDeparture(machineId: string, transporterId: string) {
-    if (!transporterId) throw new UnauthorizedException('No se pudo identificar al conductor');
+    if (!transporterId)
+      throw new UnauthorizedException("No se pudo identificar al conductor");
 
     return this.prisma.$transaction(async (transaction) => {
       const activeTrip = await transaction.transportTrip.findFirst({
@@ -102,11 +123,13 @@ export class TransportService {
           transporterId,
           status: TripStatus.pendiente,
         },
-        orderBy: { id: 'desc' },
+        orderBy: { id: "desc" },
       });
 
       if (!activeTrip) {
-        throw new NotFoundException(`No hay viaje pendiente asignado para la máquina ${machineId}`);
+        throw new NotFoundException(
+          `No hay viaje pendiente asignado para la máquina ${machineId}`,
+        );
       }
 
       const transition = await transaction.transportTrip.updateMany({
@@ -121,7 +144,9 @@ export class TransportService {
         },
       });
       if (!transition.count) {
-        throw new ConflictException('El viaje ya fue iniciado o cambió de asignación');
+        throw new ConflictException(
+          "El viaje ya fue iniciado o cambió de asignación",
+        );
       }
 
       await transaction.machine.update({
@@ -129,6 +154,16 @@ export class TransportService {
         data: { status: MachineStatus.en_transito },
       });
 
+      const machine = await transaction.machine.findUniqueOrThrow({
+        where: { id: machineId },
+      });
+      await notifyAdmins(transaction, {
+        type: "trip_departed",
+        title: "Viaje iniciado",
+        message: `La máquina ${machine.serial} inició su traslado.`,
+        machineId,
+        tripId: activeTrip.id,
+      });
       return transaction.transportTrip.findUnique({
         where: { id: activeTrip.id },
         include: { machine: true, transporter: true },
@@ -138,7 +173,8 @@ export class TransportService {
 
   // El conductor solo puede cerrar un viaje que le fue asignado.
   async markDelivered(machineId: string, transporterId: string) {
-    if (!transporterId) throw new UnauthorizedException('No se pudo identificar al conductor');
+    if (!transporterId)
+      throw new UnauthorizedException("No se pudo identificar al conductor");
 
     return this.prisma.$transaction(async (transaction) => {
       const activeTrip = await transaction.transportTrip.findFirst({
@@ -147,11 +183,13 @@ export class TransportService {
           transporterId,
           status: TripStatus.en_transito,
         },
-        orderBy: { id: 'desc' },
+        orderBy: { id: "desc" },
       });
 
       if (!activeTrip) {
-        throw new NotFoundException(`No hay viaje en tránsito asignado para la máquina ${machineId}`);
+        throw new NotFoundException(
+          `No hay viaje en tránsito asignado para la máquina ${machineId}`,
+        );
       }
 
       const transition = await transaction.transportTrip.updateMany({
@@ -166,7 +204,9 @@ export class TransportService {
         },
       });
       if (!transition.count) {
-        throw new ConflictException('El viaje ya fue entregado o cambió de asignación');
+        throw new ConflictException(
+          "El viaje ya fue entregado o cambió de asignación",
+        );
       }
 
       await transaction.machine.update({
@@ -174,6 +214,16 @@ export class TransportService {
         data: { status: MachineStatus.entregada },
       });
 
+      const machine = await transaction.machine.findUniqueOrThrow({
+        where: { id: machineId },
+      });
+      await notifyAdmins(transaction, {
+        type: "trip_delivered",
+        title: "Viaje entregado",
+        message: `La máquina ${machine.serial} fue entregada.`,
+        machineId,
+        tripId: activeTrip.id,
+      });
       return transaction.transportTrip.findUnique({
         where: { id: activeTrip.id },
         include: { machine: true, transporter: true },
@@ -191,7 +241,7 @@ export class TransportService {
         transporter: true,
         gpsRecords: {
           take: 1,
-          orderBy: { recordedAt: 'desc' },
+          orderBy: { recordedAt: "desc" },
         },
       },
     });
@@ -205,11 +255,11 @@ export class TransportService {
         transporter: true,
         gpsRecords: {
           take: 1,
-          orderBy: { recordedAt: 'desc' },
+          orderBy: { recordedAt: "desc" },
         },
         incidents: true,
       },
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
     });
   }
 
@@ -224,11 +274,11 @@ export class TransportService {
         transporter: true,
         gpsRecords: {
           take: 1,
-          orderBy: { recordedAt: 'desc' },
+          orderBy: { recordedAt: "desc" },
         },
         incidents: true,
       },
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
     });
   }
 
@@ -238,7 +288,7 @@ export class TransportService {
       include: {
         machine: true,
         transporter: true,
-        gpsRecords: { orderBy: { recordedAt: 'asc' } },
+        gpsRecords: { orderBy: { recordedAt: "asc" } },
         incidents: true,
       },
     });
@@ -253,44 +303,72 @@ export class TransportService {
         machine: true,
         transporter: true,
         gpsRecords: {
-          orderBy: { recordedAt: 'asc' },
+          orderBy: { recordedAt: "asc" },
         },
         incidents: true,
       },
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
     });
   }
 
   // Solo el administrador actualiza la asignación y los datos de ruta.
-  async updateTrip(
-    id: string,
-    dto: UpdateTransportDto,
-  ) {
+  async updateTrip(id: string, dto: UpdateTransportDto) {
     const trip = await this.prisma.transportTrip.findUnique({ where: { id } });
     if (!trip) throw new NotFoundException(`Viaje con ID ${id} no encontrado`);
 
     if (dto.transporterId !== undefined) {
       const transporter = await this.prisma.user.findFirst({
-        where: { id: dto.transporterId, role: { name: 'transportador' } },
+        where: { id: dto.transporterId, role: { name: "transportador" } },
       });
       if (!transporter) {
-        throw new BadRequestException('El usuario seleccionado no tiene el rol de transportador');
+        throw new BadRequestException(
+          "El usuario seleccionado no tiene el rol de transportador",
+        );
       }
     }
 
-    return this.prisma.transportTrip.update({
-      where: { id },
-      data: {
-        ...(dto.destination !== undefined ? { destination: dto.destination } : {}),
-        ...(dto.vehicle !== undefined ? { vehicle: dto.vehicle } : {}),
-        ...(dto.transporterId !== undefined ? { transporterId: dto.transporterId } : {}),
-      },
-      include: {
-        machine: true,
-        transporter: true,
-        gpsRecords: { orderBy: { recordedAt: 'asc' } },
-        incidents: true,
-      },
+    return this.prisma.$transaction(async (transaction) => {
+      const updated = await transaction.transportTrip.update({
+        where: { id },
+        data: {
+          ...(dto.destination !== undefined
+            ? { destination: dto.destination }
+            : {}),
+          ...(dto.vehicle !== undefined ? { vehicle: dto.vehicle } : {}),
+          ...(dto.transporterId !== undefined
+            ? { transporterId: dto.transporterId }
+            : {}),
+        },
+        include: {
+          machine: true,
+          transporter: true,
+          gpsRecords: { orderBy: { recordedAt: "asc" } },
+          incidents: true,
+        },
+      });
+      if (dto.transporterId && dto.transporterId !== trip.transporterId) {
+        await transaction.notification.create({
+          data: {
+            userId: dto.transporterId,
+            type: "trip_assigned",
+            title: "Viaje asignado",
+            message: `Se te asignó el traslado de la máquina ${updated.machine.serial}.`,
+            machineId: trip.machineId,
+            tripId: trip.id,
+          },
+        });
+        await transaction.notification.create({
+          data: {
+            userId: trip.transporterId,
+            type: "trip_reassigned",
+            title: "Viaje reasignado",
+            message: `El traslado de la máquina ${updated.machine.serial} fue reasignado.`,
+            machineId: trip.machineId,
+            tripId: trip.id,
+          },
+        });
+      }
+      return updated;
     });
   }
 
