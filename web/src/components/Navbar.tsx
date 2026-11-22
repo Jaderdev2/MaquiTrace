@@ -1,3 +1,4 @@
+import { Notifications } from './Notifications';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -82,6 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       <div className="navbar-right">
+        <Notifications />
         {/* Perfil de Usuario con Menú Desplegable Reorganizado */}
         <div className="user-menu-wrapper" style={{ position: 'relative' }}>
           <button
