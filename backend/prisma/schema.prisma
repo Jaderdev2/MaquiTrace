@@ -60,6 +60,7 @@ model User {
   transportTrips    TransportTrip[]    @relation("TripTransporter")
   createdAt         DateTime           @default(now())
   notifications     Notification[]
+  pushDevices       PushDevice[]
 
   @@map("usuarios")
 }
@@ -167,9 +168,22 @@ model Notification {
   machineId String?
   tripId    String?
   readAt    DateTime?
+  pushProcessedAt DateTime?
+  pushClaimedAt DateTime?
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
   @@map("notificaciones")
+}
+
+model PushDevice {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("dispositivos_push")
 }

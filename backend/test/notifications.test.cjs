@@ -41,3 +41,38 @@ test('trip assignment writes notification inside its transaction', async () => {
   assert.equal(notices[0].userId, 'driver');
   assert.equal(notices[0].tripId, 'trip-1');
 });
+
+
+test('device registration follows the authenticated account and deletion is scoped', async () => {
+  let registration, deletion;
+  const prisma = { pushDevice: {
+    upsert: async args => { registration = args; },
+    deleteMany: async args => { deletion = args; },
+  } };
+  const controller = new NotificationsController(prisma);
+  const request = { user: { sub: 'account-a' } };
+  await controller.registerDevice(request, { token: 'device-token' });
+  await controller.unregisterDevice(request, { token: 'device-token' });
+  assert.equal(registration.create.userId, 'account-a');
+  assert.equal(registration.update.userId, 'account-a');
+  assert.deepEqual(deletion.where, { token: 'device-token', userId: 'account-a' });
+});
+
+
+test('push worker claims and finishes a notice even without registered devices', async () => {
+  const { PushService } = require('../dist/src/notifications/push.service');
+  const updates = [];
+  const prisma = {
+    notification: {
+      findMany: async () => [{ id: 'notice-1', userId: 'user-a' }],
+      updateMany: async args => { updates.push(args); return { count: 1 }; },
+    },
+    pushDevice: { findMany: async () => [] },
+  };
+  const service = new PushService(prisma);
+  service.enabled = true;
+  await service.process();
+  assert.equal(updates.length, 2);
+  assert.equal(updates[0].where.id, 'notice-1');
+  assert.ok(updates[1].data.pushProcessedAt instanceof Date);
+});
