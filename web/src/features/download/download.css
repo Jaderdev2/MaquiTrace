@@ -1,82 +1,434 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap');
 
+/* Paleta tomada de la foto: azul acero del cielo y la montaña, amarillo de la excavadora. */
 .download-page {
-  --download-blue: #2563eb;
-  --download-ink: #101c2c;
-  --download-muted: #475569;
+  --steel-950: #050e1a;
+  --steel-900: #08182b;
+  --amber: #ffc21a;
+  --ink: #0b1626;
+  --ink-soft: #4a5a70;
+  --paper: #f3f6fa;
+  --line: #c8d2de;
+  --gutter: max(22px, calc((100vw - 1200px) / 2));
+
   min-height: 100vh;
-  background: #f7f8fa;
-  color: var(--download-ink);
-  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Archivo', var(--font-sans, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
 }
-.download-page *, .download-page *::before, .download-page *::after { box-sizing: border-box; }
-.download-page h1, .download-page h2, .download-page h3, .download-page p, .download-page ol { margin: 0; }
-.download-page a:focus-visible, .download-page button:focus-visible { outline: 3px solid #f8c15b; outline-offset: 5px; }
+
+.download-page h1,
+.download-page h2,
+.download-page h3,
+.download-page p,
+.download-page ol {
+  margin: 0;
+}
+
+.download-page a:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+/* ───────── Hero: la foto manda ───────── */
 .download-hero {
   position: relative;
   isolation: isolate;
-  min-height: clamp(580px, 82svh, 790px);
   display: flex;
   flex-direction: column;
+  min-height: max(640px, 100svh);
   overflow: hidden;
-  color: white;
-  background: #0b1c2c url('../../assets/media/backgrounds/maqui_trace_download_hero.webp') center 60% / cover no-repeat;
+  padding: 0 var(--gutter);
+  color: #fff;
+  background: var(--steel-900);
 }
+
+/* Si tu archivo es .jpg o .webp, cambia la extensión aquí. */
 .download-hero::before {
   content: '';
   position: absolute;
-  z-index: -1;
   inset: 0;
-  background: linear-gradient(90deg, rgba(5,17,31,.96) 0%, rgba(5,17,31,.86) 34%, rgba(5,17,31,.35) 68%, rgba(5,17,31,.1) 100%),
-    linear-gradient(180deg, rgba(5,17,31,.5) 0%, transparent 25%, rgba(5,17,31,.6) 100%);
+  z-index: -2;
+  background: url('../../assets/media/backgrounds/maqui_trace_download_hero.png') 68% center / cover no-repeat;
+  filter: saturate(1.12) contrast(1.05);
+  transform-origin: 70% 60%;
+  animation: download-settle 2.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-.download-header { width: min(100% - 112px, 1320px); margin: 0 auto; min-height: 100px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.download-brand { display: flex; align-items: center; flex-shrink: 0; }
-.download-brand img { display: block; width: 174px; height: auto; }
-.download-panel-link { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; color: white; text-decoration: none; font-size: 15px; font-weight: 700; }
-.download-panel-link:hover { color: #b7d2ff; }
-.download-hero-inner { width: min(100% - 112px, 1320px); flex: 1; margin: 0 auto; display: flex; flex-direction: column; }
-.download-copy { flex: 1; width: min(100%, 650px); padding: 110px 0 94px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
-.download-copy h1 { font-family: 'Manrope', system-ui, sans-serif; font-size: clamp(52px, 6vw, 88px); font-weight: 800; line-height: 1.06; letter-spacing: -.055em; }
-.download-copy h1 em { color: #9fc5ff; font-style: normal; }
-.download-description { max-width: 420px; margin-top: 25px !important; color: #e1e8f0; font-size: 17px; line-height: 1.7; }
-.download-actions { width: 100%; margin-top: 37px; }
-.download-primary { min-height: 58px; display: inline-flex; align-items: center; justify-content: center; gap: 13px; padding: 0 24px; border: 1px solid #2563eb; border-radius: 8px; background: #2563eb; color: white; text-decoration: none; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 140ms ease; }
-.download-primary:hover:not(:disabled) { background: #1d4ed8; }
-.download-primary:disabled { color: #fff; background: #475569; border-color: #64748b; cursor: not-allowed; }
-.download-install { background: #f7f8fa; }
-.download-install-inner { width: min(100% - 112px, 1200px); margin: 0 auto; padding: 112px 0; display: grid; grid-template-columns: .9fr 1.1fr; gap: 110px; }
-.download-install-heading h2 { max-width: 430px; font-family: 'Manrope', system-ui, sans-serif; font-size: clamp(36px, 4vw, 52px); line-height: 1.13; letter-spacing: -.05em; }
-.download-steps { padding: 0; list-style: none; border-top: 1px solid #cfd8e4; }
-.download-steps li { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 18px; padding: 25px 0; border-bottom: 1px solid #cfd8e4; }
-.download-step-number { padding-top: 3px; color: #2457b5; font-family: 'Manrope', system-ui, sans-serif; font-size: 14px; font-weight: 800; }
-.download-steps h3 { font-family: 'Manrope', system-ui, sans-serif; font-size: 19px; font-weight: 800; }
-.download-steps p { max-width: 400px; margin-top: 8px; color: var(--download-muted); font-size: 15px; line-height: 1.65; }
-.download-footer { min-height: 100px; padding: 24px max(56px, calc((100vw - 1200px) / 2)); display: flex; justify-content: space-between; align-items: center; gap: 20px; background: #081728; color: #c3d0e0; font-size: 14px; }
-.download-footer img { width: 145px; height: auto; }
-@media (max-width: 800px) {
-  .download-hero { min-height: 600px; background-position: 68% center; }
-  .download-hero::before { background: linear-gradient(90deg, rgba(5,17,31,.9), rgba(5,17,31,.4)), linear-gradient(0deg, rgba(5,17,31,.87), rgba(5,17,31,.1) 75%); }
-  .download-header, .download-hero-inner, .download-install-inner { width: calc(100% - 48px); }
-  .download-header { min-height: 82px; }
-  .download-brand img { width: 150px; }
-  .download-copy { padding: 85px 0 65px; }
-  .download-copy h1 { font-size: clamp(48px, 8vw, 70px); }
-  .download-install-inner { padding: 80px 0; grid-template-columns: 1fr; gap: 42px; }
-  .download-footer { padding: 28px 24px; }
+
+/* Velo solo donde va el texto; el resto de la foto se ve completa. */
+.download-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(5, 14, 26, 0.55) 0%, transparent 22%),
+    linear-gradient(0deg, rgba(5, 14, 26, 0.7) 0%, transparent 40%),
+    linear-gradient(90deg, rgba(5, 14, 26, 0.82) 0%, rgba(5, 14, 26, 0.5) 34%, transparent 64%);
 }
-@media (max-width: 480px) {
-  .download-hero { min-height: 580px; background-image: url('../../assets/media/backgrounds/maqui_trace_download_hero_mobile.webp'); background-position: 65% center; }
-  .download-hero::before { background: linear-gradient(90deg, rgba(5,17,31,.88), rgba(5,17,31,.5)), linear-gradient(0deg, rgba(5,17,31,.94), rgba(5,17,31,.08) 75%); }
-  .download-header, .download-hero-inner, .download-install-inner { width: calc(100% - 40px); }
-  .download-header { min-height: 74px; gap: 12px; }
-  .download-brand img { width: 130px; }
-  .download-panel-link { gap: 6px; font-size: 13px; white-space: nowrap; }
-  .download-copy { padding: 70px 0 60px; }
-  .download-copy h1 { font-size: clamp(43px, 11vw, 55px); }
-  .download-description { font-size: 16px; }
-  .download-primary { width: 100%; padding: 0 12px; }
-  .download-install-inner { padding: 72px 0; }
-  .download-footer { align-items: flex-start; flex-direction: column; }
+
+.download-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px 0;
+  animation: download-fade 0.8s 0.1s ease both;
+}
+
+.download-wordmark {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.download-wordmark img {
+  display: block;
+  width: 180px;
+  height: 36px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.download-admin-link {
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  backdrop-filter: blur(6px);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.download-admin-link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.download-hero-copy {
+  max-width: 760px;
+  margin-top: auto;
+  padding-bottom: clamp(56px, 11vh, 112px);
+}
+
+.download-hero h1 {
+  font-size: clamp(46px, 7vw, 104px);
+  font-weight: 800;
+  font-variation-settings: 'wdth' 104;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+.download-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+
+.download-line > span {
+  display: block;
+  animation: download-rise 0.95s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.download-line:nth-child(2) > span {
+  animation-delay: 0.14s;
+}
+
+.download-cta {
+  margin-top: 40px;
+  animation: download-fade-up 0.8s 0.5s ease both;
+}
+
+/* ───────── Botón ───────── */
+.download-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 0 30px 0 24px;
+  border-radius: 14px;
+  color: #fff;
+  background: #000;
+  /* Borde fino claro: se lee sobre la foto oscura y no estorba sobre fondo claro. */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28), 0 12px 30px rgba(0, 0, 0, 0.35);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.download-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 16px 34px rgba(0, 0, 0, 0.4);
+}
+
+.download-button:active {
+  transform: none;
+}
+
+.download-button svg {
+  flex: none;
+}
+
+.download-button-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
+.download-button-text small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.download-button-text strong {
+  margin-top: 3px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ───────── Instalación ───────── */
+.download-install {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 72px;
+  padding: 112px var(--gutter);
+  background: var(--paper);
+}
+
+.download-install-head {
+  align-self: center;
+  justify-self: center;
+  text-align: center;
+}
+
+.download-install h2 {
+  max-width: 11ch;
+  font-size: clamp(34px, 4vw, 52px);
+  font-weight: 800;
+  font-variation-settings: 'wdth' 104;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+.download-install-cta {
+  margin-top: 36px;
+}
+
+/* Los pasos sí son una secuencia: una línea los une. */
+.download-steps {
+  padding: 0;
+  list-style: none;
+}
+
+.download-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  column-gap: 28px;
+  padding-bottom: 52px;
+}
+
+.download-steps li:last-child {
+  padding-bottom: 0;
+}
+
+.download-steps li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 60px;
+  bottom: 12px;
+  left: 23px;
+  width: 2px;
+  background: var(--line);
+}
+
+.download-step-num {
+  display: grid;
+  grid-row: 1 / span 2;
+  place-items: center;
+  align-self: start;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: var(--ink);
+  background: var(--amber);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.download-steps h3 {
+  padding-top: 10px;
+  font-size: 23px;
+  font-weight: 720;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.download-steps p {
+  max-width: 44ch;
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 16.5px;
+  line-height: 1.6;
+}
+
+.download-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s ease, transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.download-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ───────── Pie ───────── */
+.download-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px var(--gutter);
+  color: rgba(255, 255, 255, 0.62);
+  background: var(--steel-950);
+  font-size: 13.5px;
+}
+
+.download-footer .download-wordmark img {
+  width: 150px;
+  height: 30px;
+}
+
+/* ───────── Animaciones ───────── */
+@keyframes download-settle {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes download-rise {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes download-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes download-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ───────── Responsive ───────── */
+@media (max-width: 900px) {
+  .download-install {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding: 80px var(--gutter);
+  }
+
+}
+
+@media (max-width: 760px) {
+  .download-hero::before {
+    background-position: 72% center;
+  }
+
+  .download-hero::after {
+    background:
+      linear-gradient(180deg, rgba(5, 14, 26, 0.6) 0%, transparent 24%),
+      linear-gradient(0deg, rgba(5, 14, 26, 0.92) 0%, rgba(5, 14, 26, 0.55) 48%, transparent 78%);
+  }
+
+  .download-wordmark img {
+    width: 150px;
+  }
+
+  .download-hero h1 {
+    font-size: clamp(40px, 12.5vw, 58px);
+  }
+
+  .download-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .download-install {
+    padding: 64px var(--gutter);
+  }
+
+  .download-steps li {
+    grid-template-columns: 44px minmax(0, 1fr);
+    column-gap: 20px;
+    padding-bottom: 40px;
+  }
+
+  .download-steps li:not(:last-child)::before {
+    top: 56px;
+    left: 21px;
+  }
+
+  .download-step-num {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  .download-steps h3 {
+    padding-top: 8px;
+    font-size: 21px;
+  }
+
+  .download-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .download-hero::before,
+  .download-nav,
+  .download-line > span,
+  .download-cta {
+    animation: none;
+  }
+
+  .download-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .download-button,
+  .download-admin-link {
+    transition: none;
+  }
 }
