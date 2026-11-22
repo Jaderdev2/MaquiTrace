@@ -51,7 +51,7 @@ export class IncidentsService {
       await notifyAdmins(transaction, {
         type: "incident_reported",
         title: "Novedad en ruta",
-        message: `Se reportó una novedad para la máquina ${incident.trip.machine.serial}.`,
+        message: `Se reportó una novedad para la máquina ${incident.trip.machine.serial}: ${incident.description}`,
         machineId: incident.trip.machineId,
         tripId,
       });
