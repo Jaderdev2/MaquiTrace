@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../core/services/push_service.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,6 +45,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (_token != null && userDataStr != null) {
         _currentUser = UserModel.fromJson(jsonDecode(userDataStr));
+        unawaited(PushService.instance.register(_token!));
       }
 
       await checkBiometricStatus();
@@ -134,6 +137,7 @@ class AuthProvider extends ChangeNotifier {
       _token = response.accessToken;
       _currentUser = response.user;
       ApiConstants.authToken = _token;
+      unawaited(PushService.instance.register(_token!));
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', _token!);
@@ -159,6 +163,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    final session = _token;
+    await PushService.instance.unregister(session);
+    ApiConstants.authToken = null;
     _currentUser = null;
     _token = null;
     _errorMessage = null;

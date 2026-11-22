@@ -1,3 +1,4 @@
+import 'core/services/push_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,8 +11,9 @@ import 'features/transport/screens/transport_home_screen.dart';
 import 'features/evidence/providers/evidence_provider.dart';
 import 'features/transport/providers/transport_provider.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await PushService.instance.initialize();
   runApp(
     MultiProvider(
       providers: [
@@ -31,6 +33,7 @@ class MaquiTraceApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MaquiTrace',
+      scaffoldMessengerKey: PushService.messengerKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

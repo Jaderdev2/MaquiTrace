@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "50980476562",
+    "project_id": "maquitrace",
+    "storage_bucket": "maquitrace.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:50980476562:android:aa86bca3a672ba4d41b84b",
+        "android_client_info": {
+          "package_name": "com.example.maquitrace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtiwmUpCwser5sff6gypZAl27kZ8AvFm8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
