@@ -21,7 +21,7 @@
   flex-direction: column;
   overflow: hidden;
   color: white;
-  background: #0b1c2c url('../../assets/media/backgrounds/maqui_trace_download_hero.png') center 60% / cover no-repeat;
+  background: #0b1c2c url('../../assets/media/backgrounds/maqui_trace_download_hero.webp') center 60% / cover no-repeat;
 }
 .download-hero::before {
   content: '';
@@ -67,7 +67,7 @@
   .download-footer { padding: 28px 24px; }
 }
 @media (max-width: 480px) {
-  .download-hero { min-height: 580px; background-position: 65% center; }
+  .download-hero { min-height: 580px; background-image: url('../../assets/media/backgrounds/maqui_trace_download_hero_mobile.webp'); background-position: 65% center; }
   .download-hero::before { background: linear-gradient(90deg, rgba(5,17,31,.88), rgba(5,17,31,.5)), linear-gradient(0deg, rgba(5,17,31,.94), rgba(5,17,31,.08) 75%); }
   .download-header, .download-hero-inner, .download-install-inner { width: calc(100% - 40px); }
   .download-header { min-height: 74px; gap: 12px; }
