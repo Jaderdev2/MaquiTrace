@@ -1,3 +1,4 @@
+import '../../../core/widgets/safe_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -688,7 +689,7 @@ class _TransportHistoryScreenState extends State<TransportHistoryScreen>
                             const SizedBox(width: 8),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
-                              child: Image.network(
+                              child: safeNetworkImage(
                                 inc.photoUrl!,
                                 width: 40,
                                 height: 40,

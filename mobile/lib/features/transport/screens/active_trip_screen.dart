@@ -1,3 +1,4 @@
+import '../../../core/widgets/safe_network_image.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -1048,7 +1049,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     const SizedBox(width: 10),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(_Ui.radiusSmall),
-                      child: Image.network(
+                      child: safeNetworkImage(
                         inc.photoUrl!,
                         width: 44,
                         height: 44,

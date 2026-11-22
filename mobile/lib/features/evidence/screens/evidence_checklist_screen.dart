@@ -1,3 +1,4 @@
+import '../../../core/widgets/safe_network_image.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -540,7 +541,7 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
                   ? Stack(
                       fit: StackFit.expand,
                       children: [
-                        Image.network(
+                        safeNetworkImage(
                           evidence.url,
                           fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => const Center(
@@ -834,7 +835,7 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
+                  safeNetworkImage(
                     item.url,
                     fit: BoxFit.cover,
                     loadingBuilder: (context, child, progress) {

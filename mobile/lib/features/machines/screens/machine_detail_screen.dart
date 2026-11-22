@@ -1,3 +1,4 @@
+import '../../../core/widgets/safe_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -966,7 +967,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                               border: Border.all(color: _Ui.border),
                             ),
                             clipBehavior: Clip.antiAlias,
-                            child: Image.network(
+                            child: safeNetworkImage(
                               ev.url,
                               fit: BoxFit.cover,
                               frameBuilder:

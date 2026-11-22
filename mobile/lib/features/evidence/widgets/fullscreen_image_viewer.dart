@@ -1,3 +1,4 @@
+import '../../../core/widgets/safe_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/evidence_model.dart';
@@ -115,7 +116,7 @@ class FullscreenImageViewer extends StatelessWidget {
                   maxScale: 5.0,
                   panEnabled: true,
                   scaleEnabled: true,
-                  child: Image.network(
+                  child: safeNetworkImage(
                     imageUrl,
                     fit: BoxFit.contain,
                     loadingBuilder: (context, child, progress) {

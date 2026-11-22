@@ -1,3 +1,4 @@
+import '../../../core/widgets/safe_network_image.dart';
 import 'package:flutter/material.dart';
 
 enum PhaseState { pending, inProgress, completed }
@@ -80,7 +81,7 @@ class MachineModel {
   /// 2. Si no tiene, usa la ilustración correspondiente a su categoría.
   Widget buildImage({BoxFit fit = BoxFit.cover, Widget? placeholder}) {
     if (hasCustomImage) {
-      return Image.network(
+      return safeNetworkImage(
         imageUrl!,
         fit: fit,
         loadingBuilder: (context, child, progress) {
