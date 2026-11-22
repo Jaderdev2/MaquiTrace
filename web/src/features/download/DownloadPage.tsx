@@ -3,7 +3,8 @@ import { Download, LogIn } from 'lucide-react';
 import brandLogo from '../../assets/media/logos/logo_bg.png';
 import './download.css';
 
-const apkUrl = import.meta.env.VITE_ANDROID_APK_URL?.trim();
+const apkUrl = import.meta.env.VITE_ANDROID_APK_URL?.trim()
+  || 'https://github.com/Jaderdev2/MaquiTrace/releases/download/v1.0.0/maquitrace-1.0.0.apk';
 
 const steps = [
   { number: '01', title: 'Descarga', text: 'Guarda el archivo APK en tu teléfono Android.' },
