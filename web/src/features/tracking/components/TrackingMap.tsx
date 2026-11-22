@@ -235,6 +235,9 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
 
       // Último punto GPS = Posición en vivo enviada desde el móvil
       const lastGps = records[records.length - 1];
+      const lastGpsTime = new Date(lastGps.recordedAt).getTime();
+      const hasRecentGps = Number.isFinite(lastGpsTime) && Date.now() - lastGpsTime < 120000;
+      const isLive = isTransit && hasRecentGps;
 
       // Verificar si tiene incidentes reportados en ruta
       const hasIncidents = trip.incidents && trip.incidents.length > 0;
@@ -242,7 +245,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
       const liveIcon = L.divIcon({
         className: 'custom-map-marker-truck',
         html: `
-          <div class="map-truck-marker-wrap ${isTransit ? 'is-pulsing' : ''}" style="--truck-color: ${truckColor};">
+          <div class="map-truck-marker-wrap ${isLive ? 'is-pulsing' : ''}" style="--truck-color: ${truckColor};">
             <div class="truck-marker-circle" style="background-color: ${truckColor} !important; border: 2.5px solid #FFFFFF; ${isRouteActive ? 'box-shadow: 0 0 0 4px #0F172A;' : ''}">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"></path>
@@ -253,7 +256,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
               </svg>
             </div>
             ${hasIncidents ? `<span class="truck-incident-badge" title="Novedades viales reportadas">!</span>` : ''}
-            ${isTransit ? `<span class="truck-radar-wave" style="background-color: ${truckColor} !important;"></span>` : ''}
+            ${isLive ? `<span class="truck-radar-wave" style="background-color: ${truckColor} !important;"></span>` : ''}
           </div>
         `,
         iconSize: [36, 36],
@@ -273,7 +276,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
               ${theme.name}
             </span>
             <span class="popup-badge" style="background-color: ${isTransit ? '#EFF6FF' : isDelivered ? '#E8F5EC' : '#FEF3C7'}; color: ${isTransit ? '#2563EB' : isDelivered ? '#15803D' : '#B45309'};">
-              ${isTransit ? 'En Tránsito (Móvil)' : isDelivered ? 'Entregado (POD)' : 'Pendiente de Salida'}
+              ${isLive ? 'En Tránsito (Móvil)' : isDelivered ? 'Entregado' : isTransit ? 'Sin GPS reciente' : 'Pendiente de Salida'}
             </span>
           </div>
           <h4 class="popup-title" style="color: ${truckColor}; margin-bottom: 2px;">${trip.vehicle}</h4>
@@ -294,7 +297,7 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
           ` : ''}
 
           <div class="popup-gps-meta">
-            <span>Último reporte GPS: <strong>${lastGps.latitude.toFixed(4)}, ${lastGps.longitude.toFixed(4)}</strong> (${records.length} transmisiones)</span>
+            <span>Último reporte GPS: <strong>${lastGps.latitude.toFixed(4)}, ${lastGps.longitude.toFixed(4)}</strong> (${new Date(lastGps.recordedAt).toLocaleString('es-CO')})</span>
           </div>
 
           <div class="popup-actions-row">

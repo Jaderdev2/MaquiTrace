@@ -1,10 +1,13 @@
+import { IsLatitude, IsLongitude } from 'class-validator';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripStatus } from '@prisma/client';
 
-export interface RecordGpsDto {
-  latitude: number;
-  longitude: number;
+export class RecordGpsDto {
+  @IsLatitude()
+  latitude!: number;
+  @IsLongitude()
+  longitude!: number;
 }
 
 @Injectable()

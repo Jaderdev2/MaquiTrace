@@ -1,3 +1,4 @@
+import 'package:geolocator/geolocator.dart';
 import '../../../core/widgets/safe_network_image.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -67,7 +68,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   // Posición actual del panel, para que los botones del mapa lo sigan
   final ValueNotifier<double> _sheetExtent = ValueNotifier<double>(_Ui.sheetInitial);
 
-  int _gpsStep = 0;
+
 
   // Corredor de transporte de maquinaria pesada Pacífico - Valle (fallback referencial)
   final List<ll.LatLng> _defaultFallbackWaypoints = [
@@ -135,7 +136,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
   ll.LatLng _truckPosition(TripModel trip) {
     final gps = trip.lastGps;
-    if (gps != null && gps.latitude != 0 && gps.longitude != 0) {
+    if (gps != null) {
       return ll.LatLng(gps.latitude, gps.longitude);
     }
     return _defaultFallbackWaypoints.first;
@@ -162,7 +163,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
         _realRoutePoints = route.points;
       } else {
         _route = null;
-        _realRoutePoints = _defaultFallbackWaypoints;
+        _realRoutePoints = [];
       }
     });
 
@@ -191,7 +192,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       }
     });
 
-    // Transmisión periódica automática cada 45 segundos en segundo plano
+    // Envia GPS cada 45 segundos mientras esta pantalla permanece activa.
     _periodicGpsTimer = Timer.periodic(const Duration(seconds: 45), (_) {
       if (mounted && _currentTrip.isInTransit) {
         _transmitGpsLocation(context.read<TransportProvider>(), silent: true);
@@ -212,40 +213,37 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   Future<void> _transmitGpsLocation(TransportProvider provider, {bool silent = false}) async {
-    if (_isSendingGps && silent) return;
-
-    if (!silent) {
-      setState(() => _isSendingGps = true);
-    }
-
-    ll.LatLng coords;
-    if (_realRoutePoints.isNotEmpty) {
-      final stepIndex = (_gpsStep * 120) % _realRoutePoints.length;
-      coords = _realRoutePoints[stepIndex];
-    } else {
-      coords = _defaultFallbackWaypoints[_gpsStep % _defaultFallbackWaypoints.length];
-    }
-    _gpsStep++;
-
-    final success = await provider.updateGps(
-      tripId: _currentTrip.id,
-      latitude: coords.latitude,
-      longitude: coords.longitude,
-    );
-
-    if (mounted) {
-      if (!silent) {
-        setState(() => _isSendingGps = false);
+    if (_isSendingGps || !_currentTrip.isInTransit) return;
+    setState(() => _isSendingGps = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw StateError('Activa la ubicación del teléfono.');
       }
-      if (success && !silent) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: _Ui.success,
-            behavior: SnackBarBehavior.floating,
-            content: Text('Ubicación actualizada'),
-          ),
-        );
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
       }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        throw StateError('Permite el acceso a la ubicación para compartir tu posición.');
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 20)),
+      );
+      if (!mounted || !_currentTrip.isInTransit) return;
+      final success = await provider.updateGps(
+        tripId: _currentTrip.id,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      if (!success) throw StateError('No se pudo enviar la ubicación. Revisa tu conexión.');
+      if (mounted) {
+        setState(() => _currentTrip = _getUpdatedTrip(provider));
+        if (!silent) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ubicación actualizada')));
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))));
+    } finally {
+      if (mounted) setState(() => _isSendingGps = false);
     }
   }
 
@@ -370,7 +368,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   Widget _buildMap(TripModel trip) {
     final truckPos = _truckPosition(trip);
     final destPos = _destinationCoords ?? _defaultFallbackWaypoints.last;
-    final polylinePoints = _realRoutePoints.isNotEmpty ? _realRoutePoints : _defaultFallbackWaypoints;
+    final polylinePoints = _realRoutePoints;
 
     return FlutterMap(
       mapController: _mapController,
@@ -426,7 +424,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 child: const Icon(Icons.flag_rounded, color: Colors.white, size: 19),
               ),
             ),
-            Marker(
+            if (trip.lastGps != null) Marker(
               point: truckPos,
               width: 44,
               height: 44,

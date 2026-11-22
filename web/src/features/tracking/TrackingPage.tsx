@@ -76,7 +76,7 @@ export const TrackingPage: React.FC = () => {
       setError(null);
 
       const [tripsData, machinesData, usersData] = await Promise.all([
-        fetchTripsApi(token).catch(() => fetchActiveTripsApi(token).catch(() => [])),
+        fetchTripsApi(token).catch(() => fetchActiveTripsApi(token)),
         fetchMachinesApi(token).catch(() => []),
         fetchUsersApi('transportador', token).catch(() => []),
       ]);
@@ -93,21 +93,13 @@ export const TrackingPage: React.FC = () => {
         setTrips(enriched);
         setIsDemoMode(false);
       } else {
-        const enriched = MOCK_TRIPS.map((t, idx) => ({
-          ...t,
-          color: t.color || TRIP_PALETTE[idx % TRIP_PALETTE.length].primary,
-        }));
-        setTrips(enriched);
-        setIsDemoMode(true);
+        setTrips([]);
+        setIsDemoMode(false);
       }
     } catch (err: any) {
       setError(err.message || 'Error al conectar con el servicio de transporte.');
-      const enriched = MOCK_TRIPS.map((t, idx) => ({
-        ...t,
-        color: t.color || TRIP_PALETTE[idx % TRIP_PALETTE.length].primary,
-      }));
-      setTrips(enriched);
-      setIsDemoMode(true);
+      setTrips([]);
+      setIsDemoMode(false);
     } finally {
       setLoading(false);
     }
@@ -121,7 +113,7 @@ export const TrackingPage: React.FC = () => {
       if (!isDemoMode && token) {
         fetchTripsApi(token)
           .then((freshTrips) => {
-            if (freshTrips && freshTrips.length > 0) {
+            if (freshTrips) {
               setTrips((prev) =>
                 freshTrips.map((fresh, idx) => {
                   const existing = prev.find((p) => p.id === fresh.id);
