@@ -147,12 +147,6 @@ class TransportProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Confirmar entrega de maquinaria en backend
-      final deliveredTrip = await _service.markDelivered(
-        machineId: machineId,
-        token: token,
-      );
-
       // 2. Registrar el acta POD con firma/foto como reporte oficial
       final podDesc = StringBuffer('ACTA DE ENTREGA DIGITAL (POD):')
         ..write('\n• Recibido por: $receiverName')
@@ -167,18 +161,18 @@ class TransportProvider extends ChangeNotifier {
         podDesc.write('\n• Observaciones: $notes');
       }
 
-      // Subir foto o firma como evidencia de entrega si existe
-      final fileToAttach = deliveryPhotoFile ?? signatureFile;
-      try {
+      if (signatureFile == null) throw StateError('La firma es obligatoria.');
+      await _service.reportIncident(
+        tripId: tripId, description: podDesc.toString(),
+        photoFile: signatureFile, token: token,
+      );
+      if (deliveryPhotoFile != null) {
         await _service.reportIncident(
-          tripId: tripId,
-          description: podDesc.toString(),
-          photoFile: fileToAttach,
-          token: token,
+          tripId: tripId, description: 'Foto de entrega: $receiverName',
+          photoFile: deliveryPhotoFile, token: token,
         );
-      } catch (_) {
-        // Respaldo para no bloquear si la subida del archivo falla por red débil
       }
+      final deliveredTrip = await _service.markDelivered(machineId: machineId, token: token);
 
       final index = _trips.indexWhere(
         (t) => t.id == deliveredTrip.id || t.machineId == machineId,

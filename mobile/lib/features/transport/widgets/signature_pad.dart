@@ -34,38 +34,54 @@ class SignaturePadState extends State<SignaturePad> {
   Future<Uint8List?> exportPngBytes({int width = 400, int height = 200}) async {
     if (!hasSignature) return null;
 
+    final all = [..._strokes, if (_currentStroke.isNotEmpty) _currentStroke];
+    final points = all.expand((stroke) => stroke).toList();
+    if (points.isEmpty) return null;
+    var left = points.first.dx;
+    var right = left;
+    var top = points.first.dy;
+    var bottom = top;
+    for (final point in points) {
+      if (point.dx < left) left = point.dx;
+      if (point.dx > right) right = point.dx;
+      if (point.dy < top) top = point.dy;
+      if (point.dy > bottom) bottom = point.dy;
+    }
+    final bounds = Rect.fromLTRB(left, top, right, bottom).inflate(12);
+    final scaleX = width / bounds.width;
+    final scaleY = height / bounds.height;
+    final scale = scaleX < scaleY ? scaleX : scaleY;
     final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()));
-
-    // Fondo blanco
-    final bgPaint = Paint()..color = Colors.white;
-    canvas.drawRect(Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()), bgPaint);
-
-    // Trazo de firma azul oscuro industrial
+    final canvas = Canvas(recorder);
+    canvas.drawColor(Colors.white, BlendMode.src);
+    canvas.translate((width - bounds.width * scale) / 2, (height - bounds.height * scale) / 2);
+    canvas.scale(scale);
+    canvas.translate(-bounds.left, -bounds.top);
     final strokePaint = Paint()
       ..color = const Color(0xFF0F172A)
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..strokeWidth = 3.5
+      ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
-
-    final all = [..._strokes];
-    if (_currentStroke.isNotEmpty) all.add(_currentStroke);
-
     for (final stroke in all) {
-      if (stroke.length < 2) continue;
-      final path = Path();
-      path.moveTo(stroke.first.dx, stroke.first.dy);
-      for (int i = 1; i < stroke.length; i++) {
-        path.lineTo(stroke[i].dx, stroke[i].dy);
+      if (stroke.isEmpty) continue;
+      if (stroke.length == 1) {
+        canvas.drawCircle(stroke.first, 1.5, Paint()..color = const Color(0xFF0F172A));
+        continue;
+      }
+      final path = Path()..moveTo(stroke.first.dx, stroke.first.dy);
+      for (final point in stroke.skip(1)) {
+        path.lineTo(point.dx, point.dy);
       }
       canvas.drawPath(path, strokePaint);
     }
-
     final picture = recorder.endRecording();
     final image = await picture.toImage(width, height);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    return byteData?.buffer.asUint8List();
+    final bytes = byteData?.buffer.asUint8List();
+    image.dispose();
+    picture.dispose();
+    return bytes;
   }
 
   @override

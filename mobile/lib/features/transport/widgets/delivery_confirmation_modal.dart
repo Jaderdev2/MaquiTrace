@@ -26,7 +26,7 @@ class _DeliveryConfirmationModalState extends State<DeliveryConfirmationModal> {
 
   final _nameController = TextEditingController();
   final _docController = TextEditingController();
-  final _roleController = TextEditingController(text: 'Residente de obra');
+  final _roleController = TextEditingController();
   final _phoneController = TextEditingController();
   final _notesController = TextEditingController();
 
@@ -69,7 +69,7 @@ class _DeliveryConfirmationModalState extends State<DeliveryConfirmationModal> {
         maxHeight: 1600,
         imageQuality: 85,
       );
-      if (picked != null) {
+      if (picked != null && mounted) {
         setState(() {
           _deliveryPhoto = File(picked.path);
         });
@@ -112,6 +112,7 @@ class _DeliveryConfirmationModalState extends State<DeliveryConfirmationModal> {
 
     try {
       final signatureFile = await _saveSignatureToFile();
+      if (signatureFile == null) throw StateError('No se pudo guardar la firma. Intenta de nuevo.');
       if (!mounted) return;
       final provider = context.read<TransportProvider>();
 
@@ -164,445 +165,82 @@ class _DeliveryConfirmationModalState extends State<DeliveryConfirmationModal> {
     final machine = widget.trip.machine;
     final mediaQuery = MediaQuery.of(context);
 
-    return Container(
-      constraints: BoxConstraints(maxHeight: mediaQuery.size.height * 0.92),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle superior
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 10, bottom: 6),
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFCBD5E1),
-                borderRadius: BorderRadius.circular(2),
-              ),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+        child: SizedBox(
+          height: mediaQuery.size.height * 0.88 - mediaQuery.viewInsets.bottom,
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 8, 12),
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Confirmar entrega', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+                  Text(machine?.serial ?? 'Maquinaria', style: const TextStyle(color: AppColors.textSecondary)),
+                ])),
+                IconButton(tooltip: 'Cerrar', onPressed: _isSubmitting ? null : () => Navigator.pop(context), icon: const Icon(Icons.close)),
+              ]),
             ),
-          ),
-
-          // Cabecera del Bottom Sheet
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 12, 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5EC),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.assignment_turned_in_rounded, color: Color(0xFF15803D), size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Acta Oficial de Entrega (POD)',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        '${machine?.model ?? "Maquinaria"} · Serial ${machine?.serial ?? "N/A"}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
-                  onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
-          // Contenido con scroll
-          Expanded(
-            child: SingleChildScrollView(
+            const Divider(height: 1),
+            Expanded(child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Destino confirmado
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.place_outlined, color: AppColors.accentBlue, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              widget.trip.destination,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // SECCIÓN 1: DATOS DE QUIEN RECIBE
-                    const Row(
-                      children: [
-                        Icon(Icons.person_outline_rounded, size: 18, color: AppColors.textPrimary),
-                        SizedBox(width: 6),
-                        Text(
-                          '1. Datos de quien recibe en obra',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: _inputDecoration(
-                        label: 'Nombre y apellido de quien recibe *',
-                        hint: 'Ej. Ing. Carlos Mendoza',
-                      ),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa el nombre del receptor' : null,
-                    ),
-                    const SizedBox(height: 10),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _docController,
-                            keyboardType: TextInputType.number,
-                            decoration: _inputDecoration(
-                              label: 'Cédula / Documento *',
-                              hint: 'Ej. 1114829302',
-                            ),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _roleController,
-                            decoration: _inputDecoration(
-                              label: 'Cargo / Rol',
-                              hint: 'Residente / Jefe patio',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: _inputDecoration(
-                        label: 'Teléfono de contacto (opcional)',
-                        hint: 'Ej. 315 889 0012',
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // SECCIÓN 2: FIRMA DIGITAL CON PANTALLA DEDICADA
-                    const Row(
-                      children: [
-                        Icon(Icons.draw_rounded, size: 18, color: AppColors.textPrimary),
-                        SizedBox(width: 6),
-                        Text(
-                          '2. Firma digital del receptor *',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Se abre en pantalla completa para que la persona firme con el dedo cómodamente:',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 10),
-
-                    if (_signatureBytes != null) ...[
-                      // Previsualización de la firma capturada
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF15803D), width: 1.5),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.verified_rounded, size: 16, color: Color(0xFF15803D)),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Firma digital capturada',
-                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
-                                    ),
-                                  ],
-                                ),
-                                TextButton.icon(
-                                  style: TextButton.styleFrom(
-                                    minimumSize: const Size(0, 30),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  ),
-                                  icon: const Icon(Icons.edit_rounded, size: 14),
-                                  label: const Text('Volver a firmar', style: TextStyle(fontSize: 12)),
-                                  onPressed: _openSignatureScreen,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              height: 100,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Image.memory(
-                                _signatureBytes!,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else ...[
-                      // Botón para abrir la pantalla de firma
-                      InkWell(
-                        onTap: _openSignatureScreen,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: AppColors.accentBlue.withValues(alpha: 0.5),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.draw_rounded, color: AppColors.accentBlue, size: 24),
-                              SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Pulsar aquí para firmar con el dedo',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.accentBlue,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Abre el lienzo amplio en pantalla completa',
-                                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-
-                    // SECCIÓN 3: FOTO DE ENTREGA
-                    const Row(
-                      children: [
-                        Icon(Icons.camera_alt_outlined, size: 18, color: AppColors.textPrimary),
-                        SizedBox(width: 6),
-                        Text(
-                          '3. Foto de entrega en obra (Respaldo)',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Fotografía del equipo descargado en el sitio de destino:',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 10),
-
-                    if (_deliveryPhoto != null) ...[
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              _deliveryPhoto!,
-                              height: 140,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Positioned(
-                            top: 6,
-                            right: 6,
-                            child: InkWell(
-                              onTap: () => setState(() => _deliveryPhoto = null),
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.close_rounded, size: 18, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                    ] else ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textPrimary,
-                                side: const BorderSide(color: Color(0xFFCBD5E1)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                minimumSize: const Size.fromHeight(42),
-                              ),
-                              icon: const Icon(Icons.photo_camera_rounded, size: 18),
-                              label: const Text('Tomar foto', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              onPressed: () => _pickDeliveryPhoto(ImageSource.camera),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textPrimary,
-                                side: const BorderSide(color: Color(0xFFCBD5E1)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                minimumSize: const Size.fromHeight(42),
-                              ),
-                              icon: const Icon(Icons.photo_library_outlined, size: 18),
-                              label: const Text('Galería', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              onPressed: () => _pickDeliveryPhoto(ImageSource.gallery),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-
-                    // SECCIÓN 4: OBSERVACIONES
-                    const Text(
-                      '4. Observaciones finales de entrega',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _notesController,
-                      maxLines: 2,
-                      decoration: _inputDecoration(
-                        label: 'Novedades / Horómetro / Combustible',
-                        hint: 'Ej. Maquinaria recibida a entera conformidad. Sin novedades.',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Botones fijos inferiores del sheet
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textSecondary,
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                      child: const Text('Cancelar'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF15803D),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      icon: _isSubmitting
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.verified_rounded, size: 20),
-                      label: Text(
-                        _isSubmitting ? 'Registrando...' : 'Finalizar Entrega',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                      ),
-                      onPressed: _isSubmitting ? null : _handleSubmit,
-                    ),
-                  ),
+              child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text(widget.trip.destination, style: const TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+                const SizedBox(height: 24),
+                const Text('Persona que recibe', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 16),
+                TextFormField(controller: _nameController, decoration: _inputDecoration(label: 'Nombre completo', hint: ''),
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Ingresa el nombre' : null),
+                const SizedBox(height: 16),
+                TextFormField(controller: _docController, keyboardType: TextInputType.text,
+                  decoration: _inputDecoration(label: 'Documento', hint: ''),
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Ingresa el documento' : null),
+                const SizedBox(height: 16),
+                TextFormField(controller: _roleController, decoration: _inputDecoration(label: 'Cargo (opcional)', hint: '')),
+                const SizedBox(height: 16),
+                TextFormField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: _inputDecoration(label: 'Teléfono (opcional)', hint: '')),
+                const SizedBox(height: 28),
+                Row(children: [
+                  const Expanded(child: Text('Firma de quien recibe', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
+                  if (_signatureBytes != null) TextButton(onPressed: _isSubmitting ? null : _openSignatureScreen, child: const Text('Volver a firmar')),
+                ]),
+                const SizedBox(height: 12),
+                if (_signatureBytes != null)
+                  Container(
+                    height: 180, padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFCBD5E1)), borderRadius: BorderRadius.circular(10)),
+                    child: Image.memory(_signatureBytes!, fit: BoxFit.contain, gaplessPlayback: true),
+                  )
+                else
+                  OutlinedButton.icon(onPressed: _isSubmitting ? null : _openSignatureScreen,
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(64)),
+                    icon: const Icon(Icons.draw_outlined), label: const Text('Agregar firma')),
+                const SizedBox(height: 28),
+                const Text('Foto de entrega (opcional)', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                if (_deliveryPhoto != null) ...[
+                  ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_deliveryPhoto!, height: 180, fit: BoxFit.cover)),
+                  TextButton(onPressed: () => setState(() => _deliveryPhoto = null), child: const Text('Quitar foto')),
                 ],
+                Wrap(spacing: 12, children: [
+                  OutlinedButton.icon(onPressed: _isSubmitting ? null : () => _pickDeliveryPhoto(ImageSource.camera), icon: const Icon(Icons.camera_alt_outlined), label: const Text('Tomar foto')),
+                  TextButton.icon(onPressed: _isSubmitting ? null : () => _pickDeliveryPhoto(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined), label: const Text('Galería')),
+                ]),
+                const SizedBox(height: 24),
+                TextFormField(controller: _notesController, maxLines: 3, decoration: _inputDecoration(label: 'Observaciones (opcional)', hint: '')),
+              ])),
+            )),
+            Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 16), child: SizedBox(
+              width: double.infinity, height: 52,
+              child: FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppColors.accentBlue),
+                onPressed: _isSubmitting ? null : _handleSubmit,
+                child: _isSubmitting ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Confirmar entrega'),
               ),
-            ),
-          ),
-        ],
+            )),
+          ]),
+        ),
       ),
     );
   }
