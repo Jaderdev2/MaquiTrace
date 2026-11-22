@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../constants/api_constants.dart';
 
@@ -24,16 +25,19 @@ class PushService {
       _available = true;
       _messageSubscription = FirebaseMessaging.onMessage.listen((message) {
         if (_session == null) return;
-        messengerKey.currentState?.showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Tienes una nueva notificación. Consulta la bandeja.',
-            ),
-          ),
-        );
+        unawaited(_showForegroundNotification());
       });
     } catch (error) {
       debugPrint('No se pudo iniciar Firebase: $error');
+    }
+  }
+
+  Future<void> _showForegroundNotification() async {
+    try {
+      await const MethodChannel('maquitrace/notifications')
+          .invokeMethod<bool>('showForegroundNotification');
+    } catch (error) {
+      debugPrint('No se pudo mostrar la notificación: $error');
     }
   }
 
