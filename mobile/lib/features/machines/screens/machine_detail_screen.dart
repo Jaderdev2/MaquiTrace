@@ -229,11 +229,15 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     PreparationPhaseModel phase,
     bool isLocked,
   ) {
-    if (isLocked) return (label: 'Bloqueada', fg: _Ui.locked, bg: _Ui.lockedBg);
-    if (phase.isCompleted)
+    if (isLocked) {
+      return (label: 'Bloqueada', fg: _Ui.locked, bg: _Ui.lockedBg);
+    }
+    if (phase.isCompleted) {
       return (label: 'Completada', fg: _Ui.success, bg: _Ui.successBg);
-    if (phase.isInProgress)
+    }
+    if (phase.isInProgress) {
       return (label: 'En proceso', fg: _Ui.info, bg: _Ui.infoBg);
+    }
     return (label: 'Pendiente', fg: _Ui.warning, bg: _Ui.warningBg);
   }
 
