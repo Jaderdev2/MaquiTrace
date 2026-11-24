@@ -60,9 +60,18 @@ export class IncidentsService {
   }
 
   async findByTrip(tripId: string) {
-    return this.prisma.incident.findMany({
+    const list = await this.prisma.incident.findMany({
       where: { tripId },
       orderBy: { reportedAt: "desc" },
     });
+    return Promise.all(
+      list.map(async (inc) => {
+        if (inc.photoUrl) {
+          inc.photoUrl =
+            (await this.ociStorage.ensureFreshUrl(inc.photoUrl)) || inc.photoUrl;
+        }
+        return inc;
+      }),
+    );
   }
 }

@@ -9,6 +9,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { MachineStatus, TripStatus } from "@prisma/client";
 import { IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { OciStorageService } from "../evidence/oci-storage.service";
 
 export class ReceiveTransportDto {
   @IsString()
@@ -43,7 +44,36 @@ export class UpdateTransportDto {
 
 @Injectable()
 export class TransportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ociStorage: OciStorageService,
+  ) {}
+
+  private async attachFreshTripUrls(trip: any) {
+    if (!trip) return trip;
+    if (trip.machine) {
+      if (trip.machine.imageUrl) {
+        trip.machine.imageUrl = await this.ociStorage.ensureFreshUrl(
+          trip.machine.imageUrl,
+        );
+      }
+      if (Array.isArray(trip.machine.evidence)) {
+        for (const ev of trip.machine.evidence) {
+          if (ev.url) {
+            ev.url = await this.ociStorage.ensureFreshUrl(ev.url);
+          }
+        }
+      }
+    }
+    if (Array.isArray(trip.incidents)) {
+      for (const inc of trip.incidents) {
+        if (inc.photoUrl) {
+          inc.photoUrl = await this.ociStorage.ensureFreshUrl(inc.photoUrl);
+        }
+      }
+    }
+    return trip;
+  }
 
   // El administrador asigna un conductor y programa el despacho.
   async receiveMachine(machineId: string, dto: ReceiveTransportDto) {
@@ -232,83 +262,121 @@ export class TransportService {
   }
 
   async getActiveTrips() {
-    return this.prisma.transportTrip.findMany({
+    const list = await this.prisma.transportTrip.findMany({
       where: {
         status: { in: [TripStatus.pendiente, TripStatus.en_transito] },
       },
       include: {
-        machine: true,
+        machine: {
+          include: {
+            evidence: { include: { uploader: true, phase: true } },
+            phases: true,
+          },
+        },
         transporter: true,
         gpsRecords: {
           take: 1,
           orderBy: { recordedAt: "desc" },
         },
+        incidents: {
+          orderBy: { reportedAt: "desc" },
+        },
       },
     });
+    return Promise.all(list.map((t) => this.attachFreshTripUrls(t)));
   }
 
   async getTransporterTrips(transporterId: string) {
-    return this.prisma.transportTrip.findMany({
+    const list = await this.prisma.transportTrip.findMany({
       where: { transporterId },
       include: {
-        machine: true,
+        machine: {
+          include: {
+            evidence: { include: { uploader: true, phase: true } },
+            phases: true,
+          },
+        },
         transporter: true,
         gpsRecords: {
           take: 1,
           orderBy: { recordedAt: "desc" },
         },
-        incidents: true,
+        incidents: {
+          orderBy: { reportedAt: "desc" },
+        },
       },
       orderBy: { id: "desc" },
     });
+    return Promise.all(list.map((t) => this.attachFreshTripUrls(t)));
   }
 
   async getActiveTripByMachine(machineId: string) {
-    return this.prisma.transportTrip.findFirst({
+    const trip = await this.prisma.transportTrip.findFirst({
       where: {
         machineId,
         status: { in: [TripStatus.pendiente, TripStatus.en_transito] },
       },
       include: {
-        machine: true,
+        machine: {
+          include: {
+            evidence: { include: { uploader: true, phase: true } },
+            phases: true,
+          },
+        },
         transporter: true,
         gpsRecords: {
           take: 1,
           orderBy: { recordedAt: "desc" },
         },
-        incidents: true,
+        incidents: {
+          orderBy: { reportedAt: "desc" },
+        },
       },
       orderBy: { id: "desc" },
     });
+    return this.attachFreshTripUrls(trip);
   }
 
   async getTripById(id: string) {
     const trip = await this.prisma.transportTrip.findUnique({
       where: { id },
       include: {
-        machine: true,
+        machine: {
+          include: {
+            evidence: { include: { uploader: true, phase: true } },
+            phases: true,
+          },
+        },
         transporter: true,
         gpsRecords: { orderBy: { recordedAt: "asc" } },
-        incidents: true,
+        incidents: { orderBy: { reportedAt: "desc" } },
       },
     });
     if (!trip) throw new NotFoundException(`Viaje con ID ${id} no encontrado`);
-    return trip;
+    return this.attachFreshTripUrls(trip);
   }
 
   // Listar todos los viajes sin restricción de estado para CRUD completo
   async getAllTrips() {
-    return this.prisma.transportTrip.findMany({
+    const list = await this.prisma.transportTrip.findMany({
       include: {
-        machine: true,
+        machine: {
+          include: {
+            evidence: { include: { uploader: true, phase: true } },
+            phases: true,
+          },
+        },
         transporter: true,
         gpsRecords: {
           orderBy: { recordedAt: "asc" },
         },
-        incidents: true,
+        incidents: {
+          orderBy: { reportedAt: "desc" },
+        },
       },
       orderBy: { id: "desc" },
     });
+    return Promise.all(list.map((t) => this.attachFreshTripUrls(t)));
   }
 
   // Solo el administrador actualiza la asignación y los datos de ruta.
