@@ -101,21 +101,22 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
     return null;
   }
 
-  /// Inicia el flujo de captura con cámara y compresión
+  /// Inicia el flujo de captura con cámara o subida desde galería y compresión para un ángulo específico
   Future<void> _captureEvidence({
     required RequiredAngle angle,
+    ImageSource source = ImageSource.camera,
     bool isVideo = false,
   }) async {
     try {
       XFile? picked;
       if (isVideo) {
         picked = await _picker.pickVideo(
-          source: ImageSource.camera,
+          source: source,
           maxDuration: const Duration(seconds: 30),
         );
       } else {
         picked = await _picker.pickImage(
-          source: ImageSource.camera,
+          source: source,
           imageQuality: 100,
         );
       }
@@ -616,7 +617,7 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
           ),
           const SizedBox(width: 10),
 
-          // Botones de acción ergonómicos (mínimo 48dp de alto)
+          // Botones de acción en cada apartado: Tomar (Cámara) y Subir (Galería)
           if (isDone)
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -625,33 +626,66 @@ class _EvidenceChecklistScreenState extends State<EvidenceChecklistScreen> {
                   tooltip: 'Ver foto completa',
                   onPressed: () => FullscreenImageViewer.openFromModel(context, evidence),
                   icon: const Icon(Icons.visibility_outlined, size: 20, color: AppColors.textSecondary),
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 48),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 44),
                 ),
                 IconButton(
-                  tooltip: 'Tomar de nuevo',
-                  onPressed: () => _captureEvidence(angle: angle),
-                  icon: const Icon(Icons.restart_alt_rounded, size: 20, color: AppColors.accentBlue),
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 48),
+                  tooltip: 'Tomar foto con cámara',
+                  onPressed: () => _captureEvidence(angle: angle, source: ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt_outlined, size: 20, color: AppColors.accentBlue),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 44),
+                ),
+                IconButton(
+                  tooltip: 'Subir foto desde galería',
+                  onPressed: () => _captureEvidence(angle: angle, source: ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined, size: 20, color: AppColors.accentBlue),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 44),
                 ),
               ],
             )
           else
-            SizedBox(
-              height: 38,
-              child: FilledButton.icon(
-                onPressed: () => _captureEvidence(angle: angle),
-                icon: const Icon(Icons.camera_alt_rounded, size: 16),
-                label: const Text('Tomar'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accentBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                SizedBox(
+                  width: 98,
+                  height: 34,
+                  child: FilledButton.icon(
+                    onPressed: () => _captureEvidence(angle: angle, source: ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt_rounded, size: 15),
+                    label: const Text('Tomar'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.accentBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
                   ),
-                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
-              ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: 98,
+                  height: 34,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _captureEvidence(angle: angle, source: ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library_outlined, size: 15),
+                    label: const Text('Subir'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.accentBlue,
+                      side: const BorderSide(color: Color(0xFFBFDBFE)),
+                      backgroundColor: const Color(0xFFEFF6FF),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ),
         ],
       ),
