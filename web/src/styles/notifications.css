@@ -1,11 +1,324 @@
-.notifications-wrapper { position: relative; }
-.notifications-trigger { position: relative; min-width: 48px; min-height: 48px; display: grid; place-items: center; border: 0; background: transparent; color: #0f172a; cursor: pointer; }
-.notifications-count { position: absolute; top: 2px; right: 0; min-width: 20px; padding: 2px 4px; border-radius: 10px; background: #b91c1c; color: white; font-size: 11px; font-weight: 700; }
-.notifications-panel { position: absolute; z-index: 100; right: 0; top: 100%; width: min(380px, 90vw); max-height: 70vh; overflow: auto; background: white; border: 1px solid #cbd5e1; border-radius: 10px; box-shadow: 0 8px 24px #0f172a22; color: #0f172a; }
-.notifications-heading { padding: 16px; display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; }
-.notifications-panel button:not(.notifications-trigger) { background: none; border: 0; color: #1d4ed8; cursor: pointer; min-height: 36px; }
-.notifications-status { padding: 16px; color: #475569; }
-.notification-item { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }
-.notification-item.unread { border-left: 3px solid #2563eb; background: #f5f8ff; }
-.notification-item p { margin: 6px 0; color: #334155; }
-.notification-item time { display: block; color: #475569; font-size: 12px; }
+/* ==========================================================================
+   MAQUITRACE - PANEL MINIMALISTA DE NOTIFICACIONES CON COLORES PASTEL
+   ========================================================================== */
+
+.notifications-wrapper {
+  position: relative;
+}
+
+.notifications-trigger {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.notifications-trigger:hover,
+.notifications-trigger.is-open {
+  background: #EFF6FF;
+  border-color: #BFDBFE;
+  color: #0066FF;
+}
+
+.notifications-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #EF4444;
+  color: #FFFFFF;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
+}
+
+.notifications-panel {
+  position: absolute;
+  z-index: 120;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(370px, 92vw);
+  max-height: 74vh;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px -10px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.05);
+  color: #0F172A;
+  overflow: hidden;
+  animation: notifSlideIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes notifSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notifications-heading {
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #F1F5F9;
+  background: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.notifications-heading-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notifications-heading-left strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.notifications-unread-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.notifications-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notif-icon-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #64748B;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notif-icon-action-btn:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+.notifications-status {
+  padding: 16px;
+  font-size: 12.5px;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notif-retry-btn {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1D4ED8;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.notifications-empty-box {
+  padding: 28px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #94A3B8;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.notifications-list {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: calc(74vh - 56px);
+}
+
+/* Tarjeta minimalista de notificación con paleta pastel */
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.notification-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05);
+}
+
+.notification-item.is-read {
+  opacity: 0.76;
+}
+
+/* 5 Tonos Pastel Suaves */
+.notification-item.pastel-sky {
+  background-color: #F0F7FF;
+  border-color: #DBEAFE;
+}
+.notification-item.pastel-sky .notif-pastel-icon {
+  background-color: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.notification-item.pastel-mint {
+  background-color: #ECFDF5;
+  border-color: #D1FAE5;
+}
+.notification-item.pastel-mint .notif-pastel-icon {
+  background-color: #D1FAE5;
+  color: #047857;
+}
+
+.notification-item.pastel-rose {
+  background-color: #FFF1F2;
+  border-color: #FFE4E6;
+}
+.notification-item.pastel-rose .notif-pastel-icon {
+  background-color: #FFE4E6;
+  color: #BE123C;
+}
+
+.notification-item.pastel-lavender {
+  background-color: #F5F3FF;
+  border-color: #EDE9FE;
+}
+.notification-item.pastel-lavender .notif-pastel-icon {
+  background-color: #EDE9FE;
+  color: #6D28D9;
+}
+
+.notification-item.pastel-peach {
+  background-color: #FFFBEB;
+  border-color: #FEF3C7;
+}
+.notification-item.pastel-peach .notif-pastel-icon {
+  background-color: #FEF3C7;
+  color: #B45309;
+}
+
+.notif-pastel-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.notif-content-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.notif-top-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.notif-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0F172A;
+  line-height: 1.25;
+}
+
+.notif-unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2563EB;
+  flex-shrink: 0;
+}
+
+.notif-message {
+  margin: 0;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.38;
+}
+
+.notif-footer-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.notif-time {
+  font-size: 10.5px;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.notif-mark-read-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #334155;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notif-mark-read-btn:hover {
+  background: #FFFFFF;
+  color: #0066FF;
+  border-color: #93C5FD;
+}

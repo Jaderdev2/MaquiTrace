@@ -194,12 +194,23 @@ export const UsersPage: React.FC = () => {
     return (user.role as string) || 'Usuario';
   };
 
-  const getInitials = (name: string): string => {
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  // Renderiza el ícono de perfil correspondiente al rol del usuario (Operador, Transporte o Admin)
+  const renderRoleAvatarIcon = (roleName: string, size: number = 20) => {
+    const r = roleName.toLowerCase();
+    if (r.includes('operario') || r.includes('operador') || r.includes('operator')) {
+      return <Wrench size={size} strokeWidth={2.2} />;
     }
-    return name.slice(0, 2).toUpperCase();
+    if (r.includes('transportador') || r.includes('transporte') || r.includes('driver')) {
+      return <Truck size={size} strokeWidth={2.2} />;
+    }
+    return <ShieldCheck size={size} strokeWidth={2.2} />;
+  };
+
+  const getRoleAvatarClass = (roleName: string): string => {
+    const r = roleName.toLowerCase();
+    if (r.includes('operario') || r.includes('operador')) return 'role-operario';
+    if (r.includes('transportador') || r.includes('transporte')) return 'role-transportador';
+    return 'role-admin';
   };
 
   // Métricas
@@ -400,8 +411,11 @@ export const UsersPage: React.FC = () => {
                         <tr key={u.id}>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div className={`user-avatar-circle role-${roleName.toLowerCase()}`}>
-                                {getInitials(u.name)}
+                              <div
+                                className={`user-avatar-circle ${getRoleAvatarClass(roleName)}`}
+                                title={`Perfil de ${roleName}`}
+                              >
+                                {renderRoleAvatarIcon(roleName, 19)}
                               </div>
                               <div>
                                 <span style={{ fontWeight: 700, color: '#0F172A', display: 'block' }}>
@@ -471,8 +485,12 @@ export const UsersPage: React.FC = () => {
                 return (
                   <div key={u.id} className="machine-card-item" style={{ padding: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
-                      <div className={`user-avatar-circle role-${roleName.toLowerCase()}`} style={{ width: '48px', height: '48px', fontSize: '16px' }}>
-                        {getInitials(u.name)}
+                      <div
+                        className={`user-avatar-circle ${getRoleAvatarClass(roleName)}`}
+                        style={{ width: '48px', height: '48px' }}
+                        title={`Perfil de ${roleName}`}
+                      >
+                        {renderRoleAvatarIcon(roleName, 23)}
                       </div>
                       <div>
                         <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', margin: 0 }}>

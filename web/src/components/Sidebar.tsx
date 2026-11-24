@@ -6,9 +6,8 @@ import {
   ClipboardCheck,
   Navigation,
   Users,
-  FileText,
-  Settings,
-  HelpCircle,
+  Download,
+  UsersRound,
 } from 'lucide-react';
 import logoImg from '../assets/media/logos/logo.png';
 
@@ -34,12 +33,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'alistamientos', label: 'Alistamientos', icon: ClipboardCheck, path: '/alistamientos' },
     { id: 'seguimiento', label: 'Seguimiento', icon: Navigation, path: '/seguimiento' },
     { id: 'usuarios', label: 'Usuarios', icon: Users, path: '/usuarios' },
-    { id: 'evidencias', label: 'Evidencias e informes', icon: FileText, path: '/evidencias' },
   ];
 
   const secondaryNavItems = [
-    { id: 'configuracion', label: 'Configuración', icon: Settings, path: '/configuracion' },
-    { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, path: '/ayuda' },
+    { id: 'descargar', label: 'Descargar App (APK)', icon: Download, path: '/descargar' },
+    { id: 'equipo', label: 'Creadores del Proyecto', icon: UsersRound, path: '/equipo' },
   ];
 
   const handleItemClick = (id: string, path: string) => {

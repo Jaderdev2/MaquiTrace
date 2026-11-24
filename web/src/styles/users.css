@@ -1,33 +1,51 @@
 /* ==========================================================================
-   MAQUITRACE - GESTIÓN DE USUARIOS Y ROLES
+   MAQUITRACE - GESTIÓN DE USUARIOS Y ROLES (AVATARES CON ICONO POR ROL)
    ========================================================================== */
 
 .user-avatar-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #0F172A, #334155);
-  color: #FFFFFF;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+  color: #1D4ED8;
+  border: 1.5px solid #BFDBFE;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 14px;
   flex-shrink: 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.user-avatar-circle.role-admin {
-  background: linear-gradient(135deg, #1E293B, #0F172A);
-  border: 2px solid #E2E8F0;
+.user-avatar-circle:hover {
+  transform: translateY(-1px) scale(1.04);
 }
 
+/* Administrador: Escudo / Seguridad en Verde Esmeralda / Índigo */
+.user-avatar-circle.role-admin,
+.user-avatar-circle.role-administrador {
+  background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+  color: #047857;
+  border: 1.5px solid #A7F3D0;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.16);
+}
+
+/* Operario de Taller: Herramienta en Ámbar Industrial */
 .user-avatar-circle.role-operario {
-  background: linear-gradient(135deg, #D97706, #B45309);
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  color: #B45309;
+  border: 1.5px solid #FDE68A;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.16);
 }
 
+/* Transportador en Ruta: Camión en Azul Logístico */
 .user-avatar-circle.role-transportador {
-  background: linear-gradient(135deg, #0284C7, #0369A1);
+  background: linear-gradient(135deg, #EFF6FF 0%, #E0F2FE 100%);
+  color: #0284C7;
+  border: 1.5px solid #BAE6FD;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.16);
 }
 
 .user-role-badge {
@@ -41,10 +59,11 @@
   text-transform: capitalize;
 }
 
-.user-role-badge.admin {
-  background-color: #F1F5F9;
-  color: #0F172A;
-  border: 1px solid #CBD5E1;
+.user-role-badge.admin,
+.user-role-badge.administrador {
+  background-color: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
 }
 
 .user-role-badge.operario {

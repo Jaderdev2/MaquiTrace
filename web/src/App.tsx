@@ -8,10 +8,43 @@ import { PreparationPage } from './features/preparation/PreparationPage';
 import { TrackingPage } from './features/tracking/TrackingPage';
 import { UsersPage } from './features/users/UsersPage';
 import { DownloadPage } from './features/download/DownloadPage';
-import { Loader2 } from 'lucide-react';
+import { Sidebar } from './components/Sidebar';
+import { Navbar } from './components/Navbar';
+import { Loader2, UsersRound } from 'lucide-react';
 import { RouteProgressBar } from './components/RouteProgressBar';
 import { isAdminUser } from './utils/auth';
 import './App.css';
+
+const ProjectTeamPlaceholder: React.FC = () => {
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [search, setSearch] = React.useState('');
+  return (
+    <div className="machines-page-layout">
+      <Sidebar
+        currentTab="equipo"
+        onSelectTab={() => {}}
+        isOpen={sidebarOpen}
+        onCloseMobile={() => setSidebarOpen(false)}
+      />
+      <div className="machines-main-wrapper">
+        <Navbar
+          onToggleSidebar={() => setSidebarOpen((p) => !p)}
+          searchValue={search}
+          onSearchChange={setSearch}
+        />
+        <main className="machines-content-area">
+          <div className="empty-machines-banner" style={{ marginTop: '32px' }}>
+            <UsersRound size={42} color="#0066FF" />
+            <span className="empty-machines-title">Creadores del Proyecto MaquiTrace</span>
+            <p className="empty-machines-sub">
+              Apartado preparado para presentar al equipo de desarrollo del proyecto.
+            </p>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
 
 /**
  * Componente para proteger rutas privadas (Dashboard, Maquinarias, etc.)
@@ -131,6 +164,16 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ruta protegida: Equipo creador del proyecto */}
+          <Route
+            path="/equipo"
+            element={
+              <ProtectedRoute>
+                <ProjectTeamPlaceholder />
               </ProtectedRoute>
             }
           />
