@@ -83,7 +83,15 @@ export const MOCK_TRIPS: TransportTrip[] = [
       {
         id: 'inc-demo-1',
         tripId: 'trip-demo-01',
-        description: 'Parada técnica de 25 min en estación de servicio de Buga para verificación de tensión de cadenas.',
+        description: '[Salida] Salida autorizada de patio portuario TCBUEN con carga asegurada.',
+        photoUrl: 'https://images.unsplash.com/photo-1581094288338-2314dddb7ece?auto=format&fit=crop&w=800&q=80',
+        reportedAt: new Date(Date.now() - 7.4 * 3600 * 1000).toISOString(),
+      },
+      {
+        id: 'inc-demo-1b',
+        tripId: 'trip-demo-01',
+        description: '[Derrumbe] Paso controlado a un carril por derrumbe menor en sector Loboguerrero - Cisneros.',
+        photoUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18615f8?auto=format&fit=crop&w=800&q=80',
         reportedAt: new Date(Date.now() - 3.5 * 3600 * 1000).toISOString(),
       },
     ],
@@ -150,7 +158,8 @@ export const MOCK_TRIPS: TransportTrip[] = [
       {
         id: 'inc-demo-2',
         tripId: 'trip-demo-02',
-        description: 'Paso alternado por mantenimiento de calzada en el tramo Chinchiná - Irra (demora de 20 min).',
+        description: '[Cierre de vía / Derrumbe] Paso alternado por remoción de derrumbe en el tramo Chinchiná - Irra (demora de 20 min).',
+        photoUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80',
         reportedAt: new Date(Date.now() - 0.8 * 3600 * 1000).toISOString(),
       },
     ],

@@ -263,6 +263,35 @@ export const TrackingPage: React.FC = () => {
   const deliveredTrips = trips.filter((t) => t.status === 'entregado').length;
   const totalIncidents = trips.reduce((acc, t) => acc + (t.incidents?.length || 0), 0);
 
+  // Resuelve y enriquece la maquinaria del viaje cruzando con el catálogo completo (que incluye imageUrl fresca de OCI, evidencias y fases)
+  const resolveTripMachine = useCallback(
+    (trip: TransportTrip | null | undefined): Machine | undefined => {
+      if (!trip) return undefined;
+      const fromCatalog = machines.find(
+        (m) =>
+          m.id === trip.machineId ||
+          (trip.machine?.id && m.id === trip.machine.id) ||
+          (trip.machine?.serial && m.serial === trip.machine.serial)
+      );
+      if (!fromCatalog) return trip.machine;
+      if (!trip.machine) return fromCatalog;
+      return {
+        ...trip.machine,
+        ...fromCatalog,
+        imageUrl: fromCatalog.imageUrl || trip.machine.imageUrl,
+        evidence:
+          fromCatalog.evidence && fromCatalog.evidence.length > 0
+            ? fromCatalog.evidence
+            : trip.machine.evidence,
+        phases:
+          fromCatalog.phases && fromCatalog.phases.length > 0
+            ? fromCatalog.phases
+            : trip.machine.phases,
+      };
+    },
+    [machines]
+  );
+
   // Filtrado reactivo
   const filteredTrips = useMemo(() => {
     return trips.filter((t) => {
@@ -521,7 +550,7 @@ export const TrackingPage: React.FC = () => {
               ) : (
                 <div className="machines-card-grid tracking-cards-grid">
                   {filteredTrips.map((trip, index) => {
-                    const machine = trip.machine || machines.find((m) => m.id === trip.machineId);
+                    const machine = resolveTripMachine(trip);
                     const isTransit = trip.status === 'en_transito';
                     const isDelivered = trip.status === 'entregado';
                     const gpsCount = trip.gpsRecords?.length || 0;
@@ -543,58 +572,25 @@ export const TrackingPage: React.FC = () => {
                           boxShadow: selectedTrip?.id === trip.id ? `0 0 0 3px ${theme.glow}` : undefined,
                         }}
                       >
-                        {/* Cabecera de la Tarjeta con Vehículo y Estado */}
+                        {/* Cabecera de la Tarjeta: Estado + Acciones CRUD arriba, Vehículo a ancho completo abajo */}
                         <div className="tracking-trip-header">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div
-                              className="trip-vehicle-icon-box"
-                              style={{
-                                backgroundColor: theme.light,
-                                color: theme.primary,
-                                borderColor: theme.border,
-                              }}
-                            >
-                              <Truck size={20} />
-                            </div>
-                            <div>
-                              <strong className="trip-card-vehicle-name">{trip.vehicle || 'Vehículo de Carga'}</strong>
-                              <span className="trip-card-dest-sub">
-                                <MapPin size={11} style={{ display: 'inline', marginRight: '3px' }} />
-                                {trip.destination}
+                          <div className="tracking-trip-header-top">
+                            <div className="tracking-trip-badges-wrap">
+                              <span
+                                className={`pill-badge ${
+                                  isTransit
+                                    ? 'pill-status-transit'
+                                    : isDelivered
+                                    ? 'pill-status-ready'
+                                    : 'pill-status-pending'
+                                }`}
+                                style={{ whiteSpace: 'nowrap' }}
+                              >
+                                {trip.status.replace('_', ' ')}
                               </span>
                             </div>
-                          </div>
 
-                          <div className="tracking-trip-badge-row">
-                            {/* Badge con el Color Distintivo (Idéntico al del Modal y Mapa) */}
-                            <span
-                              className="popup-badge"
-                              style={{
-                                backgroundColor: theme.badgeBg,
-                                color: theme.badgeText,
-                                fontWeight: 700,
-                                fontSize: '11px',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                              }}
-                              title={`Color de trazado y telemetría: ${theme.name}`}
-                            >
-                              {theme.name}
-                            </span>
-
-                            <span
-                              className={`pill-badge ${
-                                isTransit
-                                  ? 'pill-status-transit'
-                                  : isDelivered
-                                  ? 'pill-status-ready'
-                                  : 'pill-status-pending'
-                              }`}
-                            >
-                              {trip.status.replace('_', ' ')}
-                            </span>
-
-                            {/* Acciones Rápidas CRUD: Editar y Eliminar */}
+                            {/* Acciones Rápidas CRUD: Editar y Eliminar siempre visibles en la esquina superior derecha */}
                             <div className="card-quick-actions-group">
                               <button
                                 type="button"
@@ -605,7 +601,7 @@ export const TrackingPage: React.FC = () => {
                                 }}
                                 title="Editar viaje de transporte"
                               >
-                                <Edit3 size={13} />
+                                <Edit3 size={14} />
                               </button>
                               <button
                                 type="button"
@@ -616,8 +612,30 @@ export const TrackingPage: React.FC = () => {
                                 }}
                                 title="Eliminar registro de viaje"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={14} />
                               </button>
+                            </div>
+                          </div>
+
+                          <div className="tracking-trip-header-main">
+                            <div
+                              className="trip-vehicle-icon-box"
+                              style={{
+                                backgroundColor: theme.light,
+                                color: theme.primary,
+                                borderColor: theme.border,
+                              }}
+                            >
+                              <Truck size={20} />
+                            </div>
+                            <div className="tracking-trip-title-col">
+                              <strong className="trip-card-vehicle-name">
+                                {trip.vehicle || 'Vehículo de Carga'}
+                              </strong>
+                              <span className="trip-card-dest-sub">
+                                <MapPin size={12} style={{ flexShrink: 0, color: theme.primary }} />
+                                <span>{trip.destination}</span>
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -744,7 +762,7 @@ export const TrackingPage: React.FC = () => {
       {selectedTrip && (
         <TripDetailsModal
           trip={selectedTrip}
-          machine={selectedTrip.machine || machines.find((m) => m.id === selectedTrip.machineId)}
+          machine={resolveTripMachine(selectedTrip)}
           onClose={() => setSelectedTrip(null)}
           onEdit={() => {
             const tripToEdit = selectedTrip;

@@ -44,7 +44,7 @@ export interface Evidence {
     id?: string;
     name?: string;
     email?: string;
-    role?: string;
+    role?: string | { id?: string; name?: string };
   };
   observations?: string;
 }
