@@ -23,13 +23,14 @@
   border-radius: 20px;
   width: 100%;
   max-width: 680px;
-  max-height: 90vh;
+  max-height: 88vh;
   height: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.03);
   animation: modalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  margin: auto;
 }
 
 .machine-detail-modal-content {
@@ -153,27 +154,34 @@
   color: #0F172A;
 }
 
-/* Formulario que encapsula cuerpo y footer para CRUD: aplica a cualquier form directo dentro de modal-content */
-.modal-content > form,
+/* Formulario que encapsula cuerpo y footer para CRUD: aplica a cualquier form contenedor dentro de modal-content */
+.modal-content > form:not(.modal-body),
 .register-machine-form {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  height: 100%;
+}
+
+/* Si el form mismo tiene la clase modal-body, permitirle scroll directo */
+.modal-content > form.modal-body {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(88vh - 85px);
+  overflow-y: auto !important;
 }
 
 /* Cuerpo del modal: con scroll interno suave y padding óptimo */
 .modal-body {
   flex: 1;
   min-height: 0;
-  max-height: calc(90vh - 135px);
-  overflow-y: auto;
-  padding: 24px;
+  max-height: calc(88vh - 140px);
+  overflow-y: auto !important;
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
   -webkit-overflow-scrolling: touch;
 }
 

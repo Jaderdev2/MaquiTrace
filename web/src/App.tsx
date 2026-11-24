@@ -14,6 +14,7 @@ import { Loader2, UsersRound } from 'lucide-react';
 import { RouteProgressBar } from './components/RouteProgressBar';
 import { isAdminUser } from './utils/auth';
 import './App.css';
+import './styles/modal.css';
 
 const ProjectTeamPlaceholder: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);

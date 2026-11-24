@@ -102,97 +102,99 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-body new-trip-form">
-          {error && (
-            <div className="register-alert error">
-              <AlertCircle size={16} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Maquinaria asignada (informativo con validación de alistamiento) */}
-          <div className="trip-card-section-box">
-            <span className="trip-card-section-label">Maquinaria Asignada</span>
-            <div className="trip-card-section-content">
-              <strong className="trip-machine-label-text">
-                {trip.machine ? `${trip.machine.model} (${trip.machine.serial})` : 'Maquinaria en transporte'}
-              </strong>
-              <span
-                className={`pill-badge ${readiness.canDepart ? 'pill-status-ready' : 'pill-status-process'}`}
-                style={{ fontSize: '10.5px' }}
-              >
-                {readiness.badgeLabel}
-              </span>
-            </div>
-            {!readiness.canDepart && (
-              <div className="transit-readiness-warning-box" style={{ marginTop: '8px' }}>
-                <ShieldAlert size={15} className="warning-icon" />
-                <div>
-                  <strong>Alistamiento en Taller no finalizado:</strong>
-                  <p>{readiness.reason}</p>
-                </div>
+        <form onSubmit={handleSubmit} className="register-machine-form">
+          <div className="modal-body new-trip-form">
+            {error && (
+              <div className="register-alert error">
+                <AlertCircle size={16} />
+                <span>{error}</span>
               </div>
             )}
-          </div>
 
-          {/* Vehículo y Placa */}
-          <div className="form-group-field">
-            <label htmlFor="editVehicleInput" className="field-label">
-              Vehículo de Carga y Placa *
-            </label>
-            <div className="input-with-icon-wrap">
-              <Truck size={16} className="input-leading-icon" />
-              <input
-                id="editVehicleInput"
-                type="text"
-                className="form-input-custom has-leading-icon"
-                value={vehicle}
-                onChange={(e) => setVehicle(e.target.value)}
-                disabled={loading || isDeleting}
-                required
-              />
+            {/* Maquinaria asignada (informativo con validación de alistamiento) */}
+            <div className="trip-card-section-box">
+              <span className="trip-card-section-label">Maquinaria Asignada</span>
+              <div className="trip-card-section-content">
+                <strong className="trip-machine-label-text">
+                  {trip.machine ? `${trip.machine.model} (${trip.machine.serial})` : 'Maquinaria en transporte'}
+                </strong>
+                <span
+                  className={`pill-badge ${readiness.canDepart ? 'pill-status-ready' : 'pill-status-process'}`}
+                  style={{ fontSize: '10.5px' }}
+                >
+                  {readiness.badgeLabel}
+                </span>
+              </div>
+              {!readiness.canDepart && (
+                <div className="transit-readiness-warning-box" style={{ marginTop: '8px' }}>
+                  <ShieldAlert size={15} className="warning-icon" />
+                  <div>
+                    <strong>Alistamiento en Taller no finalizado:</strong>
+                    <p>{readiness.reason}</p>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Destino Oficial */}
-          <div className="form-group-field">
-            <label htmlFor="editDestinationInput" className="field-label">
-              Destino Oficial de Entrega *
-            </label>
-            <div className="input-with-icon-wrap">
-              <MapPin size={16} className="input-leading-icon" />
-              <input
-                id="editDestinationInput"
-                type="text"
-                className="form-input-custom has-leading-icon"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                disabled={loading || isDeleting}
-                required
-              />
+            {/* Vehículo y Placa */}
+            <div className="form-group-field">
+              <label htmlFor="editVehicleInput" className="field-label">
+                Vehículo de Carga y Placa *
+              </label>
+              <div className="input-with-icon-wrap">
+                <Truck size={16} className="input-leading-icon" />
+                <input
+                  id="editVehicleInput"
+                  type="text"
+                  className="form-input-custom has-leading-icon"
+                  value={vehicle}
+                  onChange={(e) => setVehicle(e.target.value)}
+                  disabled={loading || isDeleting}
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Conductor Asignado */}
-          <div className="form-group-field">
-            <label htmlFor="editTransporterSelect" className="field-label">
-              Conductor / Transportador Asignado
-            </label>
-            <div className="input-with-icon-wrap">
-              <UserIcon size={16} className="input-leading-icon" />
-              <select
-                id="editTransporterSelect"
-                className="form-select-custom has-leading-icon"
-                value={transporterId}
-                onChange={(e) => setTransporterId(e.target.value)}
-                disabled={loading || isDeleting}
-              >
-                {transporters.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.phone || t.email})
-                  </option>
-                ))}
-              </select>
+            {/* Destino Oficial */}
+            <div className="form-group-field">
+              <label htmlFor="editDestinationInput" className="field-label">
+                Destino Oficial de Entrega *
+              </label>
+              <div className="input-with-icon-wrap">
+                <MapPin size={16} className="input-leading-icon" />
+                <input
+                  id="editDestinationInput"
+                  type="text"
+                  className="form-input-custom has-leading-icon"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  disabled={loading || isDeleting}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Conductor Asignado */}
+            <div className="form-group-field">
+              <label htmlFor="editTransporterSelect" className="field-label">
+                Conductor / Transportador Asignado
+              </label>
+              <div className="input-with-icon-wrap">
+                <UserIcon size={16} className="input-leading-icon" />
+                <select
+                  id="editTransporterSelect"
+                  className="form-select-custom has-leading-icon"
+                  value={transporterId}
+                  onChange={(e) => setTransporterId(e.target.value)}
+                  disabled={loading || isDeleting}
+                >
+                  {transporters.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.phone || t.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -202,8 +204,6 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '16px 0 0 0',
-              marginTop: '16px',
             }}
           >
             <button

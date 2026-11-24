@@ -96,140 +96,142 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-body new-trip-form">
-          {error && (
-            <div className="register-alert error">
-              <AlertCircle size={16} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Selección de Maquinaria con validación de estado */}
-          <div className="form-group-field">
-            <label htmlFor="machineSelect" className="field-label">
-              Maquinaria para Transporte *
-            </label>
-            <select
-              id="machineSelect"
-              className="form-select-custom"
-              value={selectedMachineId}
-              onChange={(e) => setSelectedMachineId(e.target.value)}
-              disabled={loading}
-              required
-            >
-              <option value="">-- Seleccionar maquinaria --</option>
-              {availableMachines.map((m) => {
-                const mReadiness = checkMachineTransitReadiness(m);
-                const isBusy = isMachineInActiveTrip(m.id, existingTrips);
-                return (
-                  <option key={m.id} value={m.id} disabled={isBusy}>
-                    {isBusy ? '🚫 [En viaje activo] ' : mReadiness.canDepart ? '✅ [Alistamiento Listo] ' : '⏳ [En Taller] '}
-                    {m.model} (Serial: {m.serial}) · {m.category}
-                  </option>
-                );
-              })}
-            </select>
-
-            {/* Aviso reactivo si la máquina seleccionada aún no terminó alistamiento */}
-            {readiness && !readiness.canDepart && (
-              <div className="transit-readiness-warning-box">
-                <ShieldAlert size={18} className="warning-icon" />
-                <div>
-                  <strong>Aviso de Alistamiento Técnico en Taller:</strong>
-                  <p>{readiness.reason}</p>
-                  <span>
-                    El despacho quedará registrado como "Pendiente", pero el botón <strong>"Marcar Salida"</strong> permanecerá bloqueado hasta que el taller apruebe el alistamiento.
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Alerta de bloqueo si ya está en otro viaje */}
-            {isAlreadyActive && (
-              <div className="register-alert error" style={{ marginTop: '8px' }}>
+        <form onSubmit={handleSubmit} className="register-machine-form">
+          <div className="modal-body new-trip-form">
+            {error && (
+              <div className="register-alert error">
                 <AlertCircle size={16} />
-                <span>Esta máquina ya tiene un viaje activo en curso. No puede registrarse dos veces.</span>
+                <span>{error}</span>
               </div>
             )}
-          </div>
 
-          {/* Conductor / Transportador */}
-          <div className="form-group-field">
-            <label htmlFor="transporterSelect" className="field-label">
-              Conductor Asignado *
-            </label>
-            <select
-              id="transporterSelect"
-              className="form-select-custom"
-              value={selectedTransporterId}
-              onChange={(e) => setSelectedTransporterId(e.target.value)}
-              disabled={loading}
-              required
-            >
-              <option value="">-- Seleccionar transportador --</option>
-              {transporters.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.phone || t.email})
-                </option>
-              ))}
-            </select>
-            {transporters.length === 0 && (
-              <span className="field-help-text">Registra primero un usuario con rol de transportador.</span>
-            )}
-          </div>
+            {/* Selección de Maquinaria con validación de estado */}
+            <div className="form-group-field">
+              <label htmlFor="machineSelect" className="field-label">
+                Maquinaria para Transporte *
+              </label>
+              <select
+                id="machineSelect"
+                className="form-select-custom"
+                value={selectedMachineId}
+                onChange={(e) => setSelectedMachineId(e.target.value)}
+                disabled={loading}
+                required
+              >
+                <option value="">-- Seleccionar maquinaria --</option>
+                {availableMachines.map((m) => {
+                  const mReadiness = checkMachineTransitReadiness(m);
+                  const isBusy = isMachineInActiveTrip(m.id, existingTrips);
+                  return (
+                    <option key={m.id} value={m.id} disabled={isBusy}>
+                      {isBusy ? '🚫 [En viaje activo] ' : mReadiness.canDepart ? '✅ [Alistamiento Listo] ' : '⏳ [En Taller] '}
+                      {m.model} (Serial: {m.serial}) · {m.category}
+                    </option>
+                  );
+                })}
+              </select>
 
-          {/* Vehículo / Placa */}
-          <div className="form-group-field">
-            <label htmlFor="vehicleInput" className="field-label">
-              Vehículo de Carga y Placa *
-            </label>
-            <input
-              id="vehicleInput"
-              type="text"
-              className="form-input-custom"
-              placeholder="Ej: Camión Cama Baja Kenworth T800 (Placa: WKK-482)"
-              value={vehicle}
-              onChange={(e) => setVehicle(e.target.value)}
-              disabled={loading}
-              required
-            />
-            {/* Opciones rápidas */}
-            <div className="quick-suggestions-row">
-              <span className="suggestion-label">Sugerencias:</span>
-              {quickVehicles.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  className="btn-quick-suggestion"
-                  onClick={() => setVehicle(v)}
-                >
-                  {v.split('(')[0].trim()}
-                </button>
-              ))}
+              {/* Aviso reactivo si la máquina seleccionada aún no terminó alistamiento */}
+              {readiness && !readiness.canDepart && (
+                <div className="transit-readiness-warning-box">
+                  <ShieldAlert size={18} className="warning-icon" />
+                  <div>
+                    <strong>Aviso de Alistamiento Técnico en Taller:</strong>
+                    <p>{readiness.reason}</p>
+                    <span>
+                      El despacho quedará registrado como "Pendiente", pero el botón <strong>"Marcar Salida"</strong> permanecerá bloqueado hasta que el taller apruebe el alistamiento.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Alerta de bloqueo si ya está en otro viaje */}
+              {isAlreadyActive && (
+                <div className="register-alert error" style={{ marginTop: '8px' }}>
+                  <AlertCircle size={16} />
+                  <span>Esta máquina ya tiene un viaje activo en curso. No puede registrarse dos veces.</span>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Destino Oficial */}
-          <div className="form-group-field">
-            <label htmlFor="destinationInput" className="field-label">
-              Destino Oficial de Entrega (Obra / Cliente) *
-            </label>
-            <div className="input-with-icon-wrap">
-              <MapPin size={16} className="input-leading-icon" />
+            {/* Conductor / Transportador */}
+            <div className="form-group-field">
+              <label htmlFor="transporterSelect" className="field-label">
+                Conductor Asignado *
+              </label>
+              <select
+                id="transporterSelect"
+                className="form-select-custom"
+                value={selectedTransporterId}
+                onChange={(e) => setSelectedTransporterId(e.target.value)}
+                disabled={loading}
+                required
+              >
+                <option value="">-- Seleccionar transportador --</option>
+                {transporters.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.phone || t.email})
+                  </option>
+                ))}
+              </select>
+              {transporters.length === 0 && (
+                <span className="field-help-text">Registra primero un usuario con rol de transportador.</span>
+              )}
+            </div>
+
+            {/* Vehículo / Placa */}
+            <div className="form-group-field">
+              <label htmlFor="vehicleInput" className="field-label">
+                Vehículo de Carga y Placa *
+              </label>
               <input
-                id="destinationInput"
+                id="vehicleInput"
                 type="text"
-                className="form-input-custom has-leading-icon"
-                placeholder="Ej: Proyecto Autopista al Mar 1, Tramo 3 - Medellín, Antioquia"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
+                className="form-input-custom"
+                placeholder="Ej: Camión Cama Baja Kenworth T800 (Placa: WKK-482)"
+                value={vehicle}
+                onChange={(e) => setVehicle(e.target.value)}
                 disabled={loading}
                 required
               />
+              {/* Opciones rápidas */}
+              <div className="quick-suggestions-row">
+                <span className="suggestion-label">Sugerencias:</span>
+                {quickVehicles.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className="btn-quick-suggestion"
+                    onClick={() => setVehicle(v)}
+                  >
+                    {v.split('(')[0].trim()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Destino Oficial */}
+            <div className="form-group-field">
+              <label htmlFor="destinationInput" className="field-label">
+                Destino Oficial de Entrega (Obra / Cliente) *
+              </label>
+              <div className="input-with-icon-wrap">
+                <MapPin size={16} className="input-leading-icon" />
+                <input
+                  id="destinationInput"
+                  type="text"
+                  className="form-input-custom has-leading-icon"
+                  placeholder="Ej: Proyecto Autopista al Mar 1, Tramo 3 - Medellín, Antioquia"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+              </div>
             </div>
           </div>
 
-          <div className="modal-footer" style={{ padding: '16px 0 0 0', marginTop: '16px' }}>
+          <div className="modal-footer">
             <button type="button" className="btn-secondary" onClick={onClose} disabled={loading}>
               Cancelar
             </button>
