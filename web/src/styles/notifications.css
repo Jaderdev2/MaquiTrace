@@ -86,6 +86,66 @@
   flex-shrink: 0;
 }
 
+.notifications-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #F8FAFC;
+  border-bottom: 1px solid #F1F5F9;
+  flex-shrink: 0;
+}
+
+.notif-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notif-filter-chip:hover {
+  border-color: #CBD5E1;
+  color: #0F172A;
+}
+
+.notif-filter-chip.active {
+  background: #0F172A;
+  border-color: #0F172A;
+  color: #FFFFFF;
+}
+
+.notif-role-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.notif-role-tag.role-operario {
+  background: rgba(217, 119, 6, 0.14);
+  color: #92400E;
+}
+
+.notif-role-tag.role-transportador {
+  background: rgba(2, 132, 199, 0.14);
+  color: #075985;
+}
+
+.notif-role-tag.role-sistema {
+  background: rgba(100, 116, 139, 0.14);
+  color: #475569;
+}
+
 .notifications-heading-left {
   display: flex;
   align-items: center;

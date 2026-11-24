@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EvidenceType } from '@prisma/client';
 import { OciStorageService } from './oci-storage.service';
 import { UploadedFileDto } from './evidence.types';
+import { notifyAdmins } from '../notifications/notification-events';
 
 export interface RegisterEvidenceDto {
   machineId: string;
@@ -76,6 +77,15 @@ export class EvidenceService {
         phase: true,
       },
     });
+
+    const uploaderName = evidence.uploader?.name || 'Operario';
+    const phaseLabel = evidence.phase?.name ? ` (${evidence.phase.name})` : '';
+    await notifyAdmins(this.prisma, {
+      type: 'evidence_uploaded',
+      title: `Evidencia registrada${phaseLabel}`,
+      message: `${uploaderName} subió una ${evidenceType} de la máquina ${machine.model} (${machine.serial})${dto.observations ? `: ${dto.observations}` : '.'}`,
+      machineId,
+    }).catch(() => {});
 
     return {
       message: 'Evidencia multimedia subida y registrada exitosamente en OCI',

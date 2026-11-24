@@ -154,6 +154,22 @@ export class PreparationPhasesService {
         include: { operator: true, evidence: true },
       });
 
+      const machine = await transaction.machine.findUniqueOrThrow({
+        where: { id: phase.machineId },
+      });
+      const operatorName = updated.operator?.name || "Operario de taller";
+      const phaseLabel =
+        phase.name.charAt(0).toUpperCase() + phase.name.slice(1);
+      const statusLabel = dto.status.replace("_", " ");
+
+      // Notificar siempre cualquier cambio realizado por el operario en la fase
+      await notifyAdmins(transaction, {
+        type: `phase_${dto.status}`,
+        title: `Taller: ${phaseLabel} ${statusLabel}`,
+        message: `${operatorName} actualizó ${phaseLabel} en ${machine.model} (${machine.serial}) a "${statusLabel}"${updated.observations ? `: ${updated.observations}` : "."}`,
+        machineId: machine.id,
+      });
+
       // Actualizar estado general de la máquina si todas las fases quedan completadas
       if (dto.status === PhaseStatus.completada) {
         const pendingCount = await transaction.preparationPhase.count({
@@ -172,13 +188,10 @@ export class PreparationPhasesService {
             data: { status: MachineStatus.completada },
           });
           if (transition.count > 0) {
-            const machine = await transaction.machine.findUniqueOrThrow({
-              where: { id: phase.machineId },
-            });
             await notifyAdmins(transaction, {
               type: "preparation_completed",
-              title: "Alistamiento completado",
-              message: `La máquina ${machine.serial} completó el alistamiento.`,
+              title: "Alistamiento 100% completado",
+              message: `${operatorName} finalizó todas las fases de taller para la máquina ${machine.model} (${machine.serial}). Lista para despacho.`,
               machineId: machine.id,
             });
           }
