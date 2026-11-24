@@ -41,7 +41,7 @@ function DownloadButton() {
     >
       <AndroidIcon />
       <span className="download-button-text">
-        <small>Descargar APK de {apkSize || '35 MB'}</small>
+        <small>Descargar APK de {apkSize || '80 MB'}</small>
         <strong>App para Android</strong>
       </span>
     </a>
